@@ -15,6 +15,7 @@ interface SelectedStore {
 }
 
 const Index = () => {
+  console.log('Index component rendering');
   const [selectedStore, setSelectedStore] = useState<SelectedStore | null>(null);
 
   const handleStoreSelect = (store: SelectedStore) => {

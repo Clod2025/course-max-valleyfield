@@ -10,6 +10,10 @@ export function Header() {
             src="/lovable-uploads/482dd564-f9a1-48f4-bef4-6569e9c64c0b.png" 
             alt="CourseMax" 
             className="h-8 w-auto"
+            onError={(e) => {
+              console.log('Logo failed to load');
+              e.currentTarget.style.display = 'none';
+            }}
           />
           <h1 className="text-xl font-bold text-gradient">CourseMax</h1>
         </div>
