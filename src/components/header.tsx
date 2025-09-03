@@ -1,9 +1,11 @@
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { User, Menu, Home } from "lucide-react";
+import { User, Menu, Home, LogOut } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 export function Header() {
   const navigate = useNavigate();
+  const { user, signOut } = useAuth();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -36,11 +38,23 @@ export function Header() {
         </nav>
         
         <div className="flex items-center gap-2">
-          <Link to="/login">
-            <Button variant="ghost" size="icon">
-              <User className="h-5 w-5" />
-            </Button>
-          </Link>
+          {user ? (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground hidden sm:block">
+                {user.email}
+              </span>
+              <Button variant="ghost" onClick={signOut} className="flex items-center gap-2">
+                <LogOut className="h-4 w-4" />
+                <span className="hidden sm:inline">Déconnexion</span>
+              </Button>
+            </div>
+          ) : (
+            <Link to="/login">
+              <Button variant="ghost" size="icon">
+                <User className="h-5 w-5" />
+              </Button>
+            </Link>
+          )}
           <Button 
             variant="ghost" 
             size="icon" 

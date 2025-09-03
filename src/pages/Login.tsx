@@ -1,19 +1,58 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Header } from "@/components/header";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (user) {
+      navigate('/home');
+    }
+  }, [user, navigate]);
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Login attempt:', { email, password });
+    setLoading(true);
+
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Connexion réussie",
+        description: "Vous êtes maintenant connecté",
+      });
+
+      navigate('/home');
+    } catch (error: any) {
+      toast({
+        title: "Erreur de connexion",
+        description: error.message || "Une erreur est survenue lors de la connexion",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
+
 
   return (
     <div className="min-h-screen bg-background">
@@ -27,7 +66,7 @@ const Login = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
@@ -37,6 +76,7 @@ const Login = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="votre@email.com"
                   required
+                  disabled={loading}
                 />
               </div>
               
@@ -49,11 +89,12 @@ const Login = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
+                  disabled={loading}
                 />
               </div>
               
-              <Button type="submit" className="w-full gradient-primary text-white">
-                Se connecter
+              <Button type="submit" className="w-full gradient-primary text-white" disabled={loading}>
+                {loading ? "Connexion..." : "Se connecter"}
               </Button>
             </form>
             
