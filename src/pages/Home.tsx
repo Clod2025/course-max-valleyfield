@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Header } from "@/components/header";
 import { Truck, Clock, Star, MapPin, CheckCircle, Shield, Users, Zap, Package } from "lucide-react";
-import deliveryHero from "@/assets/delivery-hero.jpg";
+import deliveryCarHero from "@/assets/delivery-car-hero.jpg";
 
 const Home = () => {
   return (
@@ -15,7 +15,7 @@ const Home = () => {
         {/* Background Image with Overlay */}
         <div className="absolute inset-0">
           <img 
-            src={deliveryHero} 
+            src={deliveryCarHero} 
             alt="Livraison rapide CourseMax" 
             className="w-full h-full object-cover opacity-20"
           />
