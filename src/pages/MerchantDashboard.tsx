@@ -27,16 +27,16 @@ import {
 
 const MerchantDashboard = () => {
   const { orders, loading, updateOrderStatus } = useOrders();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const navigate = useNavigate();
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
 
   // Redirect if not merchant
   useEffect(() => {
-    if (user && user.user_metadata?.role !== 'store_manager') {
-      navigate('/');
+    if (profile && profile.role !== 'store_manager') {
+      navigate('/home');
     }
-  }, [user, navigate]);
+  }, [profile, navigate]);
 
   if (loading) {
     return (

@@ -66,16 +66,16 @@ const DriverDashboard = () => {
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDelivery, setSelectedDelivery] = useState<Delivery | null>(null);
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
   // Redirect if not driver
   useEffect(() => {
-    if (user && user.user_metadata?.role !== 'livreur') {
-      navigate('/');
+    if (profile && profile.role !== 'livreur') {
+      navigate('/home');
     }
-  }, [user, navigate]);
+  }, [profile, navigate]);
 
   const fetchDeliveries = async () => {
     try {
