@@ -1,11 +1,17 @@
 import React from 'react';
+import { Header } from "@/components/header";
 
 const Test = () => {
-  console.log('Test component rendering');
+  console.log('Test component rendering with Header');
   return (
-    <div style={{ padding: '20px', backgroundColor: '#f0f0f0' }}>
-      <h1 style={{ color: '#FF4F2E' }}>CourseMax Test</h1>
-      <p>Si vous voyez ce message, React fonctionne correctement.</p>
+    <div className="min-h-screen bg-background">
+      <Header />
+      <main className="container mx-auto px-4 py-8">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold text-primary mb-4">Test du Header</h1>
+          <p className="text-muted-foreground">Si vous voyez le header ci-dessus, il fonctionne correctement.</p>
+        </div>
+      </main>
     </div>
   );
 };
