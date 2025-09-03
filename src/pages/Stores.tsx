@@ -178,6 +178,8 @@ const Stores = () => {
           </div>
         )}
       </main>
+
+      <SiteFooter />
     </div>
   );
 };
