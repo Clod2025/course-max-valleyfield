@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Footer } from "@/components/Footer";
+import { Header } from "@/components/header";
+import { AppFooter } from "@/components/AppFooter";
 import { StoreSelector } from "@/components/store-selector";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
