@@ -2,92 +2,234 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Header } from "@/components/header";
-import { Truck, Clock, Star, MapPin } from "lucide-react";
+import { Truck, Clock, Star, MapPin, CheckCircle, Shield, Users } from "lucide-react";
 
 const Home = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
       
-      {/* Hero Section */}
-      <section className="bg-gradient-primary text-white py-20">
-        <div className="container mx-auto px-4 text-center">
-          <h1 className="text-5xl font-bold mb-6">
-            Livraison rapide à Valleyfield
-          </h1>
-          <p className="text-xl mb-8 max-w-2xl mx-auto">
-            Commandez de tous vos magasins préférés et recevez vos achats en 25-45 minutes
-          </p>
-          <div className="flex justify-center gap-4">
-            <Link to="/stores">
-              <Button size="lg" className="bg-white text-primary hover:bg-white/90">
-                Commander maintenant
-              </Button>
-            </Link>
-            <Link to="/register">
-              <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/10">
-                Créer un compte
-              </Button>
-            </Link>
+      {/* Hero Banner Section */}
+      <section className="relative overflow-hidden bg-gradient-to-br from-primary via-primary/90 to-accent text-white">
+        {/* Background Pattern */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute inset-0" style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+          }} />
+        </div>
+        
+        <div className="relative container mx-auto px-4 py-20 lg:py-32">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            {/* Left Content */}
+            <div className="space-y-8 animate-slide-up">
+              <div className="space-y-4">
+                <div className="flex items-center gap-3 mb-6">
+                  <img 
+                    src="/lovable-uploads/482dd564-f9a1-48f4-bef4-6569e9c64c0b.png" 
+                    alt="CourseMax" 
+                    className="h-12 w-auto filter drop-shadow-lg"
+                  />
+                  <h1 className="text-3xl font-bold">CourseMax</h1>
+                </div>
+                
+                <h2 className="text-5xl lg:text-6xl font-bold leading-tight">
+                  Livraison
+                  <span className="block text-accent">ultra-rapide</span>
+                  à Valleyfield
+                </h2>
+                
+                <p className="text-xl lg:text-2xl opacity-90 max-w-lg">
+                  Tous vos magasins préférés réunis en une seule app. 
+                  <strong className="text-accent"> Livraison en 25-45 minutes</strong> garantie.
+                </p>
+              </div>
+              
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Link to="/stores">
+                  <Button size="lg" className="bg-white text-primary hover:bg-white/90 shadow-lg px-8 py-4 text-lg font-semibold">
+                    Commander maintenant
+                  </Button>
+                </Link>
+                <Link to="/register">
+                  <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/10 px-8 py-4 text-lg">
+                    Créer un compte gratuit
+                  </Button>
+                </Link>
+              </div>
+              
+              {/* Trust Indicators */}
+              <div className="flex items-center gap-6 pt-4">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="w-5 h-5 text-accent" />
+                  <span className="text-sm opacity-90">100% Gratuit</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Shield className="w-5 h-5 text-accent" />
+                  <span className="text-sm opacity-90">Paiement sécurisé</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Users className="w-5 h-5 text-accent" />
+                  <span className="text-sm opacity-90">+1000 clients</span>
+                </div>
+              </div>
+            </div>
+            
+            {/* Right Content - Stats */}
+            <div className="grid grid-cols-2 gap-6 animate-fade-in" style={{ animationDelay: '0.3s' }}>
+              <Card className="bg-white/10 backdrop-blur-sm border-white/20 text-white">
+                <CardContent className="p-6 text-center">
+                  <div className="text-3xl font-bold text-accent">25-45</div>
+                  <div className="text-sm opacity-90">Minutes de livraison</div>
+                </CardContent>
+              </Card>
+              
+              <Card className="bg-white/10 backdrop-blur-sm border-white/20 text-white">
+                <CardContent className="p-6 text-center">
+                  <div className="text-3xl font-bold text-accent">15+</div>
+                  <div className="text-sm opacity-90">Magasins partenaires</div>
+                </CardContent>
+              </Card>
+              
+              <Card className="bg-white/10 backdrop-blur-sm border-white/20 text-white">
+                <CardContent className="p-6 text-center">
+                  <div className="text-3xl font-bold text-accent">24/7</div>
+                  <div className="text-sm opacity-90">Service disponible</div>
+                </CardContent>
+              </Card>
+              
+              <Card className="bg-white/10 backdrop-blur-sm border-white/20 text-white">
+                <CardContent className="p-6 text-center">
+                  <div className="text-3xl font-bold text-accent">5★</div>
+                  <div className="text-sm opacity-90">Note moyenne</div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
+        </div>
+        
+        {/* Wave separator */}
+        <div className="absolute bottom-0 left-0 right-0">
+          <svg viewBox="0 0 1200 120" preserveAspectRatio="none" className="w-full h-12 lg:h-20">
+            <path d="M0,0V46.29c47.79,22.2,103.59,32.17,158,28,70.36-5.37,136.33-33.31,206.8-37.5C438.64,32.43,512.34,53.67,583,72.05c69.27,18,138.3,24.88,209.4,13.08,36.15-6,69.85-17.84,104.45-29.34C989.49,25,1113-14.29,1200,52.47V0Z" opacity=".25" className="fill-background"></path>
+            <path d="M0,0V15.81C13,36.92,27.64,56.86,47.69,72.05,99.41,111.27,165,111,224.58,91.58c31.15-10.15,60.09-26.07,89.67-39.8,40.92-19,84.73-46,130.83-49.67,36.26-2.85,70.9,9.42,98.6,31.56,31.77,25.39,62.32,62,103.63,73,40.44,10.79,81.35-6.69,119.13-24.28s75.16-39,116.92-43.05c59.73-5.85,113.28,22.88,168.9,38.84,30.2,8.66,59,6.17,87.09-7.5,22.43-10.89,48-26.93,60.65-49.24V0Z" opacity=".5" className="fill-background"></path>
+            <path d="M0,0V5.63C149.93,59,314.09,71.32,475.83,42.57c43-7.64,84.23-20.12,127.61-26.46,59-8.63,112.48,12.24,165.56,35.4C827.93,77.22,886,95.24,951.2,90c86.53-7,172.46-45.71,248.8-84.81V0Z" className="fill-background"></path>
+          </svg>
         </div>
       </section>
 
       {/* Features Section */}
-      <section className="py-16">
+      <section className="py-20 bg-background">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-12 text-gradient">
-            Pourquoi choisir CourseMax?
-          </h2>
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold mb-4 text-gradient">
+              Pourquoi choisir CourseMax?
+            </h2>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+              La solution de livraison la plus rapide et fiable de Valleyfield
+            </p>
+          </div>
           
           <div className="grid md:grid-cols-3 gap-8">
-            <Card className="text-center">
-              <CardContent className="p-6">
-                <Truck className="w-12 h-12 text-primary mx-auto mb-4" />
-                <h3 className="text-xl font-semibold mb-2">Livraison rapide</h3>
-                <p className="text-muted-foreground">
-                  Recevez vos commandes en 25-45 minutes maximum
+            <Card className="text-center hover:shadow-coursemax transition-all duration-300 hover:scale-105 animate-slide-up">
+              <CardContent className="p-8">
+                <div className="w-16 h-16 bg-gradient-primary rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Truck className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-2xl font-semibold mb-4 text-foreground">Livraison Express</h3>
+                <p className="text-muted-foreground text-lg">
+                  Recevez vos commandes en 25-45 minutes maximum, 7 jours sur 7
                 </p>
               </CardContent>
             </Card>
             
-            <Card className="text-center">
-              <CardContent className="p-6">
-                <MapPin className="w-12 h-12 text-primary mx-auto mb-4" />
-                <h3 className="text-xl font-semibold mb-2">Tous vos magasins</h3>
-                <p className="text-muted-foreground">
-                  Épiceries, pharmacies, et plus encore en un seul endroit
+            <Card className="text-center hover:shadow-coursemax transition-all duration-300 hover:scale-105 animate-slide-up" style={{ animationDelay: '0.1s' }}>
+              <CardContent className="p-8">
+                <div className="w-16 h-16 bg-gradient-accent rounded-full flex items-center justify-center mx-auto mb-6">
+                  <MapPin className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-2xl font-semibold mb-4 text-foreground">Tous vos magasins</h3>
+                <p className="text-muted-foreground text-lg">
+                  Épiceries, pharmacies, et plus encore réunis en une seule application
                 </p>
               </CardContent>
             </Card>
             
-            <Card className="text-center">
-              <CardContent className="p-6">
-                <Star className="w-12 h-12 text-primary mx-auto mb-4" />
-                <h3 className="text-xl font-semibold mb-2">Service de qualité</h3>
-                <p className="text-muted-foreground">
-                  Livreurs professionnels et service client réactif
+            <Card className="text-center hover:shadow-coursemax transition-all duration-300 hover:scale-105 animate-slide-up" style={{ animationDelay: '0.2s' }}>
+              <CardContent className="p-8">
+                <div className="w-16 h-16 bg-gradient-primary rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Star className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-2xl font-semibold mb-4 text-foreground">Service Premium</h3>
+                <p className="text-muted-foreground text-lg">
+                  Livreurs professionnels et service client réactif disponible 24/7
                 </p>
               </CardContent>
             </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* How it works */}
+      <section className="py-20 bg-accent/5">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold mb-4 text-gradient">
+              Comment ça marche?
+            </h2>
+            <p className="text-xl text-muted-foreground">
+              Commandez en 3 étapes simples
+            </p>
+          </div>
+          
+          <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+            <div className="text-center animate-slide-up">
+              <div className="w-20 h-20 bg-primary text-white rounded-full flex items-center justify-center mx-auto mb-6 text-2xl font-bold">
+                1
+              </div>
+              <h3 className="text-xl font-semibold mb-3">Choisissez votre magasin</h3>
+              <p className="text-muted-foreground">Sélectionnez parmi nos 15+ magasins partenaires près de chez vous</p>
+            </div>
+            
+            <div className="text-center animate-slide-up" style={{ animationDelay: '0.1s' }}>
+              <div className="w-20 h-20 bg-primary text-white rounded-full flex items-center justify-center mx-auto mb-6 text-2xl font-bold">
+                2
+              </div>
+              <h3 className="text-xl font-semibold mb-3">Passez votre commande</h3>
+              <p className="text-muted-foreground">Décrivez vos besoins et payez uniquement les frais de livraison</p>
+            </div>
+            
+            <div className="text-center animate-slide-up" style={{ animationDelay: '0.2s' }}>
+              <div className="w-20 h-20 bg-primary text-white rounded-full flex items-center justify-center mx-auto mb-6 text-2xl font-bold">
+                3
+              </div>
+              <h3 className="text-xl font-semibold mb-3">Recevez rapidement</h3>
+              <p className="text-muted-foreground">Votre livreur vous apporte tout en 25-45 minutes</p>
+            </div>
           </div>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="bg-accent/20 py-16">
+      <section className="py-20 bg-gradient-to-r from-primary to-accent text-white">
         <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold mb-4 text-gradient">
-            Prêt à commander?
+          <h2 className="text-4xl font-bold mb-4">
+            Prêt à gagner du temps?
           </h2>
-          <p className="text-xl text-muted-foreground mb-8">
-            Créez votre compte et commencez à économiser du temps dès aujourd'hui
+          <p className="text-xl mb-8 opacity-90 max-w-2xl mx-auto">
+            Rejoignez les +1000 clients qui font confiance à CourseMax pour leurs livraisons quotidiennes
           </p>
-          <Link to="/stores">
-            <Button size="lg" className="gradient-primary text-white">
-              Voir les magasins disponibles
-            </Button>
-          </Link>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link to="/stores">
+              <Button size="lg" className="bg-white text-primary hover:bg-white/90 px-8 py-4 text-lg font-semibold">
+                Voir les magasins disponibles
+              </Button>
+            </Link>
+            <Link to="/register">
+              <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/10 px-8 py-4 text-lg">
+                Créer un compte gratuit
+              </Button>
+            </Link>
+          </div>
         </div>
       </section>
     </div>
