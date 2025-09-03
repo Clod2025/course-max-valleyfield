@@ -19,7 +19,7 @@ const Home = () => {
             alt="Livraison rapide CourseMax" 
             className="w-full h-full object-cover opacity-20"
           />
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/90 via-primary/85 to-accent/90"></div>
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/70 via-primary/65 to-accent/70"></div>
         </div>
         
         {/* Animated Background Elements */}
