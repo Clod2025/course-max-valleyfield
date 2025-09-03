@@ -15,6 +15,7 @@ import OrderCheckout from "./pages/OrderCheckout";
 import OrderSuccess from "./pages/OrderSuccess";
 import MerchantDashboard from "./pages/MerchantDashboard";
 import DriverDashboard from "./pages/DriverDashboard";
+import ClientDashboard from "./pages/ClientDashboard";
 import Test from "./test";
 
 const queryClient = new QueryClient();
@@ -37,6 +38,7 @@ const App = () => {
               <Route path="/order-success/:orderId" element={<OrderSuccess />} />
               <Route path="/merchant-dashboard" element={<MerchantDashboard />} />
               <Route path="/driver-dashboard" element={<DriverDashboard />} />
+              <Route path="/client-dashboard" element={<ClientDashboard />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/old-index" element={<Index />} />

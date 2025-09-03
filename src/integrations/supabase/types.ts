@@ -354,6 +354,7 @@ export type Database = {
           is_active: boolean | null
           latitude: number | null
           longitude: number | null
+          manager_id: string | null
           minimum_order: number | null
           name: string
           operating_hours: Json | null
@@ -371,6 +372,7 @@ export type Database = {
           is_active?: boolean | null
           latitude?: number | null
           longitude?: number | null
+          manager_id?: string | null
           minimum_order?: number | null
           name: string
           operating_hours?: Json | null
@@ -388,6 +390,7 @@ export type Database = {
           is_active?: boolean | null
           latitude?: number | null
           longitude?: number | null
+          manager_id?: string | null
           minimum_order?: number | null
           name?: string
           operating_hours?: Json | null
@@ -395,7 +398,15 @@ export type Database = {
           postal_code?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "stores_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
       users: {
         Row: {

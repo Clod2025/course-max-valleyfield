@@ -1,21 +1,25 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Header } from "@/components/header";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 
 const Register = () => {
+  const [searchParams] = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [role, setRole] = useState(searchParams.get('role') || 'client');
   const [loading, setLoading] = useState(false);
   
-  const { user } = useAuth();
+  const { user, signUp } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -40,24 +44,20 @@ const Register = () => {
     setLoading(true);
 
     try {
-      const redirectUrl = `${window.location.origin}/`;
-      
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: redirectUrl
-        }
+      const { error } = await signUp(email, password, {
+        first_name: firstName,
+        last_name: lastName,
+        role: role
       });
 
       if (error) throw error;
 
       toast({
         title: "Inscription réussie",
-        description: "Votre compte a été créé avec succès",
+        description: "Votre compte a été créé avec succès. Vérifiez votre email pour confirmer votre compte.",
       });
 
-      navigate('/home');
+      navigate('/login');
     } catch (error: any) {
       toast({
         title: "Erreur d'inscription",
@@ -82,6 +82,45 @@ const Register = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <form onSubmit={handleRegister} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="role">Type de compte</Label>
+                <Select value={role} onValueChange={setRole}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choisissez votre rôle" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="client">🛒 Client</SelectItem>
+                    <SelectItem value="merchant">🏪 Marchand</SelectItem>
+                    <SelectItem value="driver">🚗 Livreur</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="firstName">Prénom</Label>
+                  <Input
+                    id="firstName"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    placeholder="Jean"
+                    required
+                    disabled={loading}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="lastName">Nom</Label>
+                  <Input
+                    id="lastName"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    placeholder="Dupont"
+                    required
+                    disabled={loading}
+                  />
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input

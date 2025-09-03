@@ -38,10 +38,10 @@ const Login = () => {
 
       toast({
         title: "Connexion réussie",
-        description: "Vous êtes maintenant connecté",
+        description: "Vous serez redirigé vers votre tableau de bord",
       });
 
-      navigate('/home');
+      // Redirect will be handled by useAuth based on role
     } catch (error: any) {
       toast({
         title: "Erreur de connexion",
