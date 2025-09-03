@@ -72,12 +72,15 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     const currentPath = window.location.pathname;
     
-    // Don't redirect if already on correct dashboard
-    if (currentPath.includes('dashboard')) return;
+    // Don't redirect if already on correct dashboard or on home/stores pages
+    if (currentPath.includes('dashboard') || currentPath === '/home' || currentPath === '/stores') return;
+
+    // Only redirect from login/register pages
+    if (currentPath !== '/login' && currentPath !== '/register' && currentPath !== '/') return;
 
     switch (userProfile.role) {
       case 'client':
-        window.location.href = '/home';
+        window.location.href = '/client-dashboard';
         break;
       case 'store_manager':
         window.location.href = '/merchant-dashboard';
@@ -86,7 +89,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         window.location.href = '/driver-dashboard';
         break;
       case 'admin':
-        window.location.href = '/home'; // Admin can access everything
+        window.location.href = '/client-dashboard'; // Admin can access everything, start with client view
         break;
       default:
         window.location.href = '/home';

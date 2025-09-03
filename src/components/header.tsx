@@ -5,7 +5,24 @@ import { useAuth } from "@/hooks/useAuth";
 
 export function Header() {
   const navigate = useNavigate();
-  const { user, signOut } = useAuth();
+  const { user, profile, signOut } = useAuth();
+
+  const getDashboardLink = () => {
+    if (!profile) return '/home';
+    
+    switch (profile.role) {
+      case 'client':
+        return '/client-dashboard';
+      case 'store_manager':
+        return '/merchant-dashboard';
+      case 'livreur':
+        return '/driver-dashboard';
+      case 'admin':
+        return '/client-dashboard'; // Admin can access everything
+      default:
+        return '/home';
+    }
+  };
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -35,6 +52,13 @@ export function Header() {
               Magasins
             </Button>
           </Link>
+          {user && profile && (
+            <Link to={getDashboardLink()}>
+              <Button variant="ghost">
+                Mon Dashboard
+              </Button>
+            </Link>
+          )}
         </nav>
         
         <div className="flex items-center gap-2">
