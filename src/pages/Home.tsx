@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Header } from "@/components/header";
+import { Footer } from "@/components/Footer";
 import { Truck, Clock, Star, MapPin, CheckCircle, Shield, Users, Zap, Package } from "lucide-react";
 import deliveryCarHero from "@/assets/delivery-car-hero.jpg";
 
