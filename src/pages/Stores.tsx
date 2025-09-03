@@ -8,6 +8,7 @@ import { CategorySection } from "@/components/category-section";
 import { ArrowLeft, ShoppingCart } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useCart } from "@/hooks/useCart";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 
@@ -40,6 +41,7 @@ const Stores = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { getCartItemsCount, getCartTotal } = useCart(selectedStore?.id);
 
   const handleStoreSelect = async (store: SelectedStore) => {
     if (!user) {
@@ -99,6 +101,14 @@ const Stores = () => {
     setGroupedProducts({});
   };
 
+  const handleGoToCheckout = () => {
+    if (!selectedStore) return;
+    navigate(`/order-checkout?store_id=${selectedStore.id}&store_name=${encodeURIComponent(selectedStore.name)}`);
+  };
+
+  const cartItemsCount = getCartItemsCount();
+  const cartTotal = getCartTotal();
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -138,9 +148,14 @@ const Stores = () => {
                 </div>
               </div>
               
-              <Button className="flex items-center gap-2" variant="outline">
+              <Button 
+                onClick={handleGoToCheckout}
+                disabled={cartItemsCount === 0}
+                className="flex items-center gap-2" 
+                variant={cartItemsCount > 0 ? "default" : "outline"}
+              >
                 <ShoppingCart className="w-4 h-4" />
-                Panier
+                Panier {cartItemsCount > 0 && `(${cartItemsCount}) ${cartTotal.toFixed(2)}$`}
               </Button>
             </div>
 

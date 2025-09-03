@@ -11,6 +11,10 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
+import OrderCheckout from "./pages/OrderCheckout";
+import OrderSuccess from "./pages/OrderSuccess";
+import MerchantDashboard from "./pages/MerchantDashboard";
+import DriverDashboard from "./pages/DriverDashboard";
 import Test from "./test";
 
 const queryClient = new QueryClient();
@@ -29,6 +33,10 @@ const App = () => {
               <Route path="/" element={<Navigate to="/home" replace />} />
               <Route path="/home" element={<Home />} />
               <Route path="/stores" element={<Stores />} />
+              <Route path="/order-checkout" element={<OrderCheckout />} />
+              <Route path="/order-success/:orderId" element={<OrderSuccess />} />
+              <Route path="/merchant-dashboard" element={<MerchantDashboard />} />
+              <Route path="/driver-dashboard" element={<DriverDashboard />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/old-index" element={<Index />} />

@@ -1,11 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Minus } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { useCart } from "@/hooks/useCart";
 
 interface Product {
   id: string;
@@ -24,90 +22,31 @@ interface ProductCardProps {
 }
 
 export const ProductCard = ({ product, storeId }: ProductCardProps) => {
-  const [quantity, setQuantity] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const { toast } = useToast();
-  const { user } = useAuth();
+  const { cartItems, addToCart, updateCartItem, removeFromCart } = useCart(storeId);
+  
+  // Find current quantity in cart
+  const cartItem = cartItems.find(item => item.product_id === product.id);
+  const quantity = cartItem?.quantity || 0;
 
-  const handleAddToCart = async () => {
-    if (!user) {
-      toast({
-        title: "Connexion requise",
-        description: "Vous devez être connecté pour ajouter des produits au panier",
-        variant: "destructive",
-      });
-      return;
-    }
+  const handleAddToCart = () => {
+    addToCart(product.id, 1);
+  };
 
-    setLoading(true);
-    try {
-      const { error } = await supabase
-        .from('cart')
-        .upsert({
-          user_id: user.id,
-          store_id: storeId,
-          product_id: product.id,
-          quantity: quantity + 1
-        }, {
-          onConflict: 'user_id,product_id'
-        });
-
-      if (error) throw error;
-
-      setQuantity(quantity + 1);
-      toast({
-        title: "Produit ajouté",
-        description: `${product.name} ajouté au panier`,
-      });
-    } catch (error) {
-      console.error('Erreur lors de l\'ajout au panier:', error);
-      toast({
-        title: "Erreur",
-        description: "Impossible d'ajouter le produit au panier",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
+  const handleIncreaseQuantity = () => {
+    if (cartItem) {
+      updateCartItem(cartItem.id!, quantity + 1);
+    } else {
+      addToCart(product.id, 1);
     }
   };
 
-  const handleRemoveFromCart = async () => {
-    if (!user || quantity === 0) return;
-
-    setLoading(true);
-    try {
+  const handleDecreaseQuantity = () => {
+    if (cartItem) {
       if (quantity === 1) {
-        const { error } = await supabase
-          .from('cart')
-          .delete()
-          .eq('user_id', user.id)
-          .eq('product_id', product.id);
-
-        if (error) throw error;
+        removeFromCart(cartItem.id!);
       } else {
-        const { error } = await supabase
-          .from('cart')
-          .update({ quantity: quantity - 1 })
-          .eq('user_id', user.id)
-          .eq('product_id', product.id);
-
-        if (error) throw error;
+        updateCartItem(cartItem.id!, quantity - 1);
       }
-
-      setQuantity(quantity - 1);
-      toast({
-        title: "Produit retiré",
-        description: `${product.name} retiré du panier`,
-      });
-    } catch (error) {
-      console.error('Erreur lors du retrait du panier:', error);
-      toast({
-        title: "Erreur",
-        description: "Impossible de retirer le produit du panier",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -143,7 +82,7 @@ export const ProductCard = ({ product, storeId }: ProductCardProps) => {
             {quantity === 0 ? (
               <Button 
                 onClick={handleAddToCart}
-                disabled={loading || !product.in_stock}
+                disabled={!product.in_stock}
                 size="sm"
                 className="gap-1"
               >
@@ -153,8 +92,7 @@ export const ProductCard = ({ product, storeId }: ProductCardProps) => {
             ) : (
               <div className="flex items-center gap-2">
                 <Button
-                  onClick={handleRemoveFromCart}
-                  disabled={loading}
+                  onClick={handleDecreaseQuantity}
                   size="sm"
                   variant="outline"
                 >
@@ -164,8 +102,7 @@ export const ProductCard = ({ product, storeId }: ProductCardProps) => {
                   {quantity}
                 </span>
                 <Button
-                  onClick={handleAddToCart}
-                  disabled={loading}
+                  onClick={handleIncreaseQuantity}
                   size="sm"
                 >
                   <Plus className="w-4 h-4" />
