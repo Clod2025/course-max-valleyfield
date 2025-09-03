@@ -80,19 +80,20 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     switch (userProfile.role) {
       case 'client':
-        window.location.href = '/client-dashboard';
+        window.location.href = '/dashboard/client';
         break;
       case 'store_manager':
-        window.location.href = '/merchant-dashboard';
+        window.location.href = '/dashboard/marchand';
         break;
       case 'livreur':
-        window.location.href = '/driver-dashboard';
+        window.location.href = '/dashboard/livreur';
         break;
       case 'admin':
-        window.location.href = '/client-dashboard'; // Admin can access everything, start with client view
+        window.location.href = '/dashboard/admin';
         break;
       default:
-        window.location.href = '/home';
+        // Aucun rôle défini ou rôle non reconnu
+        window.location.href = '/auth/unauthorized';
     }
   };
 

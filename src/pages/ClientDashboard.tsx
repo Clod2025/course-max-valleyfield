@@ -21,10 +21,19 @@ import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 
 const ClientDashboard = () => {
-  const { user, profile } = useAuth();
+  const { user, profile, loading } = useAuth();
   const { orders, loading: ordersLoading } = useOrders();
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  // Protection de route : vérifier que l'utilisateur est client ou admin
+  useEffect(() => {
+    if (!loading && profile) {
+      if (profile.role !== 'client' && profile.role !== 'admin') {
+        navigate('/auth/unauthorized');
+      }
+    }
+  }, [profile, loading, navigate]);
 
   // Mock data for favorites and recent orders (we'll implement proper hooks later)
   const [favorites] = useState([
@@ -91,11 +100,30 @@ const ClientDashboard = () => {
     }
   };
 
+  // Afficher loading pendant la vérification
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <div className="container mx-auto py-8">
+          <div className="flex items-center justify-center h-64">
+            <div className="text-lg">Chargement...</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Ne pas afficher le contenu si pas autorisé
+  if (!profile || (profile.role !== 'client' && profile.role !== 'admin')) {
+    return null;
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
       
-      <div className="container mx-auto px-4 py-6">
+      <div className="container mx-auto py-8 px-4">
         {/* Welcome Section */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">

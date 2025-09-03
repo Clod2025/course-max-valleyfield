@@ -16,6 +16,10 @@ import OrderSuccess from "./pages/OrderSuccess";
 import MerchantDashboard from "./pages/MerchantDashboard";
 import DriverDashboard from "./pages/DriverDashboard";
 import ClientDashboard from "./pages/ClientDashboard";
+import AdminDashboard from "./pages/dashboards/AdminDashboard";
+import MarchandDashboard from "./pages/dashboards/MarchandDashboard";
+import LivreurDashboard from "./pages/dashboards/LivreurDashboard";
+import UnauthorizedPage from "./pages/UnauthorizedPage";
 import Test from "./test";
 
 const queryClient = new QueryClient();
@@ -36,9 +40,19 @@ const App = () => {
               <Route path="/stores" element={<Stores />} />
               <Route path="/order-checkout" element={<OrderCheckout />} />
               <Route path="/order-success/:orderId" element={<OrderSuccess />} />
-              <Route path="/merchant-dashboard" element={<MerchantDashboard />} />
-              <Route path="/driver-dashboard" element={<DriverDashboard />} />
-              <Route path="/client-dashboard" element={<ClientDashboard />} />
+              
+              {/* Nouvelles routes dashboard avec protection de rôle */}
+              <Route path="/dashboard/admin" element={<AdminDashboard />} />
+              <Route path="/dashboard/marchand" element={<MarchandDashboard />} />
+              <Route path="/dashboard/livreur" element={<LivreurDashboard />} />
+              <Route path="/dashboard/client" element={<ClientDashboard />} />
+              <Route path="/auth/unauthorized" element={<UnauthorizedPage />} />
+              
+              {/* Anciennes routes (maintenues pour compatibilité) */}
+              <Route path="/merchant-dashboard" element={<Navigate to="/dashboard/marchand" replace />} />
+              <Route path="/driver-dashboard" element={<Navigate to="/dashboard/livreur" replace />} />
+              <Route path="/client-dashboard" element={<Navigate to="/dashboard/client" replace />} />
+              
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/old-index" element={<Index />} />

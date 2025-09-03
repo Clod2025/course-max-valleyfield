@@ -12,15 +12,15 @@ export function Header() {
     
     switch (profile.role) {
       case 'client':
-        return '/client-dashboard';
+        return '/dashboard/client';
       case 'store_manager':
-        return '/merchant-dashboard';
+        return '/dashboard/marchand';
       case 'livreur':
-        return '/driver-dashboard';
+        return '/dashboard/livreur';
       case 'admin':
-        return '/client-dashboard'; // Admin can access everything
+        return '/dashboard/admin';
       default:
-        return '/home';
+        return '/auth/unauthorized';
     }
   };
 
