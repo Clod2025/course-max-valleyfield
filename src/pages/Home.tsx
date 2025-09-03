@@ -2,7 +2,8 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Header } from "@/components/header";
-import { Truck, Clock, Star, MapPin, CheckCircle, Shield, Users } from "lucide-react";
+import { Truck, Clock, Star, MapPin, CheckCircle, Shield, Users, Zap, Package } from "lucide-react";
+import deliveryHero from "@/assets/delivery-hero.jpg";
 
 const Home = () => {
   return (
