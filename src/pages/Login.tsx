@@ -8,6 +8,7 @@ import { Header } from "@/components/header";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { safeApiCall, getAuthErrorMessage } from "@/utils/errorHandler";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -28,29 +29,29 @@ const Login = () => {
     e.preventDefault();
     setLoading(true);
 
-    try {
-      const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await safeApiCall(
+      () => supabase.auth.signInWithPassword({
         email,
         password,
+      }),
+      'Connexion utilisateur'
+    );
+
+    if (error) {
+      toast({
+        title: "Erreur de connexion",
+        description: error,
+        variant: "destructive",
       });
-
-      if (error) throw error;
-
+    } else {
       toast({
         title: "Connexion réussie",
         description: "Vous serez redirigé vers votre tableau de bord",
       });
-
       // Redirect will be handled by useAuth based on role
-    } catch (error: any) {
-      toast({
-        title: "Erreur de connexion",
-        description: error.message || "Une erreur est survenue lors de la connexion",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
     }
+
+    setLoading(false);
   };
 
 

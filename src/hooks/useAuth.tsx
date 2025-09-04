@@ -1,6 +1,7 @@
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { logError } from '@/utils/errorHandler';
 
 interface Profile {
   id: string;
@@ -48,7 +49,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch user profile
+  // Fetch user profile avec gestion d'erreur robuste
   const fetchProfile = async (userId: string) => {
     try {
       const { data, error } = await supabase
@@ -58,10 +59,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         .single();
 
       if (error) throw error;
-      setProfile(data);
-      return data;
-    } catch (error) {
-      console.error('Error fetching profile:', error);
+      setProfile(data as Profile);
+      return data as Profile;
+    } catch (error: any) {
+      logError(error, 'Récupération du profil utilisateur');
       return null;
     }
   };
@@ -137,29 +138,39 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const signUp = async (email: string, password: string, userData?: { first_name?: string; last_name?: string; role?: string }) => {
     const redirectUrl = `${window.location.origin}/`;
     
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: {
-          first_name: userData?.first_name || '',
-          last_name: userData?.last_name || '',
-          role: userData?.role === 'merchant' ? 'store_manager' : (userData?.role === 'driver' ? 'livreur' : 'client')
+    try {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: redirectUrl,
+          data: {
+            first_name: userData?.first_name || '',
+            last_name: userData?.last_name || '',
+            role: userData?.role === 'merchant' ? 'store_manager' : (userData?.role === 'driver' ? 'livreur' : 'client')
+          }
         }
-      }
-    });
-    
-    return { error };
+      });
+      
+      return { error };
+    } catch (error: any) {
+      logError(error, 'Inscription utilisateur');
+      return { error };
+    }
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
-    
-    return { error };
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+      
+      return { error };
+    } catch (error: any) {
+      logError(error, 'Connexion utilisateur');
+      return { error };
+    }
   };
 
   const signOut = async () => {
@@ -186,6 +197,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       
       return { error: null };
     } catch (error: any) {
+      logError(error, 'Mise à jour du profil');
       return { error: error.message };
     }
   };

@@ -20,5 +20,22 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Suppression des warnings iframe permissions non reconnues
+      (function() {
+        const originalWarn = console.warn;
+        console.warn = function(...args) {
+          const message = args.join(' ');
+          // Ignore les warnings des permissions non reconnues
+          if (message.includes('vr') || 
+              message.includes('ambient-light-sensor') || 
+              message.includes('battery') ||
+              message.includes('Permissions policy violation')) {
+            return;
+          }
+          originalWarn.apply(console, args);
+        };
+      })();
+    </script>
   </body>
 </html>
