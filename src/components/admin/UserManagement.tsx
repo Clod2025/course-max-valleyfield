@@ -34,10 +34,10 @@ const UserManagement = () => {
   ];
 
   const testUsers = [
-    { id: userIds[0], email: 'user1@test.com', role: 'client' },
-    { id: userIds[1], email: 'user2@test.com', role: 'store_manager' },
-    { id: userIds[2], email: 'user3@test.com', role: 'livreur' },
-    { id: userIds[3], email: 'user4@test.com', role: 'admin' }
+    { id: userIds[0], email: 'clodenerc@yahoo.fr', role: 'client' },
+    { id: userIds[1], email: 'claircl18@gmail.com', role: 'store_manager' },
+    { id: userIds[2], email: 'desirdelia@gmail.com', role: 'livreur' },
+    { id: userIds[3], email: 'engligoclervil9@gmail.com', role: 'admin' }
   ];
 
   const handleCheckUserStatus = async () => {
@@ -108,38 +108,38 @@ const UserManagement = () => {
     
     const usersToCreate = [
       {
-        email: 'user1@test.com',
-        password: 'TestPassword123!',
+        email: 'clodenerc@yahoo.fr',
+        password: 'SecurePass2024!',
         metadata: {
-          first_name: 'Test',
-          last_name: 'User1',
+          first_name: 'Clodener',
+          last_name: 'C',
           role: 'client'
         }
       },
       {
-        email: 'user2@test.com',
-        password: 'TestPassword123!',
+        email: 'claircl18@gmail.com',
+        password: 'SecurePass2024!',
         metadata: {
-          first_name: 'Test',
-          last_name: 'User2',
+          first_name: 'Clair',
+          last_name: 'CL',
           role: 'store_manager'
         }
       },
       {
-        email: 'user3@test.com',
-        password: 'TestPassword123!',
+        email: 'desirdelia@gmail.com',
+        password: 'SecurePass2024!',
         metadata: {
-          first_name: 'Test',
-          last_name: 'User3',
+          first_name: 'Desire',
+          last_name: 'Delia',
           role: 'livreur'
         }
       },
       {
-        email: 'user4@test.com',
-        password: 'TestPassword123!',
+        email: 'engligoclervil9@gmail.com',
+        password: 'SecurePass2024!',
         metadata: {
-          first_name: 'Test',
-          last_name: 'User4',
+          first_name: 'Engligo',
+          last_name: 'Clervil',
           role: 'admin'
         }
       }

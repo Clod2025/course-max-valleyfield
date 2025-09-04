@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { PasswordInput } from '@/components/ui/password-input'
 import { Label } from '@/components/ui/label'
 import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/integrations/supabase/client'
@@ -98,7 +99,7 @@ const EmailUserTools = () => {
         </div>
         <div className="space-y-2">
           <Label htmlFor="password">Nouveau mot de passe</Label>
-          <Input id="password" type="password" placeholder="••••••••" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+          <PasswordInput id="password" placeholder="••••••••" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
         </div>
       </div>
 
