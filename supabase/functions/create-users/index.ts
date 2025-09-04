@@ -34,7 +34,6 @@ Deno.serve(async (req) => {
     console.log(`Attempting to create ${users.length} users`);
 
     const results = [];
-    const errors = [];
 
     // Create each user
     for (const userData of users) {
@@ -42,7 +41,12 @@ Deno.serve(async (req) => {
         const { email, password, metadata = {} } = userData;
         
         if (!email || !password) {
-          errors.push({ email, error: 'Email and password are required' });
+          results.push({
+            id: `temp-${email || 'unknown'}`,
+            email: email || 'unknown',
+            status: 'error',
+            message: 'Email and password are required'
+          });
           continue;
         }
 
@@ -57,27 +61,40 @@ Deno.serve(async (req) => {
         
         if (error) {
           console.error(`Error creating user ${email}:`, error);
-          errors.push({ email, error: error.message });
+          results.push({
+            id: data?.user?.id || `temp-${email}`,
+            email,
+            status: 'error',
+            message: error.message
+          });
         } else {
           console.log(`Successfully created user: ${email} with ID: ${data.user.id}`);
-          results.push({ 
-            email, 
-            userId: data.user.id, 
-            status: 'created' 
+          results.push({
+            id: data.user.id,
+            email,
+            status: 'success',
+            message: 'User created successfully'
           });
         }
       } catch (err) {
         console.error(`Exception creating user ${userData.email}:`, err);
-        errors.push({ email: userData.email, error: err.message });
+        results.push({
+          id: `temp-${userData.email || 'unknown'}`,
+          email: userData.email || 'unknown',
+          status: 'error',
+          message: err.message
+        });
       }
     }
 
+    const createdCount = results.filter(r => r.status === 'success').length;
+    const errorCount = results.filter(r => r.status === 'error').length;
+
     const response = {
       success: true,
-      createdCount: results.length,
-      errorCount: errors.length,
-      results,
-      errors
+      createdCount,
+      errorCount,
+      results
     };
 
     console.log('Creation operation completed:', response);

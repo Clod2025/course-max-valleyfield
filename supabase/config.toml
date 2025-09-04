@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.create-users]
 verify_jwt = false
+
+[functions.check-users-status]
+verify_jwt = false

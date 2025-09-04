@@ -34,7 +34,6 @@ Deno.serve(async (req) => {
     console.log(`Attempting to delete ${userIds.length} users:`, userIds);
 
     const results = [];
-    const errors = [];
 
     // Delete each user
     for (const userId of userIds) {
@@ -44,23 +43,40 @@ Deno.serve(async (req) => {
         
         if (error) {
           console.error(`Error deleting user ${userId}:`, error);
-          errors.push({ userId, error: error.message });
+          results.push({
+            id: userId,
+            email: `user-${userId.substring(0, 8)}@test.com`,
+            status: 'error',
+            message: error.message
+          });
         } else {
           console.log(`Successfully deleted user: ${userId}`);
-          results.push({ userId, status: 'deleted' });
+          results.push({
+            id: userId,
+            email: `user-${userId.substring(0, 8)}@test.com`,
+            status: 'success',
+            message: 'User deleted successfully'
+          });
         }
       } catch (err) {
         console.error(`Exception deleting user ${userId}:`, err);
-        errors.push({ userId, error: err.message });
+        results.push({
+          id: userId,
+          email: `user-${userId.substring(0, 8)}@test.com`,
+          status: 'error',
+          message: err.message
+        });
       }
     }
 
+    const deletedCount = results.filter(r => r.status === 'success').length;
+    const errorCount = results.filter(r => r.status === 'error').length;
+
     const response = {
       success: true,
-      deletedCount: results.length,
-      errorCount: errors.length,
-      results,
-      errors
+      deletedCount,
+      errorCount,
+      results
     };
 
     console.log('Deletion operation completed:', response);
