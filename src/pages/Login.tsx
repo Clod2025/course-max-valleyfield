@@ -142,6 +142,11 @@ const Login = () => {
             
             <div className="text-center space-y-2">
               <p className="text-sm text-muted-foreground">
+                <Link to="/forgot-password" className="text-primary hover:underline">
+                  Mot de passe oublié ?
+                </Link>
+              </p>
+              <p className="text-sm text-muted-foreground">
                 Pas encore de compte?{" "}
                 <Link to="/register" className="text-primary hover:underline">
                   S'inscrire

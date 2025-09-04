@@ -9,6 +9,7 @@ import Home from "./pages/Home";
 import Stores from "./pages/Stores";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import ForgotPassword from "./pages/ForgotPassword";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import OrderCheckout from "./pages/OrderCheckout";
@@ -55,6 +56,7 @@ const App = () => {
               
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/old-index" element={<Index />} />
               <Route path="/test" element={<Test />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
