@@ -21,19 +21,36 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
-      // Suppression des warnings iframe permissions non reconnues
+      // Suppression des warnings iframe permissions non reconnues et autres warnings console pollluants
       (function() {
         const originalWarn = console.warn;
+        const originalError = console.error;
+        
         console.warn = function(...args) {
           const message = args.join(' ');
-          // Ignore les warnings des permissions non reconnues
+          // Ignore les warnings des permissions non reconnues et autres warnings iframe
           if (message.includes('vr') || 
               message.includes('ambient-light-sensor') || 
               message.includes('battery') ||
-              message.includes('Permissions policy violation')) {
+              message.includes('Permissions policy violation') ||
+              message.includes('Permission denied') ||
+              message.includes('clipboard-write') ||
+              message.includes('gyroscope') ||
+              message.includes('accelerometer') ||
+              message.includes('magnetometer')) {
             return;
           }
           originalWarn.apply(console, args);
+        };
+
+        console.error = function(...args) {
+          const message = args.join(' ');
+          // Ignore certaines erreurs iframe non critiques
+          if (message.includes('Permissions policy violation') ||
+              message.includes('Permission denied to access property')) {
+            return;
+          }
+          originalError.apply(console, args);
         };
       })();
     </script>

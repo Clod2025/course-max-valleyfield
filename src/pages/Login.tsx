@@ -8,12 +8,13 @@ import { Header } from "@/components/header";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { safeApiCall, getAuthErrorMessage } from "@/utils/errorHandler";
+import { safeApiCall, sanitizeInput } from "@/utils/errorHandler";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   
   const { user } = useAuth();
   const { toast } = useToast();
@@ -29,21 +30,61 @@ const Login = () => {
     e.preventDefault();
     setLoading(true);
 
+    // Validation et nettoyage des données
+    const cleanEmail = sanitizeInput(email);
+    const cleanPassword = sanitizeInput(password);
+
+    if (!cleanEmail || !cleanPassword) {
+      toast({
+        title: "Erreur de saisie",
+        description: "Veuillez remplir tous les champs",
+        variant: "destructive",
+      });
+      setLoading(false);
+      return;
+    }
+
+    // Validation format email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(cleanEmail)) {
+      toast({
+        title: "Email invalide",
+        description: "Veuillez saisir une adresse email valide",
+        variant: "destructive",
+      });
+      setLoading(false);
+      return;
+    }
+
     const { data, error } = await safeApiCall(
       () => supabase.auth.signInWithPassword({
-        email,
-        password,
+        email: cleanEmail,
+        password: cleanPassword,
       }),
       'Connexion utilisateur'
     );
 
     if (error) {
+      setRetryCount(prev => prev + 1);
+      
       toast({
         title: "Erreur de connexion",
         description: error,
         variant: "destructive",
       });
+
+      // Afficher conseil après plusieurs échecs
+      if (retryCount >= 2) {
+        setTimeout(() => {
+          toast({
+            title: "Plusieurs tentatives échouées",
+            description: "Vérifiez votre email et mot de passe. En cas de problème persistant, contactez le support.",
+            variant: "destructive",
+          });
+        }, 1000);
+      }
     } else {
+      setRetryCount(0);
       toast({
         title: "Connexion réussie",
         description: "Vous serez redirigé vers votre tableau de bord",
