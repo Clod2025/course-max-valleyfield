@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Trash2, UserPlus, AlertTriangle, Shield, RefreshCw, Eye } from 'lucide-react';
 import EmailUserTools from './EmailUserTools';
+import { AuthDebugger } from './AuthDebugger';
 
 interface UserResult {
   id: string;
@@ -39,6 +40,56 @@ const UserManagement = () => {
     { id: userIds[2], email: 'desirdelia@gmail.com', role: 'livreur' },
     { id: userIds[3], email: 'engligoclervil9@gmail.com', role: 'admin' }
   ];
+
+  // Reset passwords for problematic users
+  const resetProblematicPasswords = async () => {
+    setIsCreating(true); // Reuse existing loading state
+    
+    const usersToReset = [
+      { email: 'clodenerc@yahoo.fr', newPassword: 'SecurePass2024!' },
+      { email: 'claircl18@gmail.com', newPassword: 'SecurePass2024!' },
+      { email: 'desirdelia@gmail.com', newPassword: 'SecurePass2024!' },
+      { email: 'engligoclervil9@gmail.com', newPassword: 'SecurePass2024!' },
+    ];
+
+    try {
+      const { data, error } = await supabase.functions.invoke('batch-password-reset', {
+        body: { users: usersToReset }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      // Update operation results to show password reset results
+      const passwordResets = data.results?.map((result: any) => ({
+        id: result.email,
+        email: result.email,
+        status: result.success ? 'success' : 'error',
+        message: result.message
+      })) || [];
+
+      setOperationResults(prev => ({ 
+        ...prev, 
+        creations: passwordResets 
+      }));
+
+      toast({
+        title: "Réinitialisation terminée",
+        description: `${data.summary?.succeeded || 0} mots de passe réinitialisés, ${data.summary?.failed || 0} échecs`,
+        variant: data.summary?.succeeded > 0 ? "default" : "destructive"
+      });
+    } catch (error) {
+      console.error('Erreur lors de la réinitialisation:', error);
+      toast({
+        title: "Erreur",
+        description: "Échec de la réinitialisation des mots de passe",
+        variant: "destructive"
+      });
+    } finally {
+      setIsCreating(false);
+    }
+  };
 
   const handleCheckUserStatus = async () => {
     setIsChecking(true);
@@ -295,6 +346,16 @@ const UserManagement = () => {
             {isCreating ? 'Création...' : 'Recréer les utilisateurs'}
           </Button>
 
+          <Button
+            onClick={resetProblematicPasswords}
+            disabled={isCreating}
+            variant="secondary"
+            className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white"
+          >
+            <RefreshCw className="w-4 h-4" />
+            {isCreating ? 'Réinitialisation...' : '🔑 Réinitialiser mots de passe'}
+          </Button>
+
           {operationResults.deletions.some(r => r.status === 'error') && (
             <Button
               onClick={retryFailedDeletions}
@@ -310,6 +371,8 @@ const UserManagement = () => {
 
         <EmailUserTools />
 
+        <AuthDebugger />
+
         {/* Avertissement */}
         <div className="flex items-start gap-3 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
           <AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
@@ -320,6 +383,9 @@ const UserManagement = () => {
             <p className="text-yellow-700 dark:text-yellow-300">
               Ces actions utilisent la Service Role Key et sont irréversibles. 
               La suppression efface définitivement les utilisateurs de Supabase Auth.
+            </p>
+            <p className="text-yellow-700 dark:text-yellow-300 mt-2">
+              <strong>📋 Mot de passe test :</strong> <code>SecurePass2024!</code>
             </p>
           </div>
         </div>
