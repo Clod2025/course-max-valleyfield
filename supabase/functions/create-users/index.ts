@@ -61,12 +61,26 @@ Deno.serve(async (req) => {
         
         if (error) {
           console.error(`Error creating user ${email}:`, error);
-          results.push({
-            id: data?.user?.id || `temp-${email}`,
-            email,
-            status: 'error',
-            message: error.message
-          });
+          const msg = (error as any)?.message || '';
+          let status: 'error' | 'exists' = 'error'
+          let resolvedId: string = data?.user?.id || `temp-${email}`
+          let friendly = msg
+
+          if (/duplicate key|already registered|exists/i.test(msg)) {
+            status = 'exists'
+            friendly = 'User already exists'
+            try {
+              const { data: list, error: listErr } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 })
+              if (!listErr) {
+                const found = list.users?.find((u: any) => (u.email || '').toLowerCase() === String(email).toLowerCase())
+                if (found?.id) resolvedId = found.id
+              }
+            } catch (e) {
+              console.error('Lookup existing user failed:', e)
+            }
+          }
+
+          results.push({ id: resolvedId, email, status, message: friendly })
         } else {
           console.log(`Successfully created user: ${email} with ID: ${data.user.id}`);
           results.push({

@@ -8,3 +8,15 @@ verify_jwt = false
 
 [functions.check-users-status]
 verify_jwt = false
+
+[functions.get-user-by-email]
+verify_jwt = false
+
+[functions.update-user-password]
+verify_jwt = false
+
+[functions.send-magic-link]
+verify_jwt = false
+
+[functions.send-password-reset]
+verify_jwt = false

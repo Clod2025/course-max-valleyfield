@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Trash2, UserPlus, AlertTriangle, Shield, RefreshCw, Eye } from 'lucide-react';
+import EmailUserTools from './EmailUserTools';
 
 interface UserResult {
   id: string;
@@ -306,6 +307,8 @@ const UserManagement = () => {
             </Button>
           )}
         </div>
+
+        <EmailUserTools />
 
         {/* Avertissement */}
         <div className="flex items-start gap-3 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
