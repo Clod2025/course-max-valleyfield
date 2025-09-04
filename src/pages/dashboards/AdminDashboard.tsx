@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Header } from '@/components/header';
 import { AppFooter } from '@/components/AppFooter';
 import { useAuth } from '@/hooks/useAuth';
+import UserManagement from '@/components/admin/UserManagement';
 import { 
   Users, 
   Store, 
@@ -117,6 +118,11 @@ const AdminDashboard = () => {
               <p className="text-xs text-muted-foreground">+8% vs hier</p>
             </CardContent>
           </Card>
+        </div>
+
+        {/* Gestion des utilisateurs test */}
+        <div className="mb-8">
+          <UserManagement />
         </div>
 
         {/* Sections de gestion */}
