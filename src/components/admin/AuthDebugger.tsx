@@ -30,6 +30,9 @@ export function AuthDebugger() {
   ];
 
   const testSingleLogin = async (email: string, password: string) => {
+    console.log('🔍 Tentative de connexion:', { email, password });
+    console.log('🔗 URL Supabase:', supabase.supabaseUrl);
+    console.log('🔑 Clé publique:', supabase.supabaseKey);
     const startTime = Date.now();
     
     try {
@@ -126,6 +129,24 @@ export function AuthDebugger() {
     });
   };
 
+  const testBasicConnection = async () => {
+    console.log('🧪 Test de connexion de base...');
+    try {
+      const { data, error } = await supabase.auth.getSession();
+      console.log('✅ Session:', { data, error });
+      
+      // Test de la base de données
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('count')
+        .limit(1);
+      console.log('✅ Base de données:', { profileData, profileError });
+      
+    } catch (err) {
+      console.error('❌ Erreur:', err);
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -159,13 +180,24 @@ export function AuthDebugger() {
               />
             </div>
           </div>
-          <Button 
-            onClick={handleTestSingleUser} 
-            disabled={isLoading}
-            variant="outline"
-          >
-            {isLoading ? "Test en cours..." : "Tester cette connexion"}
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              onClick={handleTestSingleUser} 
+              disabled={isLoading}
+              variant="outline"
+            >
+              {isLoading ? "Test en cours..." : "Tester cette connexion"}
+            </Button>
+            
+            {/* NOUVEAU BOUTON */}
+            <Button 
+              onClick={testBasicConnection} 
+              variant="outline"
+              className="ml-2"
+            >
+              🔗 Tester la connexion Supabase
+            </Button>
+          </div>
         </div>
 
         {/* Test automatique */}

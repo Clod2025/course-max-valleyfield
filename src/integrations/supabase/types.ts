@@ -205,49 +205,43 @@ export type Database = {
       }
       products: {
         Row: {
-          barcode: string | null
-          category: string
-          created_at: string
-          description: string | null
           id: string
-          image_url: string | null
-          in_stock: boolean | null
           name: string
+          description: string | null
+          category: string
           price: number
+          stock: number
+          image: string | null
           store_id: string
-          unit: string | null
+          is_active: boolean
+          created_at: string
           updated_at: string
-          weight: number | null
         }
         Insert: {
-          barcode?: string | null
-          category: string
-          created_at?: string
-          description?: string | null
           id?: string
-          image_url?: string | null
-          in_stock?: boolean | null
           name: string
+          description?: string | null
+          category: string
           price: number
+          stock: number
+          image?: string | null
           store_id: string
-          unit?: string | null
+          is_active?: boolean
+          created_at?: string
           updated_at?: string
-          weight?: number | null
         }
         Update: {
-          barcode?: string | null
-          category?: string
-          created_at?: string
-          description?: string | null
           id?: string
-          image_url?: string | null
-          in_stock?: boolean | null
           name?: string
+          description?: string | null
+          category?: string
           price?: number
+          stock?: number
+          image?: string | null
           store_id?: string
-          unit?: string | null
+          is_active?: boolean
+          created_at?: string
           updated_at?: string
-          weight?: number | null
         }
         Relationships: [
           {
@@ -256,7 +250,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "stores"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       profiles: {
@@ -366,67 +360,76 @@ export type Database = {
       }
       stores: {
         Row: {
+          id: string
+          name: string
+          description: string | null
           address: string
           city: string
+          postal_code: string
+          phone: string
+          email: string
+          opening_hours: string | null
+          delivery_radius: number
+          delivery_fee: number
+          minimum_order: number
+          is_active: boolean
+          accepts_orders: boolean
+          logo_url: string | null
+          banner_url: string | null
+          owner_id: string
           created_at: string
-          delivery_fee: number | null
-          email: string | null
-          id: string
-          is_active: boolean | null
-          latitude: number | null
-          longitude: number | null
-          manager_id: string | null
-          minimum_order: number | null
-          name: string
-          operating_hours: Json | null
-          phone: string | null
-          postal_code: string | null
           updated_at: string
         }
         Insert: {
+          id?: string
+          name: string
+          description?: string | null
           address: string
           city: string
+          postal_code: string
+          phone: string
+          email: string
+          opening_hours?: string | null
+          delivery_radius?: number
+          delivery_fee?: number
+          minimum_order?: number
+          is_active?: boolean
+          accepts_orders?: boolean
+          logo_url?: string | null
+          banner_url?: string | null
+          owner_id: string
           created_at?: string
-          delivery_fee?: number | null
-          email?: string | null
-          id?: string
-          is_active?: boolean | null
-          latitude?: number | null
-          longitude?: number | null
-          manager_id?: string | null
-          minimum_order?: number | null
-          name: string
-          operating_hours?: Json | null
-          phone?: string | null
-          postal_code?: string | null
           updated_at?: string
         }
         Update: {
+          id?: string
+          name?: string
+          description?: string | null
           address?: string
           city?: string
+          postal_code?: string
+          phone?: string
+          email?: string
+          opening_hours?: string | null
+          delivery_radius?: number
+          delivery_fee?: number
+          minimum_order?: number
+          is_active?: boolean
+          accepts_orders?: boolean
+          logo_url?: string | null
+          banner_url?: string | null
+          owner_id?: string
           created_at?: string
-          delivery_fee?: number | null
-          email?: string | null
-          id?: string
-          is_active?: boolean | null
-          latitude?: number | null
-          longitude?: number | null
-          manager_id?: string | null
-          minimum_order?: number | null
-          name?: string
-          operating_hours?: Json | null
-          phone?: string | null
-          postal_code?: string | null
           updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "stores_manager_id_fkey"
-            columns: ["manager_id"]
+            foreignKeyName: "stores_owner_id_fkey"
+            columns: ["owner_id"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["user_id"]
-          },
+            referencedColumns: ["id"]
+          }
         ]
       }
       users: {
@@ -455,6 +458,264 @@ export type Database = {
           role?: string
         }
         Relationships: []
+      }
+      delivery_commissions: {
+        Row: {
+          id: string
+          order_id: string
+          driver_id: string | null
+          delivery_fee: number
+          commission_percent: number
+          platform_amount: number
+          driver_amount: number
+          status: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          order_id: string
+          driver_id?: string | null
+          delivery_fee: number
+          commission_percent: number
+          platform_amount: number
+          driver_amount: number
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          order_id?: string
+          driver_id?: string | null
+          delivery_fee?: number
+          commission_percent?: number
+          platform_amount?: number
+          driver_amount?: number
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_commissions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_commissions_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      platform_settings: {
+        Row: {
+          id: string
+          key: string
+          value: Json
+          description: string | null
+          category: string
+          is_public: boolean | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          key: string
+          value: Json
+          description?: string | null
+          category?: string
+          is_public?: boolean | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          key?: string
+          value?: Json
+          description?: string | null
+          category?: string
+          is_public?: boolean | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      stripe_connect_accounts: {
+        Row: {
+          id: string
+          account_id: string
+          store_id: string
+          is_active: boolean
+          charges_enabled: boolean
+          payouts_enabled: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          account_id: string
+          store_id: string
+          is_active?: boolean
+          charges_enabled?: boolean
+          payouts_enabled?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          account_id?: string
+          store_id?: string
+          is_active?: boolean
+          charges_enabled?: boolean
+          payouts_enabled?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_connect_accounts_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      transactions: {
+        Row: {
+          id: string
+          order_id: string
+          payment_intent_id: string
+          amount: number
+          currency: string
+          status: string
+          customer_email: string
+          store_id: string
+          platform_commission: number
+          merchant_amount: number
+          delivery_fee: number
+          stripe_fee: number
+          net_amount: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          order_id: string
+          payment_intent_id: string
+          amount: number
+          currency?: string
+          status: string
+          customer_email: string
+          store_id: string
+          platform_commission?: number
+          merchant_amount?: number
+          delivery_fee?: number
+          stripe_fee?: number
+          net_amount: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          order_id?: string
+          payment_intent_id?: string
+          amount?: number
+          currency?: string
+          status?: string
+          customer_email?: string
+          store_id?: string
+          platform_commission?: number
+          merchant_amount?: number
+          delivery_fee?: number
+          stripe_fee?: number
+          net_amount?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      payment_commissions: {
+        Row: {
+          id: string
+          transaction_id: string
+          order_id: string
+          store_id: string
+          commission_type: string
+          commission_amount: number
+          commission_percentage: number
+          platform_amount: number
+          merchant_amount: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          transaction_id: string
+          order_id: string
+          store_id: string
+          commission_type?: string
+          commission_amount: number
+          commission_percentage: number
+          platform_amount: number
+          merchant_amount: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          transaction_id?: string
+          order_id?: string
+          store_id?: string
+          commission_type?: string
+          commission_amount?: number
+          commission_percentage?: number
+          platform_amount?: number
+          merchant_amount?: number
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_commissions_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_commissions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_commissions_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          }
+        ]
       }
     }
     Views: {

@@ -20,15 +20,27 @@ const Register = () => {
   const [role, setRole] = useState(searchParams.get('role') || 'client');
   const [loading, setLoading] = useState(false);
   
-  const { user, signUp } = useAuth();
+  const { user, profile } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  // ✅ MÊME LOGIQUE que Login.tsx
   useEffect(() => {
-    if (user) {
-      navigate('/home');
+    // ✅ MÊME LOGIQUE que Login.tsx
+    if (user && profile) {
+      const dashboardMap: Record<string, string> = {
+        'client': '/dashboard/client',
+        'store_manager': '/dashboard/marchand', 
+        'livreur': '/dashboard/livreur',
+        'admin': '/dashboard/admin'
+      };
+      
+      const targetDashboard = dashboardMap[profile.role];
+      if (targetDashboard) {
+        navigate(targetDashboard, { replace: true });
+      }
     }
-  }, [user, navigate]);
+  }, [user, profile, navigate]);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();

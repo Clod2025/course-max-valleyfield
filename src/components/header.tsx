@@ -10,86 +10,91 @@ export function Header() {
   const getDashboardLink = () => {
     if (!profile) return '/home';
     
-    switch (profile.role) {
-      case 'client':
-        return '/dashboard/client';
-      case 'store_manager':
-        return '/dashboard/marchand';
-      case 'livreur':
-        return '/dashboard/livreur';
-      case 'admin':
-        return '/dashboard/admin';
-      default:
-        return '/auth/unauthorized';
-    }
+    // ✅ MAPPING ULTRA-COMPLET
+    const roleToDashboard: Record<string, string> = {
+      'client': '/dashboard/client',
+      'merchant': '/dashboard/marchand',
+      'driver': '/dashboard/livreur',
+      'admin': '/dashboard/admin',
+      'livreur': '/dashboard/livreur',
+      'store_manager': '/dashboard/marchand',
+      // Majuscules
+      'Client': '/dashboard/client',
+      'Merchant': '/dashboard/marchand',
+      'Marchand': '/dashboard/marchand',
+      'Driver': '/dashboard/livreur',
+      'Livreur': '/dashboard/livreur',
+      'Admin': '/dashboard/admin'
+    };
+    
+    return roleToDashboard[profile.role] || '/auth/unauthorized';
   };
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         <Link to="/home" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-          <img 
-            src="/lovable-uploads/482dd564-f9a1-48f4-bef4-6569e9c64c0b.png" 
-            alt="CourseMax" 
-            className="h-8 w-auto"
-            onError={(e) => {
-              console.log('Logo failed to load');
-              e.currentTarget.style.display = 'none';
-            }}
-          />
-          <h1 className="text-xl font-bold text-gradient">CourseMax</h1>
+          <div className="bg-primary text-primary-foreground w-8 h-8 rounded-full flex items-center justify-center font-bold">
+            C
+          </div>
+          <span className="text-xl font-bold text-primary">CourseMax</span>
         </Link>
-        
-        <nav className="hidden md:flex items-center gap-4">
-          <Link to="/home">
-            <Button variant="ghost" className="flex items-center gap-2">
-              <Home className="h-4 w-4" />
-              Accueil
-            </Button>
+
+        <nav className="hidden md:flex items-center gap-6">
+          <Link to="/home" className="text-sm font-medium hover:text-primary transition-colors">
+            Accueil
           </Link>
-          <Link to="/stores">
-            <Button variant="ghost">
-              Magasins
-            </Button>
+          <Link to="/stores" className="text-sm font-medium hover:text-primary transition-colors">
+            Magasins
           </Link>
-          {user && profile && (
-            <Link to={getDashboardLink()}>
-              <Button variant="ghost">
-                Mon Dashboard
-              </Button>
+          {user && (
+            <Link to={getDashboardLink()} className="text-sm font-medium hover:text-primary transition-colors">
+              Mon Espace
             </Link>
           )}
         </nav>
-        
-        <div className="flex items-center gap-2">
+
+        <div className="flex items-center gap-4">
           {user ? (
             <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground hidden sm:block">
-                {user.email}
-              </span>
-              <Button variant="ghost" onClick={signOut} className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate(getDashboardLink())}
+                className="flex items-center gap-2"
+              >
+                <User className="h-4 w-4" />
+                <span className="hidden sm:inline">
+                  {profile?.first_name || 'Mon Espace'}
+                </span>
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={signOut}
+                className="flex items-center gap-2"
+              >
                 <LogOut className="h-4 w-4" />
                 <span className="hidden sm:inline">Déconnexion</span>
               </Button>
             </div>
           ) : (
-            <Link to="/login">
-              <Button variant="ghost" size="icon">
-                <User className="h-5 w-5" />
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate('/login')}
+              >
+                Connexion
               </Button>
-            </Link>
+              <Button
+                size="sm"
+                onClick={() => navigate('/register')}
+              >
+                Inscription
+              </Button>
+            </div>
           )}
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="md:hidden"
-            onClick={() => {
-              // Mobile menu toggle logic can be added here
-              console.log('Mobile menu clicked');
-            }}
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
         </div>
       </div>
     </header>

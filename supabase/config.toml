@@ -1,22 +1,22 @@
 project_id = "vexgjrrqbjurgiqfjxwk"
 
 [functions.delete-users]
-verify_jwt = false
+verify_jwt = true
 
 [functions.create-users]
-verify_jwt = false
+verify_jwt = true
 
 [functions.check-users-status]
-verify_jwt = false
+verify_jwt = true
 
 [functions.get-user-by-email]
-verify_jwt = false
+verify_jwt = true
 
 [functions.update-user-password]
-verify_jwt = false
+verify_jwt = true
 
 [functions.send-magic-link]
-verify_jwt = false
+verify_jwt = true
 
 [functions.send-password-reset]
-verify_jwt = false
+verify_jwt = true

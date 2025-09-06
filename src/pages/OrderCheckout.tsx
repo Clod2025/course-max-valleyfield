@@ -11,6 +11,8 @@ import { useCart } from '@/hooks/useCart';
 import { useOrders } from '@/hooks/useOrders';
 import { useAuth } from '@/hooks/useAuth';
 import { ArrowLeft, ShoppingCart } from 'lucide-react';
+import DeliveryFeeCalculator from '@/components/DeliveryFeeCalculator';
+import { useDeliveryFee, DeliveryFeeResponse } from '@/hooks/useDeliveryFee';
 
 const OrderCheckout = () => {
   const [searchParams] = useSearchParams();
@@ -21,6 +23,7 @@ const OrderCheckout = () => {
   const { user } = useAuth();
   const { cartItems, getCartTotal, clearCart } = useCart(storeId || '');
   const { createOrder } = useOrders();
+  const { calculateDeliveryFee } = useDeliveryFee();
 
   const [formData, setFormData] = useState({
     delivery_address: '',
@@ -32,6 +35,9 @@ const OrderCheckout = () => {
   });
 
   const [loading, setLoading] = useState(false);
+  const [deliveryFee, setDeliveryFee] = useState<number>(0);
+  const [deliveryCalculation, setDeliveryCalculation] = useState<DeliveryFeeResponse | null>(null);
+  const [deliveryFeeCalculated, setDeliveryFeeCalculated] = useState(false);
 
   if (!user) {
     navigate('/login');
@@ -69,45 +75,45 @@ const OrderCheckout = () => {
     }));
   };
 
-  const subtotal = getCartTotal();
-  const taxAmount = subtotal * 0.15;
-  const deliveryFee = 5.99;
-  const total = subtotal + taxAmount + deliveryFee;
+  const handleDeliveryFeeCalculated = (fee: number, calculation: DeliveryFeeResponse) => {
+    setDeliveryFee(fee);
+    setDeliveryCalculation(calculation);
+    setDeliveryFeeCalculated(true);
+  };
 
-  const handleSubmitOrder = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.delivery_address || !formData.phone) {
+    if (!deliveryFeeCalculated) {
+      alert('Veuillez calculer les frais de livraison avant de continuer');
       return;
     }
 
     setLoading(true);
-
+    
     try {
-      const orderItems = cartItems.map(item => ({
-        product_id: item.product_id,
-        quantity: item.quantity,
-        unit_price: item.product?.price || 0,
-        total_price: (item.product?.price || 0) * item.quantity
-      }));
+      const orderData = {
+        store_id: storeId!,
+        delivery_address: formData.delivery_address,
+        delivery_city: formData.delivery_city,
+        delivery_postal_code: formData.delivery_postal_code,
+        phone: formData.phone,
+        notes: formData.notes,
+        delivery_instructions: formData.delivery_instructions,
+        items: cartItems,
+        subtotal: getCartTotal(),
+        delivery_fee: deliveryFee,
+        total_amount: getCartTotal() + deliveryFee
+      };
 
-      const { data, error } = await createOrder({
-        store_id: storeId,
-        items: orderItems,
-        ...formData
-      });
-
-      if (error) {
-        throw new Error(error);
+      const order = await createOrder(orderData);
+      
+      if (order) {
+        clearCart();
+        navigate(`/order-success/${order.id}`);
       }
-
-      // Clear cart after successful order
-      await clearCart();
-
-      // Redirect to success page
-      navigate(`/order-success/${data.id}`);
     } catch (error) {
-      console.error('Order submission failed:', error);
+      console.error('Error creating order:', error);
     } finally {
       setLoading(false);
     }
@@ -117,161 +123,181 @@ const OrderCheckout = () => {
     <div className="min-h-screen bg-background">
       <Header />
       
-      <div className="container mx-auto px-4 py-6">
-        <div className="mb-6">
-          <Button 
-            variant="ghost" 
-            onClick={() => navigate('/stores')}
-            className="mb-4"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Retour aux magasins
-          </Button>
-          
-          <h1 className="text-3xl font-bold">Finaliser la commande</h1>
-          <p className="text-muted-foreground">Commande chez {storeName}</p>
-        </div>
-
+      <main className="container mx-auto px-4 py-6">
         <div className="grid lg:grid-cols-2 gap-8">
-          {/* Order Form */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Informations de livraison</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmitOrder} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="delivery_address">Adresse de livraison *</Label>
-                  <Input
-                    id="delivery_address"
-                    name="delivery_address"
-                    value={formData.delivery_address}
-                    onChange={handleInputChange}
-                    placeholder="123 Rue Principale"
-                    required
-                  />
-                </div>
+          {/* Formulaire de commande */}
+          <div className="space-y-6">
+            <div className="flex items-center gap-4">
+              <Button 
+                variant="outline" 
+                onClick={() => navigate(-1)}
+                className="flex items-center gap-2"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Retour
+              </Button>
+              <h1 className="text-2xl font-bold">Finaliser la commande</h1>
+            </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="delivery_city">Ville</Label>
-                    <Input
-                      id="delivery_city"
-                      name="delivery_city"
-                      value={formData.delivery_city}
-                      onChange={handleInputChange}
-                      readOnly
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="delivery_postal_code">Code postal</Label>
-                    <Input
-                      id="delivery_postal_code"
-                      name="delivery_postal_code"
-                      value={formData.delivery_postal_code}
-                      onChange={handleInputChange}
-                      placeholder="J6T 1A1"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Téléphone *</Label>
-                  <Input
-                    id="phone"
-                    name="phone"
-                    type="tel"
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                    placeholder="450-123-4567"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="delivery_instructions">Instructions de livraison</Label>
-                  <Textarea
-                    id="delivery_instructions"
-                    name="delivery_instructions"
-                    value={formData.delivery_instructions}
-                    onChange={handleInputChange}
-                    placeholder="Appartement 2, sonner à la porte..."
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="notes">Notes pour le marchand</Label>
-                  <Textarea
-                    id="notes"
-                    name="notes"
-                    value={formData.notes}
-                    onChange={handleInputChange}
-                    placeholder="Préférences pour les produits frais..."
-                  />
-                </div>
-
-                <Button 
-                  type="submit" 
-                  className="w-full" 
-                  size="lg"
-                  disabled={loading}
-                >
-                  {loading ? 'Traitement...' : `Passer la commande - ${total.toFixed(2)}$`}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-
-          {/* Order Summary */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Résumé de la commande</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Cart Items */}
-              {cartItems.map((item) => (
-                <div key={item.id} className="flex justify-between items-center border-b pb-2">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Informations de livraison */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Adresse de livraison</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
                   <div>
-                    <p className="font-medium">{item.product?.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {item.quantity} × {item.product?.price?.toFixed(2)}$ / {item.product?.unit}
+                    <Label htmlFor="delivery_address">Adresse *</Label>
+                    <Input
+                      id="delivery_address"
+                      placeholder="123 Rue Principale"
+                      value={formData.delivery_address}
+                      onChange={(e) => setFormData({...formData, delivery_address: e.target.value})}
+                      required
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="delivery_city">Ville *</Label>
+                      <Input
+                        id="delivery_city"
+                        value={formData.delivery_city}
+                        onChange={(e) => setFormData({...formData, delivery_city: e.target.value})}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="delivery_postal_code">Code postal</Label>
+                      <Input
+                        id="delivery_postal_code"
+                        placeholder="J6S 1A1"
+                        value={formData.delivery_postal_code}
+                        onChange={(e) => setFormData({...formData, delivery_postal_code: e.target.value})}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="phone">Téléphone *</Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      placeholder="(450) 123-4567"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="delivery_instructions">Instructions de livraison</Label>
+                    <Textarea
+                      id="delivery_instructions"
+                      placeholder="Ex: Sonner à la porte arrière, laisser au bureau..."
+                      value={formData.delivery_instructions}
+                      onChange={(e) => setFormData({...formData, delivery_instructions: e.target.value})}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Calculateur de frais de livraison */}
+              {formData.delivery_address && (
+                <DeliveryFeeCalculator
+                  storeId={storeId!}
+                  storeName={storeName}
+                  storeAddress="Adresse du magasin" // Vous pouvez récupérer cette info depuis la base
+                  onFeeCalculated={handleDeliveryFeeCalculated}
+                />
+              )}
+
+              {/* Notes de commande */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Notes de commande</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Textarea
+                    placeholder="Instructions spéciales pour votre commande..."
+                    value={formData.notes}
+                    onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                  />
+                </CardContent>
+              </Card>
+
+              <Button 
+                type="submit" 
+                disabled={loading || !deliveryFeeCalculated}
+                className="w-full"
+                size="lg"
+              >
+                {loading ? 'Création de la commande...' : 'Confirmer la commande'}
+              </Button>
+            </form>
+          </div>
+
+          {/* Résumé de la commande */}
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Résumé de la commande</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Articles du panier */}
+                <div className="space-y-2">
+                  {cartItems.map((item) => (
+                    <div key={item.id} className="flex justify-between items-center">
+                      <div>
+                        <div className="font-medium">{item.name}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {item.quantity} × {item.price.toFixed(2)}$
+                        </div>
+                      </div>
+                      <div className="font-medium">
+                        {(item.quantity * item.price).toFixed(2)}$
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="border-t pt-4 space-y-2">
+                  <div className="flex justify-between">
+                    <span>Sous-total</span>
+                    <span>{getCartTotal().toFixed(2)}$</span>
+                  </div>
+                  
+                  <div className="flex justify-between">
+                    <span>Frais de livraison</span>
+                    <span>
+                      {deliveryFeeCalculated ? `${deliveryFee.toFixed(2)}$` : 'À calculer'}
+                    </span>
+                  </div>
+                  
+                  {deliveryCalculation && (
+                    <div className="text-xs text-muted-foreground">
+                      {deliveryCalculation.calculation.distance_km} km - {deliveryCalculation.calculation.pricing_tier}
+                    </div>
+                  )}
+                  
+                  <div className="flex justify-between font-bold text-lg border-t pt-2">
+                    <span>Total</span>
+                    <span>{(getCartTotal() + deliveryFee).toFixed(2)}$</span>
+                  </div>
+                </div>
+
+                {!deliveryFeeCalculated && (
+                  <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <p className="text-sm text-yellow-800">
+                      ⚠️ Veuillez calculer les frais de livraison avant de confirmer la commande.
                     </p>
                   </div>
-                  <p className="font-semibold">
-                    {((item.product?.price || 0) * item.quantity).toFixed(2)}$
-                  </p>
-                </div>
-              ))}
-
-              {/* Totals */}
-              <div className="space-y-2 pt-4 border-t">
-                <div className="flex justify-between">
-                  <span>Sous-total</span>
-                  <span>{subtotal.toFixed(2)}$</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Taxes (15%)</span>
-                  <span>{taxAmount.toFixed(2)}$</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Frais de livraison</span>
-                  <span>{deliveryFee.toFixed(2)}$</span>
-                </div>
-                <div className="flex justify-between font-bold text-lg pt-2 border-t">
-                  <span>Total</span>
-                  <span>{total.toFixed(2)}$</span>
-                </div>
-              </div>
-
-              {/* Delivery Info */}
-              <div className="bg-accent/10 p-4 rounded-lg">
-                <p className="text-sm font-medium mb-1">Temps de livraison estimé</p>
-                <p className="text-sm text-muted-foreground">25-45 minutes après confirmation</p>
-              </div>
-            </CardContent>
-          </Card>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
-      </div>
+      </main>
 
       <AppFooter />
     </div>

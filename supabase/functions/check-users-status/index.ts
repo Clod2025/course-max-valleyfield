@@ -1,109 +1,147 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.0'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+interface UserStatus {
+  email: string;
+  status: 'exists' | 'not_found' | 'error';
+  hasProfile: boolean;
+  emailConfirmed: boolean;
+  lastSignIn: string | null;
+  role?: string;
+  error?: string;
+}
+
 Deno.serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || 'https://vexgjrrqbjurgiqfjxwk.supabase.co';
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
+    if (!serviceRoleKey) {
+      throw new Error('Service role key not configured');
+    }
+
+    const supabase = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    const { userIds } = await req.json();
+    const { emails } = await req.json();
 
-    if (!userIds || !Array.isArray(userIds)) {
+    if (!emails || !Array.isArray(emails)) {
       return new Response(
-        JSON.stringify({ error: 'userIds array is required' }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
+        JSON.stringify({ success: false, message: 'Emails array required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const results = [];
+    console.log(`Checking status for ${emails.length} users: ${emails.join(', ')}`);
 
-    for (const userId of userIds) {
+    // Récupérer tous les utilisateurs Supabase Auth
+    const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers({ 
+      page: 1, 
+      perPage: 1000 
+    });
+
+    if (authError) {
+      console.error('Error listing auth users:', authError);
+      return new Response(
+        JSON.stringify({ success: false, message: authError.message }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Récupérer tous les profils
+    const { data: profiles, error: profilesError } = await supabase
+      .from('profiles')
+      .select('user_id, email, role');
+
+    if (profilesError) {
+      console.error('Error fetching profiles:', profilesError);
+    }
+
+    const userStatuses: UserStatus[] = [];
+
+    for (const email of emails) {
       try {
-        console.log(`Checking user status: ${userId}`);
-        
-        const { data: user, error } = await supabase.auth.admin.getUserById(userId);
-        
-        if (error) {
-          console.error(`Error checking user ${userId}:`, error);
-          results.push({
-            id: userId,
-            email: `user-${userId.substring(0, 8)}@test.com`,
-            status: 'error',
-            message: error.message
+        // Trouver l'utilisateur dans auth.users
+        const authUser = authUsers.users?.find(
+          (u: any) => (u.email || '').toLowerCase() === email.toLowerCase()
+        );
+
+        if (!authUser) {
+          userStatuses.push({
+            email,
+            status: 'not_found',
+            hasProfile: false,
+            emailConfirmed: false,
+            lastSignIn: null,
+            error: 'Utilisateur non trouvé dans auth.users'
           });
-        } else if (user) {
-          console.log(`User ${userId} exists:`, user.email);
-          results.push({
-            id: userId,
-            email: user.email || `user-${userId.substring(0, 8)}@test.com`,
-            status: 'success',
-            message: 'User exists'
-          });
-        } else {
-          console.log(`User ${userId} not found`);
-          results.push({
-            id: userId,
-            email: `user-${userId.substring(0, 8)}@test.com`,
-            status: 'error',
-            message: 'User not found'
-          });
+          continue;
         }
+
+        // Trouver le profil correspondant
+        const profile = profiles?.find(
+          (p: any) => p.user_id === authUser.id || (p.email || '').toLowerCase() === email.toLowerCase()
+        );
+
+        userStatuses.push({
+          email,
+          status: 'exists',
+          hasProfile: !!profile,
+          emailConfirmed: authUser.email_confirmed_at !== null,
+          lastSignIn: authUser.last_sign_in_at,
+          role: profile?.role,
+        });
+
+        console.log(`✅ ${email}: exists, profile=${!!profile}, confirmed=${authUser.email_confirmed_at !== null}`);
+
       } catch (error) {
-        console.error(`Exception checking user ${userId}:`, error);
-        results.push({
-          id: userId,
-          email: `user-${userId.substring(0, 8)}@test.com`,
+        console.error(`Error checking ${email}:`, error);
+        userStatuses.push({
+          email,
           status: 'error',
-          message: error.message
+          hasProfile: false,
+          emailConfirmed: false,
+          lastSignIn: null,
+          error: (error as any).message
         });
       }
     }
 
     const response = {
       success: true,
-      users: results,
-      checkedCount: results.length
+      users: userStatuses,
+      timestamp: new Date().toISOString(),
+      total: userStatuses.length,
+      summary: {
+        exists: userStatuses.filter(u => u.status === 'exists').length,
+        not_found: userStatuses.filter(u => u.status === 'not_found').length,
+        errors: userStatuses.filter(u => u.status === 'error').length,
+        with_profiles: userStatuses.filter(u => u.hasProfile).length,
+        email_confirmed: userStatuses.filter(u => u.emailConfirmed).length,
+      }
     };
 
-    console.log('Check status completed:', response);
+    console.log('Status check completed:', response.summary);
 
-    return new Response(
-      JSON.stringify(response),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    );
+    return new Response(JSON.stringify(response), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
 
   } catch (error) {
-    console.error('Error in check-users-status function:', error);
+    console.error('Function error (check-users-status):', error);
     return new Response(
-      JSON.stringify({ 
-        error: 'Internal server error',
-        message: error.message 
-      }),
-      { 
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
+      JSON.stringify({ success: false, message: (error as any).message }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });

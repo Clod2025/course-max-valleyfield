@@ -14,8 +14,9 @@ interface Profile {
   city?: string;
   postal_code?: string;
   avatar_url?: string;
-  role: 'client' | 'admin' | 'livreur' | 'store_manager'; // Use existing enum values
+  role: 'client' | 'admin' | 'driver' | 'merchant' | 'livreur' | 'store_manager'; // ✅ TOUS LES RÔLES POSSIBLES
   is_active: boolean;
+  store_id?: string;
 }
 
 interface AuthContextType {
@@ -27,6 +28,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<Profile>) => Promise<{ error: any }>;
+  isRole: (allowedRoles: string[]) => boolean; // ✅ NOUVELLE FONCTION UTILITAIRE
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -49,70 +51,134 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // ✅ FONCTION UTILITAIRE POUR VÉRIFIER LES RÔLES
+  const isRole = (allowedRoles: string[]): boolean => {
+    if (!profile) return false;
+    return allowedRoles.includes(profile.role);
+  };
+
   // Fetch user profile avec gestion d'erreur robuste
   const fetchProfile = async (userId: string) => {
     try {
+      console.log('🔍 Fetching profile for user:', userId);
+      
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('user_id', userId)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Error fetching profile:', error);
+        throw error;
+      }
+      
+      console.log('✅ Profile fetched:', data);
       setProfile(data as Profile);
       return data as Profile;
     } catch (error: any) {
+      console.error('❌ Profile fetch failed:', error);
       logError(error, 'Récupération du profil utilisateur');
       return null;
     }
   };
 
-  // Redirect based on user role (only during initial load, not every time)
+  // ✅ LOGIQUE DE REDIRECTION ULTRA-ROBUSTE
   const redirectBasedOnRole = (userProfile: Profile | null, isSigningIn = false) => {
-    if (!userProfile || !isSigningIn) return;
+    console.log('🔄 Redirect check:', { 
+      userProfile, 
+      isSigningIn, 
+      currentPath: window.location.pathname 
+    });
+    
+    if (!userProfile) {
+      console.log('❌ No profile, skipping redirect');
+      return;
+    }
 
     const currentPath = window.location.pathname;
+    console.log('📍 Current path:', currentPath);
+    console.log('👤 User role:', userProfile.role);
     
-    // Don't redirect if already on correct dashboard or on home/stores pages
-    if (currentPath.includes('dashboard') || currentPath === '/home' || currentPath === '/stores') return;
+    // ✅ MAPPING ULTRA-COMPLET DE TOUS LES RÔLES POSSIBLES
+    const roleToDashboard: Record<string, string> = {
+      // Rôles principaux (nouveaux)
+      'client': '/dashboard/client',
+      'merchant': '/dashboard/marchand',
+      'driver': '/dashboard/livreur',
+      'admin': '/dashboard/admin',
+      
+      // Rôles anciens (compatibilité)
+      'livreur': '/dashboard/livreur',
+      'store_manager': '/dashboard/marchand',
+      
+      // Rôles avec majuscules (au cas où)
+      'Client': '/dashboard/client',
+      'Merchant': '/dashboard/marchand',
+      'Marchand': '/dashboard/marchand',
+      'Driver': '/dashboard/livreur',
+      'Livreur': '/dashboard/livreur',
+      'Admin': '/dashboard/admin',
+      'ADMIN': '/dashboard/admin',
+      'CLIENT': '/dashboard/client',
+      'MERCHANT': '/dashboard/marchand',
+      'DRIVER': '/dashboard/livreur'
+    };
 
-    // Only redirect from login/register pages
-    if (currentPath !== '/login' && currentPath !== '/register' && currentPath !== '/') return;
-
-    switch (userProfile.role) {
-      case 'client':
-        window.location.href = '/dashboard/client';
-        break;
-      case 'store_manager':
-        window.location.href = '/dashboard/marchand';
-        break;
-      case 'livreur':
-        window.location.href = '/dashboard/livreur';
-        break;
-      case 'admin':
-        window.location.href = '/dashboard/admin';
-        break;
-      default:
-        // Aucun rôle défini ou rôle non reconnu
-        window.location.href = '/auth/unauthorized';
+    const targetDashboard = roleToDashboard[userProfile.role];
+    
+    if (!targetDashboard) {
+      console.log('❌ Unknown role:', userProfile.role);
+      console.log('Available roles:', Object.keys(roleToDashboard));
+      window.location.href = '/auth/unauthorized';
+      return;
     }
+
+    // ✅ Ne pas rediriger si déjà sur le bon dashboard
+    if (currentPath === targetDashboard) {
+      console.log('✅ Already on correct dashboard, skipping redirect');
+      return;
+    }
+
+    // ✅ Rediriger depuis ces pages spécifiques
+    const shouldRedirect = isSigningIn || 
+      currentPath === '/' || 
+      currentPath === '/home' || 
+      currentPath === '/login' || 
+      currentPath === '/register' ||
+      currentPath.startsWith('/dashboard'); // ✅ Rediriger même si sur mauvais dashboard
+
+    if (!shouldRedirect) {
+      console.log('❌ Not redirecting from this page:', currentPath);
+      return;
+    }
+
+    console.log('🚀 Redirecting to:', targetDashboard);
+    console.log('🎯 Redirection reason:', isSigningIn ? 'SIGN_IN' : 'ROLE_CHECK');
+    
+    // ✅ Redirection immédiate et forcée
+    setTimeout(() => {
+      window.location.href = targetDashboard;
+    }, 100);
   };
 
   useEffect(() => {
-    // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('🔐 Auth state change:', { event, session: !!session });
+        
         setSession(session);
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // Fetch profile after successful auth
+          // ✅ Délai pour éviter les conflits
           setTimeout(async () => {
             const userProfile = await fetchProfile(session.user.id);
-            if (userProfile && event === 'SIGNED_IN') {
-              redirectBasedOnRole(userProfile, true);
+            if (userProfile) {
+              // ✅ REDIRECTION FORCÉE APRÈS CONNEXION
+              redirectBasedOnRole(userProfile, event === 'SIGNED_IN');
             }
-          }, 0);
+          }, 300);
         } else {
           setProfile(null);
         }
@@ -121,13 +187,19 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       }
     );
 
-    // THEN check for existing session
+    // Vérifier session existante
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('🔍 Checking existing session:', !!session);
+      
       setSession(session);
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        fetchProfile(session.user.id);
+        fetchProfile(session.user.id).then(userProfile => {
+          if (userProfile) {
+            redirectBasedOnRole(userProfile, false);
+          }
+        });
       }
       setLoading(false);
     });
@@ -147,7 +219,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           data: {
             first_name: userData?.first_name || '',
             last_name: userData?.last_name || '',
-            role: userData?.role === 'merchant' ? 'store_manager' : (userData?.role === 'driver' ? 'livreur' : 'client')
+            role: userData?.role || 'client'
           }
         }
       });
@@ -192,7 +264,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
       if (error) throw error;
 
-      // Update local profile state
       setProfile(prev => prev ? { ...prev, ...updates } : null);
       
       return { error: null };
@@ -211,7 +282,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       signUp, 
       signIn, 
       signOut, 
-      updateProfile 
+      updateProfile,
+      isRole // ✅ NOUVELLE FONCTION UTILITAIRE
     }}>
       {children}
     </AuthContext.Provider>

@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
+import { useOrderStock } from './useOrderStock';
 
 export interface OrderItem {
   product_id: string;
@@ -52,6 +53,7 @@ export const useOrders = () => {
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const { toast } = useToast();
+  const { updateStockForOrder } = useOrderStock();
 
   const fetchOrders = async () => {
     try {
@@ -145,6 +147,9 @@ export const useOrders = () => {
       if (itemsError) {
         throw itemsError;
       }
+
+      // Mettre à jour le stock des produits
+      await updateStockForOrder(orderData.items);
 
       toast({
         title: "Commande créée",

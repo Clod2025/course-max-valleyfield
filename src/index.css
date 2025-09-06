@@ -2,149 +2,168 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* Corrections pour footer sticky et layout */
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
 
-@layer base {
-  :root {
-    /* CourseMax Color System */
-    --coursemax-primary: 10 100% 59%;        /* #FF4F2E - Rouge-orange vif */
-    --coursemax-secondary: 0 0% 18%;         /* #2E2E2E - Gris anthracite */
-    --coursemax-accent: 152 62% 75%;         /* #A8E6CF - Vert menthe doux */
-    
-    /* Design system based on CourseMax palette */
-    --background: 0 0% 98%;
-    --foreground: 0 0% 18%;
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
 
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 18%;
+/* Assurer que les pages utilisent flex correctement */
+.page-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 18%;
+.page-content {
+  flex: 1;
+}
 
-    --primary: 10 100% 59%;                  /* CourseMax primary */
-    --primary-foreground: 0 0% 100%;
+/* Footer toujours en bas */
+footer {
+  margin-top: auto;
+}
 
-    --secondary: 0 0% 96%;
-    --secondary-foreground: 0 0% 18%;
-
-    --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 45%;
-
-    --accent: 152 62% 75%;                   /* CourseMax accent */
-    --accent-foreground: 0 0% 18%;
-
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 98%;
-
-    --border: 0 0% 90%;
-    --input: 0 0% 96%;
-    --ring: 10 100% 59%;
-
-    --radius: 0.5rem;
-
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+/* Animations optimisées */
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
   }
-
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
-@layer base {
-  * {
-    @apply border-border;
+@keyframes pulse-gentle {
+  0%, 100% {
+    opacity: 1;
   }
-
-  body {
-    @apply bg-background text-foreground;
+  50% {
+    opacity: 0.8;
   }
-  
-  /* CourseMax gradients and effects */
-  .gradient-primary {
-    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary) / 0.8));
-  }
-  
-  .gradient-accent {
-    background: linear-gradient(135deg, hsl(var(--accent)), hsl(var(--accent) / 0.7));
-  }
-  
-  .shadow-coursemax {
-    box-shadow: 0 10px 30px -10px hsl(var(--primary) / 0.3);
-  }
-  
-  .text-gradient {
-    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-}
-
-/* Animations */
-@keyframes slideUp {
-  from { transform: translateY(20px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
 }
 
 .animate-slide-up {
-  animation: slideUp 0.5s ease-out forwards;
+  animation: slide-up 0.6s ease-out;
 }
 
-.animate-fade-in {
-  animation: fadeIn 0.3s ease-out forwards;
+.animate-pulse-gentle {
+  animation: pulse-gentle 2s ease-in-out infinite;
+}
+
+/* PWA specific styles */
+@media (display-mode: standalone) {
+  body {
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+  }
+  
+  /* Masquer la barre de scroll sur mobile PWA */
+  ::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Design system corrections */
+:root {
+  --coursemax-primary: 10 100% 59%;
+  --coursemax-secondary: 0 0% 18%;
+  --coursemax-accent: 152 62% 75%;
+  
+  --background: 0 0% 98%;
+  --foreground: 0 0% 18%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 18%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 18%;
+  --primary: 10 100% 59%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 0 0% 96%;
+  --secondary-foreground: 0 0% 18%;
+  --muted: 0 0% 96%;
+  --muted-foreground: 0 0% 45%;
+  --accent: 152 62% 75%;
+  --accent-foreground: 0 0% 18%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 0 0% 90%;
+  --input: 0 0% 96%;
+  --ring: 10 100% 59%;
+  --radius: 0.5rem;
+}
+
+.dark {
+  --background: 0 0% 3.9%;
+  --foreground: 0 0% 98%;
+  --card: 0 0% 3.9%;
+  --card-foreground: 0 0% 98%;
+  --popover: 0 0% 3.9%;
+  --popover-foreground: 0 0% 98%;
+  --primary: 10 100% 59%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 0 0% 14.9%;
+  --secondary-foreground: 0 0% 98%;
+  --muted: 0 0% 14.9%;
+  --muted-foreground: 0 0% 63.9%;
+  --accent: 152 62% 75%;
+  --accent-foreground: 0 0% 98%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 0 0% 14.9%;
+  --input: 0 0% 14.9%;
+  --ring: 10 100% 59%;
+}
+
+/* Responsive optimizations */
+@media (max-width: 768px) {
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  
+  /* Optimisations PWA mobile */
+  .floating-elements {
+    bottom: env(safe-area-inset-bottom, 80px);
+  }
+}
+
+/* Performance optimizations */
+* {
+  box-sizing: border-box;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Lazy loading placeholder */
+.loading-placeholder {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--muted)) 25%,
+    hsl(var(--muted-foreground) / 0.1) 50%,
+    hsl(var(--muted)) 75%
+  );
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }

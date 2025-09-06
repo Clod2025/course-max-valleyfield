@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr-CA">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -7,52 +7,88 @@
     <meta name="description" content="Plateforme de livraison connectant clients, livreurs et magasins à Valleyfield. Commandez de tous vos magasins préférés en 25-45 minutes." />
     <meta name="author" content="CourseMax" />
 
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#FF4F2E" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="CourseMax" />
+    <meta name="msapplication-TileColor" content="#FF4F2E" />
+    <meta name="msapplication-TileImage" content="/icons/icon-144x144.png" />
+
+    <!-- Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- Icons -->
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+
+    <!-- Open Graph -->
     <meta property="og:title" content="CourseMax - Livraison rapide à Valleyfield" />
     <meta property="og:description" content="Plateforme de livraison connectant clients, livreurs et magasins à Valleyfield. Commandez de tous vos magasins préférés en 25-45 minutes." />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+    <meta property="og:url" content="https://coursemax.ca" />
+    <meta property="og:image" content="/icons/icon-512x512.png" />
+    <meta property="og:locale" content="fr_CA" />
 
+    <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@lovable_dev" />
-    <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+    <meta name="twitter:title" content="CourseMax - Livraison rapide" />
+    <meta name="twitter:description" content="Commandez de tous vos magasins préférés en 25-45 minutes à Valleyfield" />
+    <meta name="twitter:image" content="/icons/icon-512x512.png" />
+
+    <!-- Preload critical resources -->
+    <link rel="preload" href="/src/main.tsx" as="script" />
+    <link rel="dns-prefetch" href="https://vexgjrrqbjurgiqfjxwk.supabase.co" />
   </head>
 
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- Nettoyage des warnings de console (gardé pour compatibilité) -->
     <script>
-      // Suppression des warnings iframe permissions non reconnues et autres warnings console pollluants
       (function() {
-        const originalWarn = console.warn;
-        const originalError = console.error;
-        
-        console.warn = function(...args) {
-          const message = args.join(' ');
-          // Ignore les warnings des permissions non reconnues et autres warnings iframe
-          if (message.includes('vr') || 
-              message.includes('ambient-light-sensor') || 
-              message.includes('battery') ||
-              message.includes('Permissions policy violation') ||
-              message.includes('Permission denied') ||
-              message.includes('clipboard-write') ||
-              message.includes('gyroscope') ||
-              message.includes('accelerometer') ||
-              message.includes('magnetometer')) {
-            return;
-          }
-          originalWarn.apply(console, args);
-        };
+        if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+          const originalWarn = console.warn;
+          const originalError = console.error;
+          
+          console.warn = function(...args) {
+            const message = args.join(' ');
+            if (message.includes('vr') || 
+                message.includes('ambient-light-sensor') || 
+                message.includes('battery') ||
+                message.includes('Permissions policy violation') ||
+                message.includes('Permission denied') ||
+                message.includes('clipboard-write') ||
+                message.includes('gyroscope') ||
+                message.includes('accelerometer') ||
+                message.includes('magnetometer')) {
+              return;
+            }
+            originalWarn.apply(console, args);
+          };
 
-        console.error = function(...args) {
-          const message = args.join(' ');
-          // Ignore certaines erreurs iframe non critiques
-          if (message.includes('Permissions policy violation') ||
-              message.includes('Permission denied to access property')) {
-            return;
-          }
-          originalError.apply(console, args);
-        };
+          console.error = function(...args) {
+            const message = args.join(' ');
+            if (message.includes('Permissions policy violation') ||
+                message.includes('Permission denied to access property')) {
+              return;
+            }
+            originalError.apply(console, args);
+          };
+        }
       })();
+    </script>
+
+    <!-- Install prompt script -->
+    <script>
+      let deferredPrompt;
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        // Optionnel: Afficher bouton d'installation personnalisé
+      });
     </script>
   </body>
 </html>

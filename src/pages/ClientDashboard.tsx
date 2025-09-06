@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Header } from '@/components/header';
+import { ClientHeader } from '@/components/client/ClientHeader';
 import { AppFooter } from '@/components/AppFooter';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
   ShoppingCart, 
   Heart, 
@@ -13,98 +13,74 @@ import {
   MapPin, 
   Star,
   Plus,
-  RotateCcw
+  User,
+  AlertCircle,
+  Store,
+  Search,
+  ArrowRight
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { useOrders } from '@/hooks/useOrders';
-import { useToast } from '@/hooks/use-toast';
+import { useCart } from '@/hooks/useCart';
+import { useLoyaltyAccount } from '@/hooks/useLoyalty';
+import { useRecentOrders } from '@/hooks/useRecentOrders';
 import { useNavigate } from 'react-router-dom';
 
 const ClientDashboard = () => {
-  const { user, profile, loading } = useAuth();
-  const { orders, loading: ordersLoading } = useOrders();
-  const { toast } = useToast();
+  const { profile, loading: authLoading, isRole } = useAuth();
+  const { items: cartItems, total: cartTotal } = useCart();
+  const { account: loyaltyAccount, loading: loyaltyLoading } = useLoyaltyAccount();
+  const { orders: recentOrders, loading: ordersLoading } = useRecentOrders();
   const navigate = useNavigate();
+  
+  const [showStores, setShowStores] = useState(false);
 
-  // Protection de route : vérifier que l'utilisateur est client ou admin
-  useEffect(() => {
-    if (!loading && profile) {
-      if (profile.role !== 'client' && profile.role !== 'admin') {
-        navigate('/auth/unauthorized');
-      }
-    }
-  }, [profile, loading, navigate]);
+  // ✅ VÉRIFICATION CORRIGÉE AVEC TOUS LES RÔLES CLIENT POSSIBLES
+  const isClientRole = isRole(['client', 'Client', 'CLIENT']);
 
-  // Mock data for favorites and recent orders (we'll implement proper hooks later)
-  const [favorites] = useState([
+  // Données simulées des magasins (à remplacer par des vraies données)
+  const stores = [
     {
       id: '1',
-      name: 'Bananes',
-      price: 2.99,
-      unit: 'lb',
-      store: 'IGA Valleyfield',
-      image: '/api/placeholder/60/60'
+      name: 'Épicerie Martin',
+      type: 'Épicerie',
+      address: '123 Rue Principale, Valleyfield',
+      rating: 4.8,
+      deliveryTime: '20-30 min',
+      deliveryFee: 5.99,
+      image: '/placeholder-store.jpg',
+      isOpen: true,
+      categories: ['Fruits & Légumes', 'Viandes', 'Produits laitiers']
     },
     {
       id: '2',
-      name: 'Pain tranché',
-      price: 3.49,
-      unit: 'unité',
-      store: 'Metro Plus',
-      image: '/api/placeholder/60/60'
-    }
-  ]);
-
-  const [recentOrders] = useState([
-    {
-      id: '1',
-      order_number: 'CM20250103-001',
-      total: 45.67,
-      store: 'IGA Valleyfield',
-      date: '2025-01-03',
-      items: 5
+      name: 'Pharmacie Plus',
+      type: 'Pharmacie',
+      address: '456 Avenue des Érables, Valleyfield',
+      rating: 4.6,
+      deliveryTime: '15-25 min',
+      deliveryFee: 3.99,
+      image: '/placeholder-pharmacy.jpg',
+      isOpen: true,
+      categories: ['Médicaments', 'Soins personnels', 'Vitamines']
     },
     {
-      id: '2',
-      order_number: 'CM20250102-003',
-      total: 32.15,
-      store: 'Pharmaprix',
-      date: '2025-01-02',
-      items: 3
+      id: '3',
+      name: 'Boucherie du Coin',
+      type: 'Boucherie',
+      address: '789 Rue du Commerce, Valleyfield',
+      rating: 4.9,
+      deliveryTime: '25-35 min',
+      deliveryFee: 4.99,
+      image: '/placeholder-butcher.jpg',
+      isOpen: false,
+      categories: ['Viandes fraîches', 'Charcuterie', 'Volaille']
     }
-  ]);
+  ];
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending': return 'bg-yellow-500';
-      case 'confirmed': return 'bg-blue-500';
-      case 'preparing': return 'bg-orange-500';
-      case 'ready_for_pickup': return 'bg-purple-500';
-      case 'in_delivery': return 'bg-indigo-500';
-      case 'delivered': return 'bg-green-500';
-      case 'cancelled': return 'bg-red-500';
-      default: return 'bg-gray-500';
-    }
-  };
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'pending': return 'En attente';
-      case 'confirmed': return 'Confirmée';
-      case 'preparing': return 'En préparation';
-      case 'ready_for_pickup': return 'Prête pour ramassage';
-      case 'in_delivery': return 'En livraison';
-      case 'delivered': return 'Livrée';
-      case 'cancelled': return 'Annulée';
-      default: return status;
-    }
-  };
-
-  // Afficher loading pendant la vérification
-  if (loading) {
+  if (authLoading) {
     return (
       <div className="min-h-screen bg-background">
-        <Header />
+        <ClientHeader />
         <div className="container mx-auto py-8">
           <div className="flex items-center justify-center h-64">
             <div className="text-lg">Chargement...</div>
@@ -114,267 +90,289 @@ const ClientDashboard = () => {
     );
   }
 
-  // Ne pas afficher le contenu si pas autorisé
-  if (!profile || (profile.role !== 'client' && profile.role !== 'admin')) {
-    return null;
+  // ✅ VÉRIFICATION CORRIGÉE
+  if (!profile || !isClientRole) {
+    return (
+      <div className="min-h-screen bg-background">
+        <ClientHeader />
+        <div className="container mx-auto py-8">
+          <Card>
+            <CardContent className="p-8 text-center">
+              <AlertCircle className="w-16 h-16 mx-auto mb-4 text-red-500" />
+              <h2 className="text-2xl font-bold mb-2">Accès non autorisé</h2>
+              <p className="text-muted-foreground mb-4">
+                Vous devez être connecté en tant que client pour accéder à cette page.
+              </p>
+              <div className="text-sm text-gray-500">
+                <p>Rôle actuel: <strong>{profile?.role || 'Non défini'}</strong></p>
+                <p>Rôles autorisés: client</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
   }
+
+  const handleStoreSelect = (storeId: string) => {
+    // Rediriger vers la page des produits du magasin
+    navigate(`/store/${storeId}/products`);
+  };
 
   return (
     <div className="min-h-screen bg-background">
-      <Header />
+      <ClientHeader />
       
-      <div className="container mx-auto py-8 px-4">
-        {/* Welcome Section */}
+      <div className="container mx-auto py-6 px-4">
+        {/* En-tête Client */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">
-            Bonjour {profile?.first_name || 'Client'} !
-          </h1>
-          <p className="text-muted-foreground">
-            Gérez vos commandes et découvrez de nouveaux produits à Valleyfield
-          </p>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate('/stores')}>
-            <CardContent className="p-6 text-center">
-              <ShoppingCart className="w-12 h-12 mx-auto mb-4 text-primary" />
-              <h3 className="font-semibold mb-2">Nouvelle commande</h3>
-              <p className="text-sm text-muted-foreground">
-                Commandez chez vos magasins préférés
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
+                <User className="w-8 h-8 text-green-600" />
+                Bienvenue, {profile.first_name || 'Client'}
+              </h1>
+              <p className="text-muted-foreground mt-2">
+                Découvrez les meilleurs magasins de votre région
               </p>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-lg transition-shadow">
-            <CardContent className="p-6 text-center">
-              <Heart className="w-12 h-12 mx-auto mb-4 text-red-500" />
-              <h3 className="font-semibold mb-2">Mes favoris</h3>
-              <p className="text-sm text-muted-foreground">
-                {favorites.length} produits sauvegardés
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-lg transition-shadow">
-            <CardContent className="p-6 text-center">
-              <Clock className="w-12 h-12 mx-auto mb-4 text-blue-500" />
-              <h3 className="font-semibold mb-2">Commandes récentes</h3>
-              <p className="text-sm text-muted-foreground">
-                {recentOrders.length} commandes récentes
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Dashboard Content */}
-        <Tabs defaultValue="orders" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="orders">
-              <Package className="w-4 h-4 mr-2" />
-              Mes commandes
-            </TabsTrigger>
-            <TabsTrigger value="favorites">
-              <Heart className="w-4 h-4 mr-2" />
-              Favoris
-            </TabsTrigger>
-            <TabsTrigger value="recent">
-              <Clock className="w-4 h-4 mr-2" />
-              Récents
-            </TabsTrigger>
-          </TabsList>
-
-          {/* Orders Tab */}
-          <TabsContent value="orders" className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-semibold">Mes commandes</h2>
-              <Button onClick={() => navigate('/stores')}>
-                <Plus className="w-4 h-4 mr-2" />
-                Nouvelle commande
-              </Button>
             </div>
+            <div className="flex items-center gap-3">
+              <Badge variant="default" className="bg-green-600">
+                <User className="w-4 h-4 mr-1" />
+                Client
+              </Badge>
+            </div>
+          </div>
+        </div>
 
+        {/* Bouton Magasiner Principal */}
+        <div className="mb-8">
+          <Card className="bg-gradient-to-r from-green-50 to-blue-50 border-green-200">
+            <CardContent className="p-8 text-center">
+              <div className="bg-green-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <ShoppingCart className="w-10 h-10 text-green-600" />
+              </div>
+              <h2 className="text-2xl font-bold mb-2">Prêt à faire vos courses ?</h2>
+              <p className="text-muted-foreground mb-6">
+                Découvrez tous les magasins disponibles dans votre région
+              </p>
+              <Button 
+                size="lg" 
+                className="bg-green-600 hover:bg-green-700 text-lg px-8 py-3"
+                onClick={() => setShowStores(true)}
+              >
+                <Store className="w-5 h-5 mr-2" />
+                Magasiner Maintenant
+                <ArrowRight className="w-5 h-5 ml-2" />
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Statistiques rapides */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Panier Actuel</CardTitle>
+              <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{cartItems?.length || 0}</div>
+              <p className="text-xs text-muted-foreground">
+                Total: {cartTotal?.toFixed(2) || '0.00'}$
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Commandes</CardTitle>
+              <Package className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{recentOrders?.length || 0}</div>
+              <p className="text-xs text-muted-foreground">Ce mois</p>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Points Fidélité</CardTitle>
+              <Star className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{loyaltyAccount?.points || 0}</div>
+              <p className="text-xs text-muted-foreground">Points disponibles</p>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Favoris</CardTitle>
+              <Heart className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">8</div>
+              <p className="text-xs text-muted-foreground">Produits sauvés</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Commandes récentes */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="w-5 h-5" />
+              Vos Dernières Commandes
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
             {ordersLoading ? (
-              <div className="grid gap-4">
-                {[1, 2, 3].map(i => (
-                  <Card key={i}>
-                    <CardContent className="p-6">
-                      <div className="animate-pulse">
-                        <div className="h-4 bg-gray-200 rounded w-1/4 mb-2"></div>
-                        <div className="h-3 bg-gray-200 rounded w-1/3"></div>
+              <div className="text-center py-4">Chargement...</div>
+            ) : recentOrders && recentOrders.length > 0 ? (
+              <div className="space-y-3">
+                {recentOrders.slice(0, 3).map((order) => (
+                  <div key={order.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors">
+                    <div className="flex items-center gap-4">
+                      <div className="bg-green-100 p-2 rounded-lg">
+                        <Package className="w-5 h-5 text-green-600" />
                       </div>
-                    </CardContent>
-                  </Card>
+                      <div>
+                        <p className="font-medium">Commande #{order.order_number}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {new Date(order.created_at).toLocaleDateString()} • {order.items?.length || 0} articles
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <Badge 
+                        variant={order.status === 'delivered' ? 'default' : 'secondary'}
+                        className={order.status === 'delivered' ? 'bg-green-600' : ''}
+                      >
+                        {order.status}
+                      </Badge>
+                      <p className="text-sm font-semibold mt-1">{order.total_amount}$</p>
+                    </div>
+                  </div>
                 ))}
               </div>
-            ) : orders.length === 0 ? (
-              <Card>
-                <CardContent className="p-8 text-center">
-                  <Package className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-                  <h3 className="text-xl font-semibold mb-2">Aucune commande</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Vous n'avez pas encore passé de commande
-                  </p>
-                  <Button onClick={() => navigate('/stores')}>
-                    Commander maintenant
-                  </Button>
-                </CardContent>
-              </Card>
             ) : (
-              <div className="grid gap-4">
-                {orders.map((order) => (
-                  <Card key={order.id}>
-                    <CardContent className="p-6">
-                      <div className="flex justify-between items-start mb-4">
-                        <div>
-                          <h3 className="font-semibold text-lg">
-                            Commande #{order.order_number}
-                          </h3>
-                          <p className="text-sm text-muted-foreground">
-                            {order.store?.name} • {new Date(order.created_at).toLocaleDateString('fr-CA')}
-                          </p>
-                        </div>
-                        <Badge className={`${getStatusColor(order.status)} text-white`}>
-                          {getStatusText(order.status)}
-                        </Badge>
-                      </div>
+              <div className="text-center py-8">
+                <Package className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-lg font-semibold mb-2">Aucune commande récente</h3>
+                <p className="text-muted-foreground mb-4">
+                  Commencez vos courses dès maintenant !
+                </p>
+                <Button onClick={() => setShowStores(true)}>
+                  <Store className="w-4 h-4 mr-2" />
+                  Découvrir les Magasins
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center space-x-4">
-                          <div className="flex items-center">
-                            <MapPin className="w-4 h-4 mr-1 text-muted-foreground" />
-                            <span className="text-sm">{order.delivery_address}</span>
+        {/* Modal des magasins */}
+        {showStores && (
+          <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+            <div className="bg-background rounded-lg shadow-lg w-full max-w-4xl max-h-[90vh] overflow-hidden">
+              {/* En-tête du modal */}
+              <div className="p-6 border-b">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-2xl font-bold">Choisissez votre magasin</h2>
+                    <p className="text-muted-foreground">Sélectionnez un magasin pour commencer vos courses</p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowStores(false)}
+                    className="text-2xl"
+                  >
+                    ×
+                  </Button>
+                </div>
+              </div>
+
+              {/* Liste des magasins */}
+              <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {stores.map((store) => (
+                    <Card 
+                      key={store.id} 
+                      className={`hover:shadow-lg transition-all duration-200 cursor-pointer ${
+                        !store.isOpen ? 'opacity-60' : ''
+                      }`}
+                      onClick={() => store.isOpen && handleStoreSelect(store.id)}
+                    >
+                      <CardContent className="p-6">
+                        <div className="flex items-start justify-between mb-4">
+                          <div className="flex items-center gap-3">
+                            <div className="bg-blue-100 p-3 rounded-lg">
+                              <Store className="w-6 h-6 text-blue-600" />
+                            </div>
+                            <div>
+                              <h3 className="font-semibold text-lg">{store.name}</h3>
+                              <p className="text-sm text-muted-foreground">{store.type}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {store.isOpen ? (
+                              <Badge className="bg-green-600">Ouvert</Badge>
+                            ) : (
+                              <Badge variant="destructive">Fermé</Badge>
+                            )}
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="font-semibold text-lg">
-                            {order.total_amount.toFixed(2)}$
-                          </p>
+
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2 text-sm">
+                            <MapPin className="w-4 h-4 text-muted-foreground" />
+                            <span>{store.address}</span>
+                          </div>
+
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1">
+                              <Star className="w-4 h-4 text-yellow-500 fill-current" />
+                              <span className="text-sm font-medium">{store.rating}</span>
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              {store.deliveryTime}
+                            </div>
+                            <div className="text-sm font-medium">
+                              Livraison: {store.deliveryFee}$
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap gap-1">
+                            {store.categories.slice(0, 3).map((category, index) => (
+                              <Badge key={index} variant="outline" className="text-xs">
+                                {category}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+
+                        {store.isOpen && (
                           <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => navigate(`/order-details/${order.id}`)}
+                            className="w-full mt-4 bg-green-600 hover:bg-green-700"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleStoreSelect(store.id);
+                            }}
                           >
-                            Voir détails
+                            <ShoppingCart className="w-4 h-4 mr-2" />
+                            Commencer mes courses
                           </Button>
-                        </div>
-                      </div>
-
-                      {order.status === 'in_delivery' && (
-                        <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                          <p className="text-sm text-blue-700">
-                            🚚 Votre commande est en route ! Temps estimé: 15-25 min
-                          </p>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
               </div>
-            )}
-          </TabsContent>
-
-          {/* Favorites Tab */}
-          <TabsContent value="favorites" className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-semibold">Mes favoris</h2>
-              <Button variant="outline" onClick={() => navigate('/stores')}>
-                Parcourir les produits
-              </Button>
             </div>
-
-            {favorites.length === 0 ? (
-              <Card>
-                <CardContent className="p-8 text-center">
-                  <Heart className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-                  <h3 className="text-xl font-semibold mb-2">Aucun favori</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Ajoutez des produits à vos favoris pour les retrouver facilement
-                  </p>
-                  <Button onClick={() => navigate('/stores')}>
-                    Découvrir des produits
-                  </Button>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {favorites.map((product) => (
-                  <Card key={product.id} className="hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4">
-                      <div className="flex items-center space-x-3">
-                        <img
-                          src={product.image}
-                          alt={product.name}
-                          className="w-12 h-12 rounded-lg object-cover"
-                        />
-                        <div className="flex-1">
-                          <h4 className="font-semibold">{product.name}</h4>
-                          <p className="text-sm text-muted-foreground">
-                            {product.store}
-                          </p>
-                          <p className="font-semibold text-primary">
-                            {product.price.toFixed(2)}$ / {product.unit}
-                          </p>
-                        </div>
-                        <Button size="sm" onClick={() => navigate('/stores')}>
-                          <Plus className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </TabsContent>
-
-          {/* Recent Tab */}
-          <TabsContent value="recent" className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-semibold">Commandes récentes</h2>
-              <Button variant="outline">
-                Voir tout l'historique
-              </Button>
-            </div>
-
-            {recentOrders.length === 0 ? (
-              <Card>
-                <CardContent className="p-8 text-center">
-                  <Clock className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-                  <h3 className="text-xl font-semibold mb-2">Aucun historique</h3>
-                  <p className="text-muted-foreground">
-                    Vos commandes récentes apparaîtront ici
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="grid gap-4">
-                {recentOrders.map((order) => (
-                  <Card key={order.id} className="hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4">
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <h4 className="font-semibold">{order.order_number}</h4>
-                          <p className="text-sm text-muted-foreground">
-                            {order.store} • {order.items} articles • {order.date}
-                          </p>
-                        </div>
-                        <div className="text-right space-x-2">
-                          <span className="font-semibold">
-                            {order.total.toFixed(2)}$
-                          </span>
-                          <Button size="sm" variant="outline">
-                            <RotateCcw className="w-4 h-4 mr-1" />
-                            Recommander
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
+          </div>
+        )}
       </div>
 
       <AppFooter />
