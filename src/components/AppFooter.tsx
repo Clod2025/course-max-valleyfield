@@ -352,7 +352,7 @@ const PartnersSection: React.FC = () => {
 
 // Composant Principal AppFooter avec Protections
 export const AppFooter: React.FC = () => {
-  const { user, profile } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
 
   return (
@@ -409,7 +409,7 @@ export const AppFooter: React.FC = () => {
                       Mon tableau de bord
                     </Link>
                     <button 
-                      onClick={() => {/* signOut function */}} 
+                      onClick={signOut}
                       className="block hover:text-primary transition-colors text-left"
                     >
                       Déconnexion

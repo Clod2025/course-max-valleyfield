@@ -91,7 +91,7 @@ const Login = () => {
                 <Button onClick={() => navigate('/dashboard/client')} className="w-full">
                   Aller à mon tableau de bord
                 </Button>
-                <Button variant="outline" onClick={() => supabase.auth.signOut()} className="w-full">
+                <Button variant="outline" onClick={signOut} className="w-full">
                   Se déconnecter
                 </Button>
               </div>
@@ -157,34 +157,6 @@ const Login = () => {
                 </Link>
               </div>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Section de test avec les comptes de démonstration */}
-        <Card className="max-w-md mx-auto mt-6 border-blue-200 bg-blue-50 dark:bg-blue-950">
-          <CardHeader>
-            <CardTitle className="text-lg text-blue-800 dark:text-blue-200">
-              🧪 Comptes de test
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="grid grid-cols-1 gap-2 text-sm">
-              <div className="p-2 bg-white dark:bg-gray-800 rounded border">
-                <strong>Client:</strong> clodenerc@yahoo.fr
-              </div>
-              <div className="p-2 bg-white dark:bg-gray-800 rounded border">
-                <strong>Marchand:</strong> engligoclervil9@gmail.com
-              </div>
-              <div className="p-2 bg-white dark:bg-gray-800 rounded border">
-                <strong>Livreur:</strong> claircl18@gmail.com
-              </div>
-              <div className="p-2 bg-white dark:bg-gray-800 rounded border">
-                <strong>Admin:</strong> desirdalia@gmail.com
-              </div>
-            </div>
-            <p className="text-xs text-blue-600 dark:text-blue-400">
-              <strong>Mot de passe:</strong> CourseMax2024!
-            </p>
           </CardContent>
         </Card>
       </main>

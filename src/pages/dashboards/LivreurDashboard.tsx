@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { DriverHeader } from '@/components/driver/DriverHeader';
+import { DriverFinance } from '@/components/driver/DriverFinance';
+import { DriverTips } from '@/components/driver/DriverTips';
+import { DriverSupport } from '@/components/driver/DriverSupport';
+import { DriverSettings } from '@/components/driver/DriverSettings';
 import { AppFooter } from '@/components/AppFooter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -44,6 +49,8 @@ interface Assignment {
 
 const LivreurDashboard = () => {
   const { profile, loading: authLoading, isRole } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
   const { 
     assignments, 
     loading, 
@@ -65,6 +72,18 @@ const LivreurDashboard = () => {
       return () => clearInterval(interval);
     }
   }, [profile, isDriverRole]);
+
+  // Déterminer quelle vue afficher selon l'URL
+  const getCurrentView = () => {
+    const path = location.pathname;
+    if (path.includes('/finance')) return 'finance';
+    if (path.includes('/pourboires')) return 'tips';
+    if (path.includes('/aide')) return 'support';
+    if (path.includes('/parametres')) return 'settings';
+    return 'dashboard';
+  };
+
+  const currentView = getCurrentView();
 
   if (authLoading) {
     return (
@@ -103,37 +122,51 @@ const LivreurDashboard = () => {
     );
   }
 
-  const handleAcceptAssignment = async (assignmentId: string) => {
-    try {
-      await acceptAssignment(assignmentId);
-      setDriverStatus('busy');
-      // Actualiser la liste
-      fetchAssignments();
-    } catch (error) {
-      console.error('Erreur lors de l\'acceptation:', error);
+  // Rendu conditionnel selon la vue
+  const renderContent = () => {
+    switch (currentView) {
+      case 'finance':
+        return <DriverFinance />;
+      case 'tips':
+        return <DriverTips />;
+      case 'support':
+        return <DriverSupport />;
+      case 'settings':
+        return <DriverSettings />;
+      default:
+        return <MainDashboardContent />;
     }
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'urgent': return 'bg-red-600';
-      case 'express': return 'bg-orange-600';
-      default: return 'bg-blue-600';
-    }
-  };
+  // Composant pour le contenu principal du dashboard
+  const MainDashboardContent = () => {
+    const handleAcceptAssignment = async (assignmentId: string) => {
+      try {
+        await acceptAssignment(assignmentId);
+        setDriverStatus('busy');
+        fetchAssignments();
+      } catch (error) {
+        console.error('Erreur lors de l\'acceptation:', error);
+      }
+    };
 
-  const getPriorityLabel = (priority: string) => {
-    switch (priority) {
-      case 'urgent': return 'URGENT';
-      case 'express': return 'EXPRESS';
-      default: return 'NORMAL';
-    }
-  };
+    const getPriorityColor = (priority: string) => {
+      switch (priority) {
+        case 'urgent': return 'bg-red-600';
+        case 'express': return 'bg-orange-600';
+        default: return 'bg-blue-600';
+      }
+    };
 
-  return (
-    <div className="min-h-screen bg-background">
-      <DriverHeader />
-      
+    const getPriorityLabel = (priority: string) => {
+      switch (priority) {
+        case 'urgent': return 'URGENT';
+        case 'express': return 'EXPRESS';
+        default: return 'NORMAL';
+      }
+    };
+
+    return (
       <div className="container mx-auto py-6 px-4">
         {/* Statut du livreur */}
         <div className="mb-6">
@@ -390,6 +423,7 @@ const LivreurDashboard = () => {
                 </div>
               </CardHeader>
               <CardContent>
+                {/* Contenu détaillé de l'assignation */}
                 <div className="space-y-6">
                   {/* Informations générales */}
                   <div>
@@ -412,63 +446,6 @@ const LivreurDashboard = () => {
                         <Badge className={getPriorityColor(selectedAssignment.priority)}>
                           {getPriorityLabel(selectedAssignment.priority)}
                         </Badge>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Itinéraire */}
-                  <div>
-                    <h4 className="font-semibold mb-3">Itinéraire</h4>
-                    <div className="space-y-3">
-                      <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg">
-                        <MapPin className="w-5 h-5 text-blue-600 mt-0.5" />
-                        <div>
-                          <p className="font-medium text-blue-800">Récupération</p>
-                          <p className="text-sm">{selectedAssignment.pickup_address}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-start gap-3 p-3 bg-green-50 rounded-lg">
-                        <Navigation className="w-5 h-5 text-green-600 mt-0.5" />
-                        <div>
-                          <p className="font-medium text-green-800">Livraison</p>
-                          <p className="text-sm">{selectedAssignment.delivery_address}</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Client */}
-                  <div>
-                    <h4 className="font-semibold mb-3">Informations Client</h4>
-                    <div className="p-3 bg-gray-50 rounded-lg">
-                      <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2">
-                          <User className="w-4 h-4 text-muted-foreground" />
-                          <span className="font-medium">{selectedAssignment.customer_name}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Phone className="w-4 h-4 text-muted-foreground" />
-                          <span>{selectedAssignment.customer_phone}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Rémunération */}
-                  <div>
-                    <h4 className="font-semibold mb-3">Rémunération</h4>
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="text-center p-3 bg-purple-50 rounded-lg">
-                        <p className="text-sm text-muted-foreground">Gain de base</p>
-                        <p className="text-lg font-bold text-purple-600">{selectedAssignment.payment_amount.toFixed(2)}$</p>
-                      </div>
-                      <div className="text-center p-3 bg-yellow-50 rounded-lg">
-                        <p className="text-sm text-muted-foreground">Pourboire estimé</p>
-                        <p className="text-lg font-bold text-yellow-600">2-5$</p>
-                      </div>
-                      <div className="text-center p-3 bg-green-50 rounded-lg">
-                        <p className="text-sm text-muted-foreground">Total estimé</p>
-                        <p className="text-lg font-bold text-green-600">{(selectedAssignment.payment_amount + 3.5).toFixed(2)}$</p>
                       </div>
                     </div>
                   </div>
@@ -499,6 +476,14 @@ const LivreurDashboard = () => {
           </div>
         )}
       </div>
+    );
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
+      <DriverHeader />
+      
+      {renderContent()}
 
       <AppFooter />
     </div>

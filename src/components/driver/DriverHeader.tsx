@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -22,6 +23,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 
 export function DriverHeader() {
+  const navigate = useNavigate();
   const { profile, signOut } = useAuth();
   const [showMenu, setShowMenu] = useState(false);
   const [showPhotoUpload, setShowPhotoUpload] = useState(false);
@@ -29,10 +31,30 @@ export function DriverHeader() {
   const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      // Logique d'upload de photo à implémenter
       console.log('Photo sélectionnée:', file);
       setShowPhotoUpload(false);
     }
+  };
+
+  // Fonctions de navigation pour chaque bouton
+  const handleFinanceClick = () => {
+    setShowMenu(false);
+    navigate('/dashboard/livreur/finance');
+  };
+
+  const handleTipsClick = () => {
+    setShowMenu(false);
+    navigate('/dashboard/livreur/pourboires');
+  };
+
+  const handleSupportClick = () => {
+    setShowMenu(false);
+    navigate('/dashboard/livreur/aide');
+  };
+
+  const handleSettingsClick = () => {
+    setShowMenu(false);
+    navigate('/dashboard/livreur/parametres');
   };
 
   return (
@@ -50,9 +72,12 @@ export function DriverHeader() {
               <Menu className="h-5 w-5" />
             </Button>
             <div className="flex items-center gap-2">
-              <div className="bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold">
-                L
-              </div>
+              {/* Logo officiel CourseMax */}
+              <img 
+                src="/lovable-uploads/482dd564-f9a1-48f4-bef4-6569e9c64c0b.png" 
+                alt="CourseMax Logo" 
+                className="h-8 w-auto"
+              />
               <div>
                 <span className="text-lg font-bold text-primary">CourseMax</span>
                 <Badge variant="default" className="ml-2 text-xs bg-blue-600">
@@ -65,6 +90,12 @@ export function DriverHeader() {
 
           {/* Statut et Profil Rapide */}
           <div className="flex items-center gap-3">
+            {/* Logo à côté du profil utilisateur */}
+            <img 
+              src="/lovable-uploads/482dd564-f9a1-48f4-bef4-6569e9c64c0b.png" 
+              alt="CourseMax" 
+              className="h-6 w-auto"
+            />
             <Badge variant="outline" className="text-green-600 border-green-600">
               ● En ligne
             </Badge>
@@ -83,17 +114,24 @@ export function DriverHeader() {
         </div>
       </header>
 
-      {/* Menu Latéral */}
+      {/* Menu Latéral avec logo */}
       {showMenu && (
         <div className="fixed inset-0 z-50 bg-black/50" onClick={() => setShowMenu(false)}>
           <div 
             className="fixed left-0 top-0 h-full w-80 bg-background shadow-lg overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* En-tête du menu */}
+            {/* En-tête du menu avec logo */}
             <div className="p-6 border-b bg-gradient-to-r from-blue-50 to-blue-100">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold">Menu Livreur</h2>
+                <div className="flex items-center gap-2">
+                  <img 
+                    src="/lovable-uploads/482dd564-f9a1-48f4-bef4-6569e9c64c0b.png" 
+                    alt="CourseMax" 
+                    className="h-6 w-auto"
+                  />
+                  <h2 className="text-lg font-semibold">Menu Livreur</h2>
+                </div>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -158,7 +196,7 @@ export function DriverHeader() {
 
             <Separator />
 
-            {/* Boutons fonctionnels */}
+            {/* Boutons fonctionnels - MAINTENANT CONNECTÉS */}
             <div className="p-4 space-y-2">
               <h3 className="font-semibold mb-3">Actions</h3>
               
@@ -166,10 +204,7 @@ export function DriverHeader() {
               <Button
                 variant="outline"
                 className="w-full justify-start h-12"
-                onClick={() => {
-                  setShowMenu(false);
-                  // Navigation vers finance
-                }}
+                onClick={handleFinanceClick}
               >
                 <DollarSign className="h-4 w-4 mr-3" />
                 <div className="text-left">
@@ -182,10 +217,7 @@ export function DriverHeader() {
               <Button
                 variant="outline"
                 className="w-full justify-start h-12"
-                onClick={() => {
-                  setShowMenu(false);
-                  // Navigation vers pourboires
-                }}
+                onClick={handleTipsClick}
               >
                 <Gift className="h-4 w-4 mr-3" />
                 <div className="text-left">
@@ -198,10 +230,7 @@ export function DriverHeader() {
               <Button
                 variant="outline"
                 className="w-full justify-start h-12"
-                onClick={() => {
-                  setShowMenu(false);
-                  // Navigation vers aide
-                }}
+                onClick={handleSupportClick}
               >
                 <HelpCircle className="h-4 w-4 mr-3" />
                 <div className="text-left">
@@ -214,10 +243,7 @@ export function DriverHeader() {
               <Button
                 variant="outline"
                 className="w-full justify-start h-12"
-                onClick={() => {
-                  setShowMenu(false);
-                  // Navigation vers paramètres
-                }}
+                onClick={handleSettingsClick}
               >
                 <Settings className="h-4 w-4 mr-3" />
                 <div className="text-left">

@@ -46,7 +46,7 @@ export function MerchantHeader({ onMenuItemClick, activeItem }: MerchantHeaderPr
       <header className="bg-white border-b shadow-sm">
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
-            {/* Menu hamburger et titre */}
+            {/* Menu hamburger et titre avec logo */}
             <div className="flex items-center gap-4">
               <Button
                 variant="ghost"
@@ -58,7 +58,12 @@ export function MerchantHeader({ onMenuItemClick, activeItem }: MerchantHeaderPr
               </Button>
               
               <div className="flex items-center gap-3">
-                <Store className="w-8 h-8 text-primary" />
+                {/* Logo officiel CourseMax */}
+                <img 
+                  src="/lovable-uploads/482dd564-f9a1-48f4-bef4-6569e9c64c0b.png" 
+                  alt="CourseMax Logo" 
+                  className="h-8 w-auto"
+                />
                 <div>
                   <h1 className="text-xl font-bold">Dashboard Marchand</h1>
                   <p className="text-sm text-muted-foreground">
@@ -70,6 +75,12 @@ export function MerchantHeader({ onMenuItemClick, activeItem }: MerchantHeaderPr
 
             {/* Actions rapides */}
             <div className="flex items-center gap-3">
+              {/* Logo à côté du profil utilisateur */}
+              <img 
+                src="/lovable-uploads/482dd564-f9a1-48f4-bef4-6569e9c64c0b.png" 
+                alt="CourseMax" 
+                className="h-6 w-auto"
+              />
               <Badge variant="default" className="bg-primary">
                 <Store className="w-4 h-4 mr-1" />
                 Marchand
@@ -89,15 +100,22 @@ export function MerchantHeader({ onMenuItemClick, activeItem }: MerchantHeaderPr
         </div>
       </header>
 
-      {/* Menu latéral mobile */}
+      {/* Menu latéral mobile avec logo */}
       <div className={`fixed inset-0 z-50 ${showMenu ? 'block' : 'hidden'} lg:hidden`}>
         <div className="absolute inset-0 bg-black/50" onClick={() => setShowMenu(false)} />
         
         <div className="absolute left-0 top-0 h-full w-80 bg-white shadow-xl">
           <div className="p-6">
-            {/* Header du menu */}
+            {/* Header du menu avec logo */}
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold">Menu Marchand</h2>
+              <div className="flex items-center gap-2">
+                <img 
+                  src="/lovable-uploads/482dd564-f9a1-48f4-bef4-6569e9c64c0b.png" 
+                  alt="CourseMax" 
+                  className="h-6 w-auto"
+                />
+                <h2 className="text-lg font-semibold">Menu Marchand</h2>
+              </div>
               <Button variant="ghost" size="sm" onClick={() => setShowMenu(false)}>
                 <X className="w-4 h-4" />
               </Button>
@@ -167,7 +185,7 @@ export function MerchantHeader({ onMenuItemClick, activeItem }: MerchantHeaderPr
         </div>
       </div>
 
-      {/* Menu desktop (sidebar permanent) */}
+      {/* Menu desktop (sidebar permanent) avec logo */}
       <div className="hidden lg:block fixed left-0 top-16 h-[calc(100vh-4rem)] w-80 bg-white border-r shadow-sm overflow-y-auto z-40">
         <div className="p-6">
           {/* Profil marchand */}

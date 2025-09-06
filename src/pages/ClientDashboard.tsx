@@ -158,12 +158,11 @@ const ClientDashboard = () => {
               </p>
               <Button 
                 size="lg" 
-                className="bg-green-600 hover:bg-green-700 text-lg px-8 py-3"
-                onClick={() => setShowStores(true)}
+                className="bg-green-600 hover:bg-green-700 text-white px-8 py-4 text-lg font-semibold rounded-xl transition-all hover:scale-105 shadow-lg"
+                onClick={() => navigate('/stores')}
               >
-                <Store className="w-5 h-5 mr-2" />
-                Magasiner Maintenant
-                <ArrowRight className="w-5 h-5 ml-2" />
+                <Store className="w-6 h-6 mr-3" />
+                Découvrir les Magasins
               </Button>
             </CardContent>
           </Card>
@@ -263,7 +262,7 @@ const ClientDashboard = () => {
                 <p className="text-muted-foreground mb-4">
                   Commencez vos courses dès maintenant !
                 </p>
-                <Button onClick={() => setShowStores(true)}>
+                <Button onClick={() => navigate('/stores')}>
                   <Store className="w-4 h-4 mr-2" />
                   Découvrir les Magasins
                 </Button>

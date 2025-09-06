@@ -246,11 +246,22 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    setSession(null);
-    setProfile(null);
-    window.location.href = '/';
+    try {
+      // Supprimer la session Supabase
+      await supabase.auth.signOut();
+      
+      // Nettoyer l'état local
+      setUser(null);
+      setSession(null);
+      setProfile(null);
+      
+      // Redirection sécurisée vers la page Home
+      window.location.href = '/home';
+    } catch (error) {
+      console.error('Erreur lors de la déconnexion:', error);
+      // En cas d'erreur, forcer quand même la redirection
+      window.location.href = '/home';
+    }
   };
 
   const updateProfile = async (updates: Partial<Profile>) => {

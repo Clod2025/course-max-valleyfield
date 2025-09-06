@@ -122,19 +122,33 @@ const AdminDashboard = () => {
       <Header />
       
       <div className="container mx-auto py-8 px-4">
-        {/* En-tête Admin */}
+        {/* En-tête Admin avec logo */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-                <Shield className="w-8 h-8 text-primary" />
-                Dashboard Administrateur
-              </h1>
-              <p className="text-muted-foreground mt-2">
-                Bienvenue, {profile.first_name || 'Admin'} - Contrôle total du système CourseMax
-              </p>
+            <div className="flex items-center gap-4">
+              {/* Logo officiel CourseMax */}
+              <img 
+                src="/lovable-uploads/482dd564-f9a1-48f4-bef4-6569e9c64c0b.png" 
+                alt="CourseMax Logo" 
+                className="h-12 w-auto"
+              />
+              <div>
+                <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
+                  <Shield className="w-8 h-8 text-primary" />
+                  Dashboard Administrateur
+                </h1>
+                <p className="text-muted-foreground mt-2">
+                  Bienvenue, {profile.first_name || 'Admin'} - Contrôle total du système CourseMax
+                </p>
+              </div>
             </div>
             <div className="flex items-center gap-3">
+              {/* Logo à côté du profil admin */}
+              <img 
+                src="/lovable-uploads/482dd564-f9a1-48f4-bef4-6569e9c64c0b.png" 
+                alt="CourseMax" 
+                className="h-8 w-auto"
+              />
               <Badge variant="default" className="bg-primary">
                 <Shield className="w-4 h-4 mr-1" />
                 Admin

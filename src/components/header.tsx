@@ -10,7 +10,6 @@ export function Header() {
   const getDashboardLink = () => {
     if (!profile) return '/home';
     
-    // ✅ MAPPING ULTRA-COMPLET
     const roleToDashboard: Record<string, string> = {
       'client': '/dashboard/client',
       'merchant': '/dashboard/marchand',
@@ -34,19 +33,16 @@ export function Header() {
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         <Link to="/home" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-          <div className="bg-primary text-primary-foreground w-8 h-8 rounded-full flex items-center justify-center font-bold">
-            C
-          </div>
+          {/* Logo officiel CourseMax */}
+          <img 
+            src="/lovable-uploads/482dd564-f9a1-48f4-bef4-6569e9c64c0b.png" 
+            alt="CourseMax Logo" 
+            className="h-10 w-auto"
+          />
           <span className="text-xl font-bold text-primary">CourseMax</span>
         </Link>
 
         <nav className="hidden md:flex items-center gap-6">
-          <Link to="/home" className="text-sm font-medium hover:text-primary transition-colors">
-            Accueil
-          </Link>
-          <Link to="/stores" className="text-sm font-medium hover:text-primary transition-colors">
-            Magasins
-          </Link>
           {user && (
             <Link to={getDashboardLink()} className="text-sm font-medium hover:text-primary transition-colors">
               Mon Espace
@@ -57,6 +53,12 @@ export function Header() {
         <div className="flex items-center gap-4">
           {user ? (
             <div className="flex items-center gap-2">
+              {/* Logo à côté du nom d'utilisateur */}
+              <img 
+                src="/lovable-uploads/482dd564-f9a1-48f4-bef4-6569e9c64c0b.png" 
+                alt="CourseMax" 
+                className="h-6 w-auto"
+              />
               <Button
                 variant="outline"
                 size="sm"

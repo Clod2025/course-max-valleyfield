@@ -18,7 +18,6 @@ import OrderSuccess from "./pages/OrderSuccess";
 import MerchantDashboard from "./pages/MerchantDashboard";
 import DriverDashboard from "./pages/DriverDashboard";
 import UnauthorizedPage from "./pages/UnauthorizedPage";
-import Test from "./test";
 
 // Imports lazy pour les composants lourds
 import {
@@ -81,7 +80,6 @@ const App = () => {
               <Route path="/register" element={<Register />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/old-index" element={<Index />} />
-              <Route path="/test" element={<Test />} />
               <Route path="/auth/unauthorized" element={<UnauthorizedPage />} />
               <Route path="/order-success/:orderId" element={<OrderSuccess />} />
               
@@ -96,7 +94,14 @@ const App = () => {
               {/* Dashboards avec protection de rôle */}
               <Route path="/dashboard/admin" element={<AdminDashboard />} />
               <Route path="/dashboard/marchand" element={<MarchandDashboard />} />
+              
+              {/* Routes Livreur avec sous-pages */}
               <Route path="/dashboard/livreur" element={<LivreurDashboard />} />
+              <Route path="/dashboard/livreur/finance" element={<LivreurDashboard />} />
+              <Route path="/dashboard/livreur/pourboires" element={<LivreurDashboard />} />
+              <Route path="/dashboard/livreur/aide" element={<LivreurDashboard />} />
+              <Route path="/dashboard/livreur/parametres" element={<LivreurDashboard />} />
+              
               <Route path="/dashboard/client" element={<ClientDashboard />} />
               
               {/* Redirections pour compatibilité */}
