@@ -3,9 +3,9 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
+import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 
 // Imports directs pour les pages légères
 import Home from "./pages/Home";
@@ -33,6 +33,14 @@ import {
 import PaymentPage from "./pages/PaymentPage";
 import StoreProducts from "./pages/StoreProducts";
 
+// Import conditionnel des DevTools
+let ReactQueryDevtools: any = null;
+if (import.meta.env.DEV && typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+  import("@tanstack/react-query-devtools").then((module) => {
+    ReactQueryDevtools = module.ReactQueryDevtools;
+  });
+}
+
 // Configuration optimisée de React Query
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -52,7 +60,7 @@ const queryClient = new QueryClient({
     mutations: {
       retry: false,
       onError: (error: any) => {
-        if (process.env.NODE_ENV === 'development') {
+        if (import.meta.env.DEV) {
           console.error('Mutation error:', error);
         }
       },
@@ -61,7 +69,7 @@ const queryClient = new QueryClient({
 });
 
 const App = () => {
-  if (process.env.NODE_ENV === 'development') {
+  if (import.meta.env.DEV) {
     console.log('App component loaded');
   }
   
@@ -112,10 +120,18 @@ const App = () => {
               {/* 404 - doit être en dernier */}
               <Route path="*" element={<NotFound />} />
             </Routes>
-          </BrowserRouter>
+            </BrowserRouter>
           
-          {/* DevTools uniquement en développement */}
-          {process.env.NODE_ENV === 'development' && (
+          {/* PWA Install Prompt */}
+          <PWAInstallPrompt />
+          
+          {/* DevTools UNIQUEMENT en développement local */}
+          
+          
+          {import.meta.env.DEV && 
+           typeof window !== 'undefined' && 
+           window.location.hostname === 'localhost' && 
+           ReactQueryDevtools && (
             <ReactQueryDevtools initialIsOpen={false} />
           )}
         </TooltipProvider>

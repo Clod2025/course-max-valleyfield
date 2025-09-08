@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 import { 
   Settings, 
   Wrench, 
@@ -14,9 +15,13 @@ import {
   AlertTriangle,
   ChevronDown,
   Check,
-  Trash2
+  Trash2,
+  Phone,
+  Mail,
+  MapPin as LocationIcon
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 // Données complètes des territoires, provinces et villes du Canada
 const CANADIAN_LOCATIONS = {
@@ -206,11 +211,48 @@ function Autocomplete({ label, value, onChange, options, placeholder, required, 
   );
 }
 
+// Interface pour les données du footer
+interface FooterData {
+  phone: string;
+  email: string;
+  address: string;
+  description: string;
+  socialMedia: {
+    facebook: string;
+    instagram: string;
+    twitter: string;
+  };
+  navigationLinks: Array<{
+    label: string;
+    url: string;
+  }>;
+  copyright: string;
+}
+
 export function AdminSettings() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [maintenanceMessage, setMaintenanceMessage] = useState('');
+  
+  // État pour la gestion du footer
+  const [footerData, setFooterData] = useState<FooterData>({
+    phone: '(450) 123-4567',
+    email: 'support@coursemax.ca',
+    address: 'Valleyfield, QC',
+    description: 'La plateforme de livraison rapide qui connecte clients, livreurs et magasins à Valleyfield.',
+    socialMedia: {
+      facebook: '',
+      instagram: '',
+      twitter: ''
+    },
+    navigationLinks: [
+      { label: 'Confidentialité', url: '/privacy' },
+      { label: 'Conditions', url: '/terms' },
+      { label: 'Aide', url: '/help' }
+    ],
+    copyright: '© 2024 CourseMax. Tous droits réservés.'
+  });
   
   const [newCity, setNewCity] = useState({
     territory: '',
@@ -223,6 +265,131 @@ export function AdminSettings() {
     { id: '2', territory: 'Québec', region: 'Montérégie', city: 'Beauharnois' },
     { id: '3', territory: 'Québec', region: 'Montréal', city: 'Montréal' },
   ]);
+
+  // Charger les données du footer depuis la base de données
+  useEffect(() => {
+    loadFooterData();
+  }, []);
+
+  const loadFooterData = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('settings')
+        .select('*')
+        .eq('category', 'footer')
+        .eq('is_public', true);
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        const footerSettings = data.reduce((acc, setting) => {
+          acc[setting.key] = setting.value;
+          return acc;
+        }, {} as any);
+
+        setFooterData(prev => ({
+          ...prev,
+          ...footerSettings
+        }));
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des données du footer:', error);
+    }
+  };
+
+  const saveFooterData = async () => {
+    setLoading(true);
+    try {
+      // Préparer les données pour la sauvegarde
+      const settingsToSave = [
+        { key: 'phone', value: footerData.phone, description: 'Numéro de téléphone du footer' },
+        { key: 'email', value: footerData.email, description: 'Email de contact du footer' },
+        { key: 'address', value: footerData.address, description: 'Adresse du footer' },
+        { key: 'description', value: footerData.description, description: 'Description de l\'entreprise' },
+        { key: 'socialMedia', value: footerData.socialMedia, description: 'Liens des réseaux sociaux' },
+        { key: 'navigationLinks', value: footerData.navigationLinks, description: 'Liens de navigation du footer' },
+        { key: 'copyright', value: footerData.copyright, description: 'Texte de copyright' }
+      ];
+
+      // Supprimer les anciens paramètres du footer
+      await supabase
+        .from('settings')
+        .delete()
+        .eq('category', 'footer');
+
+      // Insérer les nouveaux paramètres
+      const { error } = await supabase
+        .from('settings')
+        .insert(
+          settingsToSave.map(setting => ({
+            key: setting.key,
+            value: setting.value,
+            description: setting.description,
+            category: 'footer',
+            is_public: true
+          }))
+        );
+
+      if (error) throw error;
+
+      toast({
+        title: "Footer mis à jour",
+        description: "Les modifications ont été sauvegardées avec succès",
+      });
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de sauvegarder les modifications",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetFooterData = () => {
+    setFooterData({
+      phone: '(450) 123-4567',
+      email: 'support@coursemax.ca',
+      address: 'Valleyfield, QC',
+      description: 'La plateforme de livraison rapide qui connecte clients, livreurs et magasins à Valleyfield.',
+      socialMedia: {
+        facebook: '',
+        instagram: '',
+        twitter: ''
+      },
+      navigationLinks: [
+        { label: 'Confidentialité', url: '/privacy' },
+        { label: 'Conditions', url: '/terms' },
+        { label: 'Aide', url: '/help' }
+      ],
+      copyright: '© 2024 CourseMax. Tous droits réservés.'
+    });
+  };
+
+  const addNavigationLink = () => {
+    setFooterData(prev => ({
+      ...prev,
+      navigationLinks: [...prev.navigationLinks, { label: '', url: '' }]
+    }));
+  };
+
+  const updateNavigationLink = (index: number, field: 'label' | 'url', value: string) => {
+    setFooterData(prev => ({
+      ...prev,
+      navigationLinks: prev.navigationLinks.map((link, i) => 
+        i === index ? { ...link, [field]: value } : link
+      )
+    }));
+  };
+
+  const removeNavigationLink = (index: number) => {
+    setFooterData(prev => ({
+      ...prev,
+      navigationLinks: prev.navigationLinks.filter((_, i) => i !== index)
+    }));
+  };
 
   const handleMaintenanceToggle = async () => {
     setLoading(true);
@@ -396,6 +563,180 @@ export function AdminSettings() {
         </CardContent>
       </Card>
 
+      {/* Gestion du Footer */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Settings className="w-5 h-5" />
+            Gestion du Footer
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-4">
+            <h4 className="font-semibold">Informations de contact</h4>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="footer_phone">Téléphone</Label>
+                <Input
+                  id="footer_phone"
+                  value={footerData.phone}
+                  onChange={(e) => setFooterData(prev => ({ ...prev, phone: e.target.value }))}
+                  placeholder="(450) 123-4567"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="footer_email">Email</Label>
+                <Input
+                  id="footer_email"
+                  value={footerData.email}
+                  onChange={(e) => setFooterData(prev => ({ ...prev, email: e.target.value }))}
+                  placeholder="support@coursemax.ca"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="footer_address">Adresse</Label>
+                <Input
+                  id="footer_address"
+                  value={footerData.address}
+                  onChange={(e) => setFooterData(prev => ({ ...prev, address: e.target.value }))}
+                  placeholder="Valleyfield, QC"
+                />
+              </div>
+              
+              <div className="md:col-span-2">
+                <Label htmlFor="footer_description">Description</Label>
+                <Textarea
+                  id="footer_description"
+                  value={footerData.description}
+                  onChange={(e) => setFooterData(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="La plateforme de livraison rapide qui connecte..."
+                  rows={3}
+                />
+              </div>
+            </div>
+            
+            <Separator />
+            
+            <div>
+              <h4 className="font-semibold mb-3">Réseaux sociaux</h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="footer_facebook">Facebook</Label>
+                  <Input
+                    id="footer_facebook"
+                    value={footerData.socialMedia.facebook}
+                    onChange={(e) => setFooterData(prev => ({ 
+                      ...prev, 
+                      socialMedia: { ...prev.socialMedia, facebook: e.target.value }
+                    }))}
+                    placeholder="https://facebook.com/coursemax"
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="footer_instagram">Instagram</Label>
+                  <Input
+                    id="footer_instagram"
+                    value={footerData.socialMedia.instagram}
+                    onChange={(e) => setFooterData(prev => ({ 
+                      ...prev, 
+                      socialMedia: { ...prev.socialMedia, instagram: e.target.value }
+                    }))}
+                    placeholder="https://instagram.com/coursemax"
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="footer_twitter">Twitter/X</Label>
+                  <Input
+                    id="footer_twitter"
+                    value={footerData.socialMedia.twitter}
+                    onChange={(e) => setFooterData(prev => ({ 
+                      ...prev, 
+                      socialMedia: { ...prev.socialMedia, twitter: e.target.value }
+                    }))}
+                    placeholder="https://twitter.com/coursemax"
+                  />
+                </div>
+              </div>
+            </div>
+            
+            <Separator />
+            
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="font-semibold">Liens de navigation</h4>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={addNavigationLink}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Ajouter un lien
+                </Button>
+              </div>
+              
+              <div className="space-y-3">
+                {footerData.navigationLinks.map((link, index) => (
+                  <div key={index} className="flex items-center gap-3 p-3 border rounded-lg">
+                    <div className="flex-1 grid grid-cols-2 gap-3">
+                      <Input
+                        value={link.label}
+                        onChange={(e) => updateNavigationLink(index, 'label', e.target.value)}
+                        placeholder="Nom du lien"
+                      />
+                      <Input
+                        value={link.url}
+                        onChange={(e) => updateNavigationLink(index, 'url', e.target.value)}
+                        placeholder="/page-url"
+                      />
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => removeNavigationLink(index)}
+                      className="text-red-600 hover:text-red-700"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ))}
+                
+                {footerData.navigationLinks.length === 0 && (
+                  <div className="text-center py-4 text-muted-foreground border-2 border-dashed rounded-lg">
+                    Aucun lien de navigation configuré
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <Separator />
+            
+            <div>
+              <h4 className="font-semibold mb-3">Copyright</h4>
+              <Input
+                value={footerData.copyright}
+                onChange={(e) => setFooterData(prev => ({ ...prev, copyright: e.target.value }))}
+                placeholder="© 2024 CourseMax. Tous droits réservés."
+              />
+            </div>
+            
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={resetFooterData}>
+                Réinitialiser
+              </Button>
+              <Button onClick={saveFooterData} disabled={loading}>
+                <Save className="w-4 h-4 mr-2" />
+                {loading ? 'Sauvegarde...' : 'Sauvegarder le Footer'}
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Gestion des villes avec autocomplétion complète */}
       <Card>
         <CardHeader>
@@ -478,6 +819,180 @@ export function AdminSettings() {
               <p>Aucune ville configurée</p>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Gestion du Footer */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Settings className="w-5 h-5" />
+            Gestion du Footer
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-4">
+            <h4 className="font-semibold">Informations de contact</h4>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="footer_phone">Téléphone</Label>
+                <Input
+                  id="footer_phone"
+                  value={footerData.phone}
+                  onChange={(e) => setFooterData(prev => ({ ...prev, phone: e.target.value }))}
+                  placeholder="(450) 123-4567"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="footer_email">Email</Label>
+                <Input
+                  id="footer_email"
+                  value={footerData.email}
+                  onChange={(e) => setFooterData(prev => ({ ...prev, email: e.target.value }))}
+                  placeholder="support@coursemax.ca"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="footer_address">Adresse</Label>
+                <Input
+                  id="footer_address"
+                  value={footerData.address}
+                  onChange={(e) => setFooterData(prev => ({ ...prev, address: e.target.value }))}
+                  placeholder="Valleyfield, QC"
+                />
+              </div>
+              
+              <div className="md:col-span-2">
+                <Label htmlFor="footer_description">Description</Label>
+                <Textarea
+                  id="footer_description"
+                  value={footerData.description}
+                  onChange={(e) => setFooterData(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="La plateforme de livraison rapide qui connecte..."
+                  rows={3}
+                />
+              </div>
+            </div>
+            
+            <Separator />
+            
+            <div>
+              <h4 className="font-semibold mb-3">Réseaux sociaux</h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="footer_facebook">Facebook</Label>
+                  <Input
+                    id="footer_facebook"
+                    value={footerData.socialMedia.facebook}
+                    onChange={(e) => setFooterData(prev => ({ 
+                      ...prev, 
+                      socialMedia: { ...prev.socialMedia, facebook: e.target.value }
+                    }))}
+                    placeholder="https://facebook.com/coursemax"
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="footer_instagram">Instagram</Label>
+                  <Input
+                    id="footer_instagram"
+                    value={footerData.socialMedia.instagram}
+                    onChange={(e) => setFooterData(prev => ({ 
+                      ...prev, 
+                      socialMedia: { ...prev.socialMedia, instagram: e.target.value }
+                    }))}
+                    placeholder="https://instagram.com/coursemax"
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="footer_twitter">Twitter/X</Label>
+                  <Input
+                    id="footer_twitter"
+                    value={footerData.socialMedia.twitter}
+                    onChange={(e) => setFooterData(prev => ({ 
+                      ...prev, 
+                      socialMedia: { ...prev.socialMedia, twitter: e.target.value }
+                    }))}
+                    placeholder="https://twitter.com/coursemax"
+                  />
+                </div>
+              </div>
+            </div>
+            
+            <Separator />
+            
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="font-semibold">Liens de navigation</h4>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={addNavigationLink}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Ajouter un lien
+                </Button>
+              </div>
+              
+              <div className="space-y-3">
+                {footerData.navigationLinks.map((link, index) => (
+                  <div key={index} className="flex items-center gap-3 p-3 border rounded-lg">
+                    <div className="flex-1 grid grid-cols-2 gap-3">
+                      <Input
+                        value={link.label}
+                        onChange={(e) => updateNavigationLink(index, 'label', e.target.value)}
+                        placeholder="Nom du lien"
+                      />
+                      <Input
+                        value={link.url}
+                        onChange={(e) => updateNavigationLink(index, 'url', e.target.value)}
+                        placeholder="/page-url"
+                      />
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => removeNavigationLink(index)}
+                      className="text-red-600 hover:text-red-700"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ))}
+                
+                {footerData.navigationLinks.length === 0 && (
+                  <div className="text-center py-4 text-muted-foreground border-2 border-dashed rounded-lg">
+                    Aucun lien de navigation configuré
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <Separator />
+            
+            <div>
+              <h4 className="font-semibold mb-3">Copyright</h4>
+              <Input
+                value={footerData.copyright}
+                onChange={(e) => setFooterData(prev => ({ ...prev, copyright: e.target.value }))}
+                placeholder="© 2024 CourseMax. Tous droits réservés."
+              />
+            </div>
+            
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={resetFooterData}>
+                Réinitialiser
+              </Button>
+              <Button onClick={saveFooterData} disabled={loading}>
+                <Save className="w-4 h-4 mr-2" />
+                {loading ? 'Sauvegarde...' : 'Sauvegarder le Footer'}
+              </Button>
+            </div>
+          </div>
         </CardContent>
       </Card>
 

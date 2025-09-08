@@ -12,6 +12,8 @@ import { useLoyaltyAccount } from '@/hooks/useLoyalty';
 import { useRecentOrders } from '@/hooks/useRecentOrders';
 import { useEventTracking } from '@/hooks/useEventTracking';
 import { useValidateDeliveryAddress } from '@/hooks/useGeofencing';
+import { supabase } from '@/integrations/supabase/client';
+import { useFooterData } from '@/hooks/useFooterData';
 import { 
   ShoppingCart, 
   MessageCircle, 
@@ -351,9 +353,11 @@ const PartnersSection: React.FC = () => {
 };
 
 // Composant Principal AppFooter avec Protections
+// Composant Principal AppFooter avec Protections
 export const AppFooter: React.FC = () => {
   const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
+  const { footerData, loading } = useFooterData();
 
   return (
     <>
@@ -369,7 +373,7 @@ export const AppFooter: React.FC = () => {
       <footer className="bg-background border-t">
         <div className="container mx-auto px-4 py-12">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {/* Section Entreprise */}
+            {/* Section Entreprise - DONNÉES DYNAMIQUES */}
             <div className="space-y-4">
               <Link to="/home" className="flex items-center gap-2">
                 <img 
@@ -380,23 +384,34 @@ export const AppFooter: React.FC = () => {
                 <span className="font-bold text-xl">CourseMax</span>
               </Link>
               <p className="text-muted-foreground text-sm">
-                La plateforme de livraison rapide qui connecte clients, 
-                livreurs et magasins à Valleyfield.
+                {footerData.description}
               </p>
               <div className="flex space-x-3">
-                <Button variant="ghost" size="sm">
-                  <Facebook className="w-4 h-4" />
-                </Button>
-                <Button variant="ghost" size="sm">
-                  <Instagram className="w-4 h-4" />
-                </Button>
-                <Button variant="ghost" size="sm">
-                  <Twitter className="w-4 h-4" />
-                </Button>
+                {footerData.socialMedia.facebook && (
+                  <Button variant="ghost" size="sm" asChild>
+                    <a href={footerData.socialMedia.facebook} target="_blank" rel="noopener noreferrer">
+                      <Facebook className="w-4 h-4" />
+                    </a>
+                  </Button>
+                )}
+                {footerData.socialMedia.instagram && (
+                  <Button variant="ghost" size="sm" asChild>
+                    <a href={footerData.socialMedia.instagram} target="_blank" rel="noopener noreferrer">
+                      <Instagram className="w-4 h-4" />
+                    </a>
+                  </Button>
+                )}
+                {footerData.socialMedia.twitter && (
+                  <Button variant="ghost" size="sm" asChild>
+                    <a href={footerData.socialMedia.twitter} target="_blank" rel="noopener noreferrer">
+                      <Twitter className="w-4 h-4" />
+                    </a>
+                  </Button>
+                )}
               </div>
             </div>
 
-            {/* Navigation rapide */}
+            {/* Navigation rapide - DONNÉES DYNAMIQUES */}
             <div className="space-y-4">
               <h4 className="font-semibold">Navigation</h4>
               <div className="space-y-2 text-sm">
@@ -425,25 +440,46 @@ export const AppFooter: React.FC = () => {
                     </Link>
                   </>
                 )}
+                
+                {/* Liens de navigation dynamiques */}
+                {footerData.navigationLinks.map((link, index) => (
+                  <Link 
+                    key={index}
+                    to={link.url} 
+                    className="block hover:text-primary transition-colors"
+                  >
+                    {link.label}
+                  </Link>
+                ))}
               </div>
             </div>
 
-            {/* Support & Contact */}
+            {/* Support & Contact - DONNÉES DYNAMIQUES */}
             <div className="space-y-4">
               <h4 className="font-semibold">Support</h4>
               <div className="space-y-3">
-                <div className="flex items-center gap-2 text-sm">
-                  <Phone className="w-4 h-4" />
-                  <span>(450) 123-4567</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <Mail className="w-4 h-4" />
-                  <span>support@coursemax.ca</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <MapPin className="w-4 h-4" />
-                  <span>Valleyfield, QC</span>
-                </div>
+                {footerData.phone && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Phone className="w-4 h-4" />
+                    <a href={`tel:${footerData.phone}`} className="hover:text-primary transition-colors">
+                      {footerData.phone}
+                    </a>
+                  </div>
+                )}
+                {footerData.email && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Mail className="w-4 h-4" />
+                    <a href={`mailto:${footerData.email}`} className="hover:text-primary transition-colors">
+                      {footerData.email}
+                    </a>
+                  </div>
+                )}
+                {footerData.address && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <MapPin className="w-4 h-4" />
+                    <span>{footerData.address}</span>
+                  </div>
+                )}
                 <Button variant="outline" size="sm" className="w-full">
                   <MessageCircle className="w-4 h-4 mr-2" />
                   Chat en direct
@@ -468,21 +504,21 @@ export const AppFooter: React.FC = () => {
           
           <Separator className="my-8" />
           
-          {/* Bas de page */}
+          {/* Bas de page - COPYRIGHT DYNAMIQUE */}
           <div className="flex flex-col md:flex-row justify-between items-center text-sm text-muted-foreground">
             <div className="mb-4 md:mb-0">
-              © 2024 CourseMax. Tous droits réservés.
+              {footerData.copyright}
             </div>
             <div className="flex space-x-4">
-              <Link to="/privacy" className="hover:text-primary transition-colors">
-                Confidentialité
-              </Link>
-              <Link to="/terms" className="hover:text-primary transition-colors">
-                Conditions
-              </Link>
-              <Link to="/help" className="hover:text-primary transition-colors">
-                Aide
-              </Link>
+              {footerData.navigationLinks.map((link, index) => (
+                <Link 
+                  key={`bottom-${index}`}
+                  to={link.url} 
+                  className="hover:text-primary transition-colors"
+                >
+                  {link.label}
+                </Link>
+              ))}
             </div>
           </div>
         </div>
