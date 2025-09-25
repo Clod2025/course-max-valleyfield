@@ -352,7 +352,40 @@ const PartnersSection: React.FC = () => {
   );
 };
 
-// Composant Principal AppFooter avec Protections
+// Section Avis Clients
+const CustomerReviews: React.FC = () => {
+  return (
+    <div className="space-y-4">
+      <h4 className="font-semibold flex items-center gap-2">
+        <Star className="w-4 h-4 text-yellow-500" />
+        Avis clients
+      </h4>
+      
+      <Card className="bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200">
+        <CardContent className="p-4 text-center">
+          <div className="flex items-center justify-center gap-1 mb-2">
+            {[...Array(5)].map((_, i) => (
+              <Star key={i} className="w-5 h-5 text-yellow-400 fill-current" />
+            ))}
+          </div>
+          <p className="text-lg font-semibold text-gray-800">4.9/5</p>
+          <p className="text-sm text-gray-600">basé sur 120 avis</p>
+          <div className="mt-3 text-xs text-gray-500">
+            ⭐ Service exceptionnel • ⚡ Livraison rapide • 💯 Très satisfait
+          </div>
+        </CardContent>
+      </Card>
+      
+      <div className="text-center">
+        <Button variant="outline" size="sm" className="w-full">
+          <Heart className="w-4 h-4 mr-2" />
+          Voir tous les avis
+        </Button>
+      </div>
+    </div>
+  );
+};
+
 // Composant Principal AppFooter avec Protections
 export const AppFooter: React.FC = () => {
   const { user, profile, signOut } = useAuth();
@@ -489,6 +522,9 @@ export const AppFooter: React.FC = () => {
 
             {/* Section dynamique selon le statut utilisateur */}
             <div className="space-y-4">
+              {/* Avis clients - TOUJOURS VISIBLE */}
+              <CustomerReviews />
+              
               <ServiceAvailability />
               
               {/* Calculateur pour tous */}

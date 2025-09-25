@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
+import { useState, useEffect, createContext, useContext, ReactNode, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { logError } from '@/utils/errorHandler';
@@ -57,8 +57,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     return allowedRoles.includes(profile.role);
   };
 
-  // Fetch user profile avec gestion d'erreur robuste
-  const fetchProfile = async (userId: string) => {
+  // ✅ CORRECTION : fetchProfile avec useCallback pour éviter les re-renders
+  const fetchProfile = useCallback(async (userId: string) => {
     try {
       console.log('🔍 Fetching profile for user:', userId);
       
@@ -81,10 +81,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       logError(error, 'Récupération du profil utilisateur');
       return null;
     }
-  };
+  }, []);
 
-  // ✅ LOGIQUE DE REDIRECTION ULTRA-ROBUSTE
-  const redirectBasedOnRole = (userProfile: Profile | null, isSigningIn = false) => {
+  // ✅ CORRECTION : redirectBasedOnRole avec useCallback
+  const redirectBasedOnRole = useCallback((userProfile: Profile | null, isSigningIn = false) => {
     console.log('🔄 Redirect check:', { 
       userProfile, 
       isSigningIn, 
@@ -156,12 +156,15 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     console.log('🚀 Redirecting to:', targetDashboard);
     console.log('🎯 Redirection reason:', isSigningIn ? 'SIGN_IN' : 'ROLE_CHECK');
     
-    // ✅ Redirection immédiate et forcée
-    setTimeout(() => {
+    // ✅ CORRECTION : Redirection avec useCallback stable
+    const redirectToDashboard = useCallback(() => {
       window.location.href = targetDashboard;
-    }, 100);
-  };
+    }, [targetDashboard]);
 
+    setTimeout(redirectToDashboard, 100);
+  }, []);
+
+  // ✅ CORRECTION : useEffect avec dépendances stables
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
@@ -171,14 +174,15 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // ✅ Délai pour éviter les conflits
-          setTimeout(async () => {
+          // ✅ CORRECTION : Utiliser fetchProfile stable
+          const handleAuthStateChange = useCallback(async () => {
             const userProfile = await fetchProfile(session.user.id);
             if (userProfile) {
-              // ✅ REDIRECTION FORCÉE APRÈS CONNEXION
               redirectBasedOnRole(userProfile, event === 'SIGNED_IN');
             }
-          }, 300);
+          }, [fetchProfile, redirectBasedOnRole]);
+
+          setTimeout(handleAuthStateChange, 300);
         } else {
           setProfile(null);
         }
@@ -205,7 +209,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [fetchProfile, redirectBasedOnRole]);
 
   const signUp = async (email: string, password: string, userData?: { first_name?: string; last_name?: string; role?: string }) => {
     const redirectUrl = `${window.location.origin}/`;

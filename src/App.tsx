@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
+import GlobalErrorHandler from "@/components/GlobalErrorHandler";
 
 // Imports directs pour les pages légères
 import Home from "./pages/Home";
@@ -32,6 +33,7 @@ import {
 // Pages supplémentaires
 import PaymentPage from "./pages/PaymentPage";
 import StoreProducts from "./pages/StoreProducts";
+import ClientSettings from "./pages/ClientSettings";
 
 // Import conditionnel des DevTools
 let ReactQueryDevtools: any = null;
@@ -79,7 +81,10 @@ const App = () => {
         <TooltipProvider>
           <Toaster />
           <Sonner />
-          <BrowserRouter>
+          <BrowserRouter future={{ 
+            v7_startTransition: true,
+            v7_relativeSplatPath: true 
+          }}>
             <Routes>
               {/* Routes légères */}
               <Route path="/" element={<Navigate to="/home" replace />} />
@@ -111,6 +116,7 @@ const App = () => {
               <Route path="/dashboard/livreur/parametres" element={<LivreurDashboard />} />
               
               <Route path="/dashboard/client" element={<ClientDashboard />} />
+              <Route path="/dashboard/client/settings" element={<ClientSettings />} />
               
               {/* Redirections pour compatibilité */}
               <Route path="/merchant-dashboard" element={<Navigate to="/dashboard/marchand" replace />} />
@@ -125,9 +131,10 @@ const App = () => {
           {/* PWA Install Prompt */}
           <PWAInstallPrompt />
           
+          {/* Gestionnaire d'erreurs global */}
+          <GlobalErrorHandler />
+          
           {/* DevTools UNIQUEMENT en développement local */}
-          
-          
           {import.meta.env.DEV && 
            typeof window !== 'undefined' && 
            window.location.hostname === 'localhost' && 

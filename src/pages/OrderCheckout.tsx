@@ -13,6 +13,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { ArrowLeft, ShoppingCart } from 'lucide-react';
 import DeliveryFeeCalculator from '@/components/DeliveryFeeCalculator';
 import { useDeliveryFee, DeliveryFeeResponse } from '@/hooks/useDeliveryFee';
+import LoyaltyCheckout from '@/components/checkout/LoyaltyCheckout';
+import { useLoyalty } from '@/hooks/useLoyalty';
 
 const OrderCheckout = () => {
   const [searchParams] = useSearchParams();
@@ -24,6 +26,7 @@ const OrderCheckout = () => {
   const { cartItems, getCartTotal, clearCart } = useCart(storeId || '');
   const { createOrder } = useOrders();
   const { calculateDeliveryFee } = useDeliveryFee();
+  const { addPoints } = useLoyalty();
 
   const [formData, setFormData] = useState({
     delivery_address: '',
@@ -38,6 +41,10 @@ const OrderCheckout = () => {
   const [deliveryFee, setDeliveryFee] = useState<number>(0);
   const [deliveryCalculation, setDeliveryCalculation] = useState<DeliveryFeeResponse | null>(null);
   const [deliveryFeeCalculated, setDeliveryFeeCalculated] = useState(false);
+  const [loyaltyDiscount, setLoyaltyDiscount] = useState<{
+    points: number;
+    discount: number;
+  } | null>(null);
 
   if (!user) {
     navigate('/login');
@@ -81,6 +88,14 @@ const OrderCheckout = () => {
     setDeliveryFeeCalculated(true);
   };
 
+  const handleLoyaltyDiscount = (points: number, discount: number) => {
+    setLoyaltyDiscount({ points, discount });
+  };
+
+  const handleRemoveLoyaltyDiscount = () => {
+    setLoyaltyDiscount(null);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -92,6 +107,10 @@ const OrderCheckout = () => {
     setLoading(true);
     
     try {
+      const subtotal = getCartTotal();
+      const loyaltyDiscountAmount = loyaltyDiscount?.discount || 0;
+      const finalTotal = subtotal + deliveryFee - loyaltyDiscountAmount;
+
       const orderData = {
         store_id: storeId!,
         delivery_address: formData.delivery_address,
@@ -101,14 +120,21 @@ const OrderCheckout = () => {
         notes: formData.notes,
         delivery_instructions: formData.delivery_instructions,
         items: cartItems,
-        subtotal: getCartTotal(),
+        subtotal: subtotal,
         delivery_fee: deliveryFee,
-        total_amount: getCartTotal() + deliveryFee
+        loyalty_discount: loyaltyDiscountAmount,
+        loyalty_points_used: loyaltyDiscount?.points || 0,
+        total_amount: finalTotal
       };
 
       const order = await createOrder(orderData);
       
       if (order) {
+        // Ajouter les points de fidélité après la commande
+        if (subtotal > 0) {
+          await addPoints(order.id, subtotal, `Points gagnés pour commande ${order.id}`);
+        }
+        
         clearCart();
         navigate(`/order-success/${order.id}`);
       }
@@ -212,6 +238,13 @@ const OrderCheckout = () => {
                 />
               )}
 
+              {/* Système de fidélité */}
+              <LoyaltyCheckout
+                orderTotal={getCartTotal()}
+                onLoyaltyDiscount={handleLoyaltyDiscount}
+                onRemoveLoyaltyDiscount={handleRemoveLoyaltyDiscount}
+              />
+
               {/* Notes de commande */}
               <Card>
                 <CardHeader>
@@ -279,10 +312,20 @@ const OrderCheckout = () => {
                       {deliveryCalculation.calculation.distance_km} km - {deliveryCalculation.calculation.pricing_tier}
                     </div>
                   )}
+
+                  {/* Réduction de fidélité */}
+                  {loyaltyDiscount && (
+                    <div className="flex justify-between text-green-600">
+                      <span>Réduction fidélité ({loyaltyDiscount.points} points)</span>
+                      <span>-{loyaltyDiscount.discount.toFixed(2)}$</span>
+                    </div>
+                  )}
                   
                   <div className="flex justify-between font-bold text-lg border-t pt-2">
                     <span>Total</span>
-                    <span>{(getCartTotal() + deliveryFee).toFixed(2)}$</span>
+                    <span>
+                      {(getCartTotal() + deliveryFee - (loyaltyDiscount?.discount || 0)).toFixed(2)}$
+                    </span>
                   </div>
                 </div>
 

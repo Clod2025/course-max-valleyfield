@@ -27,9 +27,12 @@ interface Product {
   description: string;
   category: string;
   price: number;
-  image_url: string;
-  unit: string;
-  in_stock: boolean;
+  image: string;
+  stock: number;
+  is_active: boolean;
+  store_id: string;
+  created_at: string;
+  updated_at: string;
 }
 
 const Stores = () => {
@@ -65,7 +68,8 @@ const Stores = () => {
         .from('products')
         .select('*')
         .eq('store_id', storeId)
-        .eq('in_stock', true)
+        .eq('is_active', true)
+        .gt('stock', 0)
         .order('category')
         .order('name');
 
@@ -85,9 +89,22 @@ const Stores = () => {
       setGroupedProducts(grouped);
     } catch (error) {
       console.error('Erreur lors du chargement des produits:', error);
+      
+      // Message d'erreur plus spécifique
+      let errorMessage = "Impossible de charger les produits";
+      if (error instanceof Error) {
+        if (error.message.includes('permission')) {
+          errorMessage = "Erreur de permissions. Vérifiez votre connexion.";
+        } else if (error.message.includes('network')) {
+          errorMessage = "Erreur de connexion. Vérifiez votre internet.";
+        } else if (error.message.includes('timeout')) {
+          errorMessage = "Délai d'attente dépassé. Veuillez réessayer.";
+        }
+      }
+      
       toast({
-        title: "Erreur",
-        description: "Impossible de charger les produits",
+        title: "Erreur de chargement",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
