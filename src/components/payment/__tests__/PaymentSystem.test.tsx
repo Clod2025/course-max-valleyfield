@@ -5,18 +5,23 @@ import { CardPayment } from '../CardPayment';
 import { InteracPayment } from '../InteracPayment';
 import { ProofUpload } from '../ProofUpload';
 
-// Mock des hooks
+// Mock stable des hooks
 jest.mock('@/hooks/use-toast', () => ({
-  useToast: () => ({
+  useToast: jest.fn(() => ({
     toast: jest.fn()
-  })
+  }))
 }));
 
 jest.mock('@/hooks/useAuth', () => ({
-  useAuth: () => ({
+  useAuth: jest.fn(() => ({
     user: { id: 'test-user', email: 'test@example.com' }
-  })
+  }))
 }));
+
+// Mock stable de navigator.clipboard
+const mockClipboard = {
+  writeText: jest.fn().mockResolvedValue(undefined)
+};
 
 // Tests pour PaymentMethodSelector
 describe('PaymentMethodSelector', () => {
@@ -31,6 +36,10 @@ describe('PaymentMethodSelector', () => {
     },
     onMethodSelect: jest.fn()
   };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
 
   it('affiche les méthodes de paiement disponibles', () => {
     render(<PaymentMethodSelector {...mockProps} />);
@@ -150,6 +159,17 @@ describe('InteracPayment', () => {
     onBack: jest.fn()
   };
 
+  beforeEach(() => {
+    jest.clearAllMocks();
+    
+    // Mock stable de navigator.clipboard
+    Object.defineProperty(navigator, 'clipboard', {
+      value: mockClipboard,
+      writable: true,
+      configurable: true,
+    });
+  });
+
   it('affiche les informations du marchand', () => {
     render(<InteracPayment {...mockProps} />);
     
@@ -165,20 +185,13 @@ describe('InteracPayment', () => {
   });
 
   it('permet de copier les informations', async () => {
-    // Mock de l'API clipboard
-    Object.assign(navigator, {
-      clipboard: {
-        writeText: jest.fn().mockResolvedValue(undefined)
-      }
-    });
-
     render(<InteracPayment {...mockProps} />);
     
     const copyButtons = screen.getAllByRole('button', { name: /copier/i });
     fireEvent.click(copyButtons[0]);
     
     await waitFor(() => {
-      expect(navigator.clipboard.writeText).toHaveBeenCalledWith('merchant@example.com');
+      expect(mockClipboard.writeText).toHaveBeenCalledWith('merchant@example.com');
     });
   });
 });

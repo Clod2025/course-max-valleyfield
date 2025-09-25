@@ -1,34 +1,37 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
 export const GlobalErrorHandler: React.FC = () => {
   const { toast } = useToast();
 
-  useEffect(() => {
-    // Gestionnaire d'erreurs global
-    const handleError = (event: ErrorEvent) => {
-      console.error('Erreur JavaScript globale:', event.error);
-      
-      // Afficher une notification d'erreur
+  // ✅ CORRECTION : Utiliser useCallback pour stabiliser les fonctions
+  const handleError = useCallback((event: ErrorEvent) => {
+    console.error('Erreur JavaScript globale:', event.error);
+    
+    // ✅ CORRECTION : Utiliser setTimeout pour éviter les mises à jour pendant le rendu
+    setTimeout(() => {
       toast({
         title: "Erreur JavaScript",
         description: "Une erreur inattendue s'est produite. Veuillez recharger la page.",
         variant: "destructive",
       });
-    };
+    }, 0);
+  }, [toast]);
 
-    // Gestionnaire d'erreurs de promesses non capturées
-    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
-      console.error('Promesse rejetée non gérée:', event.reason);
-      
-      // Afficher une notification d'erreur
+  const handleUnhandledRejection = useCallback((event: PromiseRejectionEvent) => {
+    console.error('Promesse rejetée non gérée:', event.reason);
+    
+    // ✅ CORRECTION : Utiliser setTimeout pour éviter les mises à jour pendant le rendu
+    setTimeout(() => {
       toast({
         title: "Erreur de promesse",
         description: "Une opération a échoué. Veuillez réessayer.",
         variant: "destructive",
       });
-    };
+    }, 0);
+  }, [toast]);
 
+  useEffect(() => {
     // Ajouter les écouteurs d'événements
     window.addEventListener('error', handleError);
     window.addEventListener('unhandledrejection', handleUnhandledRejection);
@@ -38,7 +41,7 @@ export const GlobalErrorHandler: React.FC = () => {
       window.removeEventListener('error', handleError);
       window.removeEventListener('unhandledrejection', handleUnhandledRejection);
     };
-  }, [toast]);
+  }, [handleError, handleUnhandledRejection]);
 
   return null; // Ce composant ne rend rien
 };

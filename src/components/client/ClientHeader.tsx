@@ -20,12 +20,14 @@ import { useAuth } from '@/hooks/useAuth';
 import { useCart } from '@/hooks/useCart';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { ClientHelpModal } from './ClientHelpModal';
 
 export function ClientHeader() {
   const navigate = useNavigate();
   const { profile, signOut } = useAuth();
   const { items: cartItems, total: cartTotal } = useCart();
   const [showMenu, setShowMenu] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
 
   // ✅ VÉRIFICATION DE SÉCURITÉ POUR ÉVITER LES ERREURS
   const safeCartItems = cartItems || [];
@@ -36,7 +38,8 @@ export function ClientHeader() {
     { id: 'orders', label: 'Mes Commandes', icon: Clock, action: () => navigate('/dashboard/client') },
     { id: 'favorites', label: 'Favoris', icon: Heart, action: () => navigate('/dashboard/client') },
     { id: 'settings', label: 'Paramètres', icon: Settings, action: () => navigate('/dashboard/client/settings') },
-    { id: 'help', label: 'Aide', icon: HelpCircle, action: () => navigate('/dashboard/client') },
+    // ✅ CORRECTION : Bouton Aide avec ouverture du modal
+    { id: 'help', label: 'Aide', icon: HelpCircle, action: () => setShowHelpModal(true) },
   ];
 
   return (
@@ -189,6 +192,12 @@ export function ClientHeader() {
           </div>
         </div>
       )}
+
+      {/* ✅ NOUVEAU : Modal d'aide client */}
+      <ClientHelpModal 
+        isOpen={showHelpModal} 
+        onClose={() => setShowHelpModal(false)} 
+      />
     </>
   );
 }

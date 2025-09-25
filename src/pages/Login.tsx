@@ -15,7 +15,8 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const { signIn, user, profile } = useAuth();
+  // ✅ CORRECTION : Ajouter signOut à la destructuration
+  const { signIn, signOut, user, profile } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 

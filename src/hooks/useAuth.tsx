@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext, ReactNode, useCallback } from 'react';
+import { useState, useEffect, createContext, useContext, ReactNode, useCallback, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { logError } from '@/utils/errorHandler';
@@ -14,7 +14,7 @@ interface Profile {
   city?: string;
   postal_code?: string;
   avatar_url?: string;
-  role: 'client' | 'admin' | 'driver' | 'merchant' | 'livreur' | 'store_manager'; // ✅ TOUS LES RÔLES POSSIBLES
+  role: 'client' | 'admin' | 'driver' | 'merchant' | 'livreur' | 'store_manager';
   is_active: boolean;
   store_id?: string;
 }
@@ -28,7 +28,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<Profile>) => Promise<{ error: any }>;
-  isRole: (allowedRoles: string[]) => boolean; // ✅ NOUVELLE FONCTION UTILITAIRE
+  isRole: (allowedRoles: string[]) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -50,15 +50,19 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  
+  // ✅ CORRECTION : Utiliser useRef pour éviter les re-renders
+  const isInitialized = useRef(false);
+  const redirectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // ✅ FONCTION UTILITAIRE POUR VÉRIFIER LES RÔLES
-  const isRole = (allowedRoles: string[]): boolean => {
+  const isRole = useCallback((allowedRoles: string[]): boolean => {
     if (!profile) return false;
     return allowedRoles.includes(profile.role);
-  };
+  }, [profile]);
 
-  // ✅ CORRECTION : fetchProfile avec useCallback pour éviter les re-renders
-  const fetchProfile = useCallback(async (userId: string) => {
+  // ✅ CORRECTION : fetchProfile avec useCallback stable et dépendances correctes
+  const fetchProfile = useCallback(async (userId: string): Promise<Profile | null> => {
     try {
       console.log('🔍 Fetching profile for user:', userId);
       
@@ -83,7 +87,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   }, []);
 
-  // ✅ CORRECTION : redirectBasedOnRole avec useCallback
+  // ✅ CORRECTION : redirectBasedOnRole avec useCallback stable
   const redirectBasedOnRole = useCallback((userProfile: Profile | null, isSigningIn = false) => {
     console.log('🔄 Redirect check:', { 
       userProfile, 
@@ -156,62 +160,91 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     console.log('🚀 Redirecting to:', targetDashboard);
     console.log('🎯 Redirection reason:', isSigningIn ? 'SIGN_IN' : 'ROLE_CHECK');
     
-    // ✅ CORRECTION : Redirection avec useCallback stable
-    const redirectToDashboard = useCallback(() => {
+    // ✅ CORRECTION : Redirection directe sans useCallback imbriqué
+    if (redirectTimeoutRef.current) {
+      clearTimeout(redirectTimeoutRef.current);
+    }
+    
+    redirectTimeoutRef.current = setTimeout(() => {
       window.location.href = targetDashboard;
-    }, [targetDashboard]);
-
-    setTimeout(redirectToDashboard, 100);
+    }, 100);
   }, []);
 
-  // ✅ CORRECTION : useEffect avec dépendances stables
+  // ✅ CORRECTION : useEffect avec gestion propre des dépendances
   useEffect(() => {
+    let mounted = true;
+
+    const initializeAuth = async () => {
+      try {
+        // Vérifier session existante
+        const { data: { session: existingSession } } = await supabase.auth.getSession();
+        console.log('🔍 Checking existing session:', !!existingSession);
+        
+        if (mounted) {
+          setSession(existingSession);
+          setUser(existingSession?.user ?? null);
+          
+          if (existingSession?.user) {
+            const userProfile = await fetchProfile(existingSession.user.id);
+            if (userProfile && mounted) {
+              redirectBasedOnRole(userProfile, false);
+            }
+          }
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error('❌ Error initializing auth:', error);
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    // Écouter les changements d'état d'authentification
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('🔐 Auth state change:', { event, session: !!session });
+        
+        if (!mounted) return;
         
         setSession(session);
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // ✅ CORRECTION : Utiliser fetchProfile stable
-          const handleAuthStateChange = useCallback(async () => {
+          try {
             const userProfile = await fetchProfile(session.user.id);
-            if (userProfile) {
+            if (userProfile && mounted) {
               redirectBasedOnRole(userProfile, event === 'SIGNED_IN');
             }
-          }, [fetchProfile, redirectBasedOnRole]);
-
-          setTimeout(handleAuthStateChange, 300);
+          } catch (error) {
+            console.error('❌ Error handling auth state change:', error);
+          }
         } else {
           setProfile(null);
         }
         
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     );
 
-    // Vérifier session existante
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('🔍 Checking existing session:', !!session);
-      
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        fetchProfile(session.user.id).then(userProfile => {
-          if (userProfile) {
-            redirectBasedOnRole(userProfile, false);
-          }
-        });
-      }
-      setLoading(false);
-    });
+    // Initialiser l'authentification
+    if (!isInitialized.current) {
+      isInitialized.current = true;
+      initializeAuth();
+    }
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+      if (redirectTimeoutRef.current) {
+        clearTimeout(redirectTimeoutRef.current);
+      }
+    };
   }, [fetchProfile, redirectBasedOnRole]);
 
-  const signUp = async (email: string, password: string, userData?: { first_name?: string; last_name?: string; role?: string }) => {
+  const signUp = useCallback(async (email: string, password: string, userData?: { first_name?: string; last_name?: string; role?: string }) => {
     const redirectUrl = `${window.location.origin}/`;
     
     try {
@@ -233,9 +266,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       logError(error, 'Inscription utilisateur');
       return { error };
     }
-  };
+  }, []);
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = useCallback(async (email: string, password: string) => {
     try {
       const { error } = await supabase.auth.signInWithPassword({
         email,
@@ -247,9 +280,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       logError(error, 'Connexion utilisateur');
       return { error };
     }
-  };
+  }, []);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     try {
       // Supprimer la session Supabase
       await supabase.auth.signOut();
@@ -266,9 +299,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       // En cas d'erreur, forcer quand même la redirection
       window.location.href = '/home';
     }
-  };
+  }, []);
 
-  const updateProfile = async (updates: Partial<Profile>) => {
+  const updateProfile = useCallback(async (updates: Partial<Profile>) => {
     if (!user) return { error: 'No user logged in' };
 
     try {
@@ -286,20 +319,23 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       logError(error, 'Mise à jour du profil');
       return { error: error.message };
     }
-  };
+  }, [user]);
+
+  // ✅ CORRECTION : Valeur du contexte stable
+  const contextValue = useCallback(() => ({
+    user, 
+    session, 
+    profile, 
+    loading, 
+    signUp, 
+    signIn, 
+    signOut, 
+    updateProfile,
+    isRole
+  }), [user, session, profile, loading, signUp, signIn, signOut, updateProfile, isRole]);
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      session, 
-      profile, 
-      loading, 
-      signUp, 
-      signIn, 
-      signOut, 
-      updateProfile,
-      isRole // ✅ NOUVELLE FONCTION UTILITAIRE
-    }}>
+    <AuthContext.Provider value={contextValue()}>
       {children}
     </AuthContext.Provider>
   );

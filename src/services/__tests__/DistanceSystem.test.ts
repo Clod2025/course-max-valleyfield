@@ -23,19 +23,25 @@ vi.mock('@/integrations/supabase/client', () => ({
   }
 }));
 
-// Mock de l'API Google Maps
-global.fetch = vi.fn();
+// Mock stable de fetch
+const mockFetch = vi.fn();
+global.fetch = mockFetch;
 
 describe('DistanceCalculatorService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockFetch.mockClear();
     distanceCalculatorService.clearCache();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   describe('calculateDistance', () => {
     it('should calculate distance between two addresses', async () => {
       // Mock de la réponse de l'API Google Maps
-      (global.fetch as any).mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce({
         json: () => Promise.resolve({
           status: 'OK',
           rows: [{
@@ -59,7 +65,7 @@ describe('DistanceCalculatorService', () => {
     });
 
     it('should handle API errors gracefully', async () => {
-      (global.fetch as any).mockRejectedValueOnce(new Error('API Error'));
+      mockFetch.mockRejectedValueOnce(new Error('API Error'));
 
       const result = await distanceCalculatorService.calculateDistance(
         'Invalid Address',
@@ -71,7 +77,7 @@ describe('DistanceCalculatorService', () => {
     });
 
     it('should use cache for repeated requests', async () => {
-      (global.fetch as any).mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce({
         json: () => Promise.resolve({
           status: 'OK',
           rows: [{
@@ -90,7 +96,7 @@ describe('DistanceCalculatorService', () => {
       // Deuxième appel (devrait utiliser le cache)
       const result = await distanceCalculatorService.calculateDistance('A', 'B');
 
-      expect(global.fetch).toHaveBeenCalledTimes(1);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
       expect(result.distance).toBe(3);
     });
   });
@@ -102,7 +108,7 @@ describe('DistanceCalculatorService', () => {
         { merchantId: 'm2', merchantName: 'Store 2', address: '456 St' }
       ];
 
-      (global.fetch as any).mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce({
         json: () => Promise.resolve({
           status: 'OK',
           routes: [{
@@ -128,7 +134,7 @@ describe('DistanceCalculatorService', () => {
 
   describe('geocodeAddress', () => {
     it('should geocode address to coordinates', async () => {
-      (global.fetch as any).mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce({
         json: () => Promise.resolve({
           status: 'OK',
           results: [{
@@ -494,14 +500,14 @@ describe('Performance Tests', () => {
 // Tests de gestion d'erreurs
 describe('Error Handling', () => {
   it('should handle network errors gracefully', async () => {
-    (global.fetch as any).mockRejectedValueOnce(new Error('Network error'));
+    mockFetch.mockRejectedValueOnce(new Error('Network error'));
 
     const result = await distanceCalculatorService.calculateDistance('A', 'B');
     expect(result.status).toBe('ERROR');
   });
 
   it('should handle API rate limits', async () => {
-    (global.fetch as any).mockResolvedValueOnce({
+    mockFetch.mockResolvedValueOnce({
       json: () => Promise.resolve({ status: 'OVER_QUERY_LIMIT' })
     });
 
@@ -511,7 +517,7 @@ describe('Error Handling', () => {
 
   it('should fallback to alternative methods when primary fails', async () => {
     // Mock primary method failure
-    (global.fetch as any).mockRejectedValueOnce(new Error('API Error'));
+    mockFetch.mockRejectedValueOnce(new Error('API Error'));
 
     const result = await distanceCalculatorService.calculateDistance('A', 'B');
     
