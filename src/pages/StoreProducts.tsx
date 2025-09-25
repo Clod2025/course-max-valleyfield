@@ -15,9 +15,11 @@ import {
   Filter,
   Heart,
   Clock,
-  MapPin
+  MapPin,
+  BarChart3
 } from 'lucide-react';
 import { useCart } from '@/hooks/useCart';
+import { ClientPriceComparisonModal } from '@/components/client/ClientPriceComparisonModal';
 
 const StoreProducts = () => {
   const { storeId } = useParams();
@@ -27,6 +29,7 @@ const StoreProducts = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const [showPriceComparison, setShowPriceComparison] = useState(false);
 
   // Données simulées (à remplacer par de vraies données)
   const store = {
@@ -209,6 +212,26 @@ const StoreProducts = () => {
               </CardContent>
             </Card>
 
+            {/* Comparateur de prix */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Comparer les prix</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={() => setShowPriceComparison(true)}
+                >
+                  <BarChart3 className="w-4 h-4 mr-2" />
+                  Comparer les prix
+                </Button>
+                <p className="text-xs text-muted-foreground mt-2 text-center">
+                  Trouvez le meilleur prix pour vos produits
+                </p>
+              </CardContent>
+            </Card>
+
             {/* Catégories */}
             <Card>
               <CardHeader>
@@ -361,6 +384,12 @@ const StoreProducts = () => {
           </div>
         </div>
       </div>
+      
+      {/* Modal de comparaison de prix */}
+      <ClientPriceComparisonModal 
+        isOpen={showPriceComparison} 
+        onClose={() => setShowPriceComparison(false)} 
+      />
     </div>
   );
 };

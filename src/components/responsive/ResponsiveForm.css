@@ -1,0 +1,37 @@
+/* Responsive Form CSS Classes */
+.responsive-form {
+  --rf-gap: 1rem;
+  --rf-columns: 1;
+}
+
+.responsive-form--stack {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  gap: var(--rf-gap);
+}
+
+.responsive-form--grid {
+  display: grid;
+  grid-template-columns: repeat(var(--rf-columns), 1fr);
+  gap: var(--rf-gap);
+}
+
+.responsive-form--compact {
+  --rf-gap: 0.5rem;
+}
+
+.responsive-form--comfortable {
+  --rf-gap: 1rem;
+}
+
+.responsive-form--spacious {
+  --rf-gap: 1.5rem;
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  .responsive-form--grid {
+    grid-template-columns: 1fr;
+  }
+}

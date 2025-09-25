@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext, ReactNode, useCallback, useRef } from 'react';
+import { useState, useEffect, createContext, useContext, ReactNode, useCallback, useRef, useMemo } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { logError } from '@/utils/errorHandler';
@@ -14,7 +14,7 @@ interface Profile {
   city?: string;
   postal_code?: string;
   avatar_url?: string;
-  role: 'client' | 'admin' | 'driver' | 'merchant' | 'livreur' | 'store_manager';
+  role: 'client' | 'admin' | 'livreur' | 'store_manager';
   is_active: boolean;
   store_id?: string;
 }
@@ -321,8 +321,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   }, [user]);
 
-  // ✅ CORRECTION : Valeur du contexte stable
-  const contextValue = useCallback(() => ({
+  // ✅ CORRECTION : Valeur du contexte stable avec useMemo
+  const contextValue = useMemo(() => ({
     user, 
     session, 
     profile, 
@@ -335,7 +335,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }), [user, session, profile, loading, signUp, signIn, signOut, updateProfile, isRole]);
 
   return (
-    <AuthContext.Provider value={contextValue()}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

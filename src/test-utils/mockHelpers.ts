@@ -2,12 +2,30 @@
  * Utilitaires de mock centralisés pour éviter les erreurs
  */
 
+// Mock jest functions for testing
+declare global {
+  const jest: {
+    fn: () => any;
+    clearAllMocks: () => void;
+    restoreAllMocks: () => void;
+  };
+}
+
 export const mockWindow = (overrides: Partial<Window> = {}) => {
   const defaultWindow = {
     innerWidth: 1024,
     innerHeight: 768,
     devicePixelRatio: 1,
-    matchMedia: jest.fn(),
+    matchMedia: jest.fn().mockReturnValue({
+      matches: false,
+      media: '',
+      onchange: null,
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      dispatchEvent: jest.fn()
+    }),
     addEventListener: jest.fn(),
     removeEventListener: jest.fn(),
     dispatchEvent: jest.fn(),

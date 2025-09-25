@@ -1,7 +1,7 @@
 import React from 'react';
 import { PriceComparison } from './PriceComparison';
 import { PriceComparisonMobile } from './PriceComparisonMobile';
-import { useMobile } from '@/hooks/use-mobile';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface PriceComparisonWrapperProps {
   className?: string;
@@ -10,7 +10,7 @@ interface PriceComparisonWrapperProps {
 }
 
 export const PriceComparisonWrapper: React.FC<PriceComparisonWrapperProps> = (props) => {
-  const isMobile = useMobile();
+  const isMobile = useIsMobile();
 
   if (isMobile) {
     return <PriceComparisonMobile {...props} />;

@@ -13,7 +13,8 @@ export interface UseTouchCapabilityReturn extends TouchCapability {
   isTouchDevice: boolean;
   isMouseDevice: boolean;
   isHybridDevice: boolean;
-  setTouchAction: (action: TouchCapability['touchAction']) => void;
+  setTouchAction: (action: TouchCapability['touchAction'], element?: HTMLElement) => void;
+  applyTouchAction: (element: HTMLElement, action: TouchCapability['touchAction']) => void;
 }
 
 /**
@@ -48,11 +49,16 @@ export const useTouchCapability = (): UseTouchCapabilityReturn => {
     };
   });
 
-  const setTouchAction = useCallback((action: TouchCapability['touchAction']) => {
+  const setTouchAction = useCallback((action: TouchCapability['touchAction'], element?: HTMLElement) => {
     setCapability(prev => ({ ...prev, touchAction: action }));
     
-    // Appliquer le touch-action au body
-    document.body.style.touchAction = action;
+    // Apply touch-action to specific element or document.body if no element provided
+    const targetElement = element || document.body;
+    targetElement.style.touchAction = action;
+  }, []);
+
+  const applyTouchAction = useCallback((element: HTMLElement, action: TouchCapability['touchAction']) => {
+    element.style.touchAction = action;
   }, []);
 
   useEffect(() => {
@@ -82,6 +88,7 @@ export const useTouchCapability = (): UseTouchCapabilityReturn => {
     isTouchDevice: capability.hasTouch && !capability.supportsHover,
     isMouseDevice: capability.supportsHover && !capability.hasTouch,
     isHybridDevice: capability.hasTouch && capability.supportsHover,
-    setTouchAction
+    setTouchAction,
+    applyTouchAction
   };
 };

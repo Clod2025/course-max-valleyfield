@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useDeviceDetection } from '@/hooks/useDeviceDetection';
 import { useTouchCapability } from '@/hooks/useTouchCapability';
 import { useGestures } from '@/utils/gestureHandler';
@@ -47,20 +47,34 @@ export const ResponsiveCarousel: React.FC<ResponsiveCarouselProps> = ({
 
   const totalSlides = Math.ceil(children.length / currentItemsPerView);
 
+  const nextSlide = useCallback(() => {
+    setCurrentIndex((prev) => (prev + 1) % totalSlides);
+  }, [totalSlides]);
+
+  const prevSlide = useCallback(() => {
+    setCurrentIndex((prev) => (prev - 1 + totalSlides) % totalSlides);
+  }, [totalSlides]);
+
   // Gestion des gestes tactiles
   const { onSwipe } = useGestures(carouselRef, {
     swipeThreshold: 50,
     swipeVelocity: 0.3
   });
 
-  // Gestion du swipe
-  onSwipe((event) => {
-    if (event.direction === 'left') {
-      nextSlide();
-    } else if (event.direction === 'right') {
-      prevSlide();
-    }
-  });
+  // Gestion du swipe - moved to useEffect to avoid render-time execution
+  useEffect(() => {
+    if (!onSwipe) return;
+    
+    const unsubscribe = onSwipe((event) => {
+      if (event.direction === 'left') {
+        nextSlide();
+      } else if (event.direction === 'right') {
+        prevSlide();
+      }
+    });
+    
+    return unsubscribe;
+  }, [onSwipe, nextSlide, prevSlide]);
 
   // Auto-play
   useEffect(() => {
@@ -93,26 +107,13 @@ export const ResponsiveCarousel: React.FC<ResponsiveCarouselProps> = ({
     }
   };
 
-  const nextSlide = () => {
-    setCurrentIndex((prev) => (prev + 1) % totalSlides);
-  };
-
-  const prevSlide = () => {
-    setCurrentIndex((prev) => (prev - 1 + totalSlides) % totalSlides);
-  };
-
   const goToSlide = (index: number) => {
     setCurrentIndex(index);
   };
 
-  const getVisibleItems = () => {
-    const startIndex = currentIndex * currentItemsPerView;
-    const endIndex = startIndex + currentItemsPerView;
-    return children.slice(startIndex, endIndex);
-  };
 
   return (
-    <ResponsiveContainer 
+    <div 
       className={cn('relative w-full', className)}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
@@ -202,8 +203,6 @@ export const ResponsiveCarousel: React.FC<ResponsiveCarouselProps> = ({
           </div>
         )}
       </div>
-    </ResponsiveContainer>
+    </div>
   );
 };
-```
-

@@ -14,20 +14,23 @@ import {
   Settings,
   Heart,
   Clock,
-  HelpCircle
+  HelpCircle,
+  BarChart3
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useCart } from '@/hooks/useCart';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { ClientHelpModal } from './ClientHelpModal';
+import { ClientPriceComparisonModal } from './ClientPriceComparisonModal';
 
 export function ClientHeader() {
   const navigate = useNavigate();
   const { profile, signOut } = useAuth();
-  const { items: cartItems, total: cartTotal } = useCart();
+  const { cartItems } = useCart();
   const [showMenu, setShowMenu] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
+  const [showPriceComparison, setShowPriceComparison] = useState(false);
 
   // ✅ VÉRIFICATION DE SÉCURITÉ POUR ÉVITER LES ERREURS
   const safeCartItems = cartItems || [];
@@ -35,6 +38,7 @@ export function ClientHeader() {
 
   const menuItems = [
     { id: 'stores', label: 'Magasins', icon: Store, action: () => navigate('/stores') },
+    { id: 'price-comparison', label: 'Comparer les prix', icon: BarChart3, action: () => setShowPriceComparison(true) },
     { id: 'orders', label: 'Mes Commandes', icon: Clock, action: () => navigate('/dashboard/client') },
     { id: 'favorites', label: 'Favoris', icon: Heart, action: () => navigate('/dashboard/client') },
     { id: 'settings', label: 'Paramètres', icon: Settings, action: () => navigate('/dashboard/client/settings') },
@@ -67,6 +71,19 @@ export function ClientHeader() {
 
           {/* Actions du header */}
           <div className="flex items-center gap-2">
+            {/* Comparateur de prix */}
+            {/* Comparateur de prix */}
+             <Button 
+             variant="ghost" 
+             size="sm" 
+            className="flex items-center gap-2 px-3 py-2" 
+            onClick={() => setShowPriceComparison(true)}
+            title="Comparer les prix"
+>
+           <BarChart3 className="h-5 w-5" />
+          <span className="text-sm font-medium">Comparer les prix</span>
+           </Button>
+
             {/* Notifications */}
             <Button variant="ghost" size="sm" className="relative p-2">
               <Bell className="h-5 w-5" />
@@ -197,6 +214,12 @@ export function ClientHeader() {
       <ClientHelpModal 
         isOpen={showHelpModal} 
         onClose={() => setShowHelpModal(false)} 
+      />
+
+      {/* ✅ NOUVEAU : Modal de comparaison de prix */}
+      <ClientPriceComparisonModal 
+        isOpen={showPriceComparison} 
+        onClose={() => setShowPriceComparison(false)} 
       />
     </>
   );

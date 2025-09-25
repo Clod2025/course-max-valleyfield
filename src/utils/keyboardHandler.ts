@@ -2,6 +2,8 @@
  * Gestionnaire de raccourcis clavier pour desktop
  */
 
+import React from 'react';
+
 export interface KeyboardShortcut {
   key: string;
   ctrlKey?: boolean;
@@ -19,7 +21,7 @@ export interface KeyboardHandlerConfig {
   debugMode?: boolean;
 }
 
-export interface KeyboardEvent {
+export interface KeyboardHandlerEvent {
   type: 'keydown' | 'keyup';
   shortcut: KeyboardShortcut;
   element?: HTMLElement;
@@ -27,7 +29,7 @@ export interface KeyboardEvent {
 }
 
 export class KeyboardHandler {
-  private shortcuts: Map<string, (event: KeyboardEvent) => void> = new Map();
+  private shortcuts: Map<string, (event: KeyboardHandlerEvent) => void> = new Map();
   private config: KeyboardHandlerConfig;
   private isEnabled: boolean = true;
   private activeElement: HTMLElement | null = null;
@@ -50,8 +52,20 @@ export class KeyboardHandler {
     document.addEventListener('focusout', this.handleFocusOut);
   }
 
-  private handleKeyDown = (e: KeyboardEvent) => {
+  private handleKeyDown = (e: globalThis.KeyboardEvent) => {
     if (!this.isEnabled) return;
+
+    // Check if user is typing in an input element
+    const target = e.target as HTMLElement;
+    if (target && (
+      target.tagName === 'INPUT' ||
+      target.tagName === 'TEXTAREA' ||
+      target.tagName === 'SELECT' ||
+      target.contentEditable === 'true' ||
+      (target.tagName === 'INPUT' && ['text', 'search', 'email', 'password'].includes((target as HTMLInputElement).type))
+    )) {
+      return; // Ignore shortcuts while typing
+    }
 
     const shortcut = this.parseKeyboardEvent(e);
     const shortcutKey = this.generateShortcutKey(shortcut);
@@ -75,7 +89,7 @@ export class KeyboardHandler {
     }
   };
 
-  private handleKeyUp = (e: KeyboardEvent) => {
+  private handleKeyUp = (e: globalThis.KeyboardEvent) => {
     if (!this.isEnabled) return;
 
     const shortcut = this.parseKeyboardEvent(e);
@@ -100,14 +114,17 @@ export class KeyboardHandler {
     this.activeElement = null;
   };
 
-  private parseKeyboardEvent(e: KeyboardEvent): KeyboardShortcut {
+  private parseKeyboardEvent(e: globalThis.KeyboardEvent): KeyboardShortcut {
+    // Only lowercase single-character keys, preserve special keys as-is
+    const normalizedKey = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+    
     return {
-      key: e.key.toLowerCase(),
+      key: normalizedKey.trim(),
       ctrlKey: e.ctrlKey,
       altKey: e.altKey,
       shiftKey: e.shiftKey,
       metaKey: e.metaKey,
-      preventDefault: true
+      preventDefault: false // Let callers control this
     };
   }
 
@@ -121,7 +138,7 @@ export class KeyboardHandler {
     return [...modifiers, shortcut.key].join('+');
   }
 
-  public register(shortcut: KeyboardShortcut, handler: (event: KeyboardEvent) => void) {
+  public register(shortcut: KeyboardShortcut, handler: (event: KeyboardHandlerEvent) => void) {
     const shortcutKey = this.generateShortcutKey(shortcut);
     this.shortcuts.set(shortcutKey, handler);
     
@@ -135,7 +152,7 @@ export class KeyboardHandler {
     this.shortcuts.delete(shortcutKey);
   }
 
-  public registerMultiple(shortcuts: Array<{ shortcut: KeyboardShortcut; handler: (event: KeyboardEvent) => void }>) {
+  public registerMultiple(shortcuts: Array<{ shortcut: KeyboardShortcut; handler: (event: KeyboardHandlerEvent) => void }>) {
     shortcuts.forEach(({ shortcut, handler }) => {
       this.register(shortcut, handler);
     });
@@ -185,20 +202,20 @@ export class KeyboardHandler {
 export const DEFAULT_SHORTCUTS = {
   // Navigation
   NAVIGATION: {
-    HOME: { key: 'h', ctrlKey: true, description: 'Aller à l\'accueil' },
-    BACK: { key: 'b', ctrlKey: true, description: 'Retour' },
-    FORWARD: { key: 'f', ctrlKey: true, description: 'Avancer' },
-    SEARCH: { key: 'k', ctrlKey: true, description: 'Rechercher' },
-    MENU: { key: 'm', ctrlKey: true, description: 'Ouvrir le menu' }
+    HOME: { key: 'h', ctrlKey: true, shiftKey: true, description: 'Aller à l\'accueil' },
+    BACK: { key: 'b', ctrlKey: true, shiftKey: true, description: 'Retour' },
+    FORWARD: { key: 'f', ctrlKey: true, shiftKey: true, description: 'Avancer' },
+    SEARCH: { key: 'k', ctrlKey: true, shiftKey: true, description: 'Rechercher' },
+    MENU: { key: 'm', ctrlKey: true, shiftKey: true, description: 'Ouvrir le menu' }
   },
   
   // Actions
   ACTIONS: {
-    NEW: { key: 'n', ctrlKey: true, description: 'Nouveau' },
-    SAVE: { key: 's', ctrlKey: true, description: 'Sauvegarder' },
-    DELETE: { key: 'd', ctrlKey: true, description: 'Supprimer' },
-    EDIT: { key: 'e', ctrlKey: true, description: 'Modifier' },
-    REFRESH: { key: 'r', ctrlKey: true, description: 'Actualiser' }
+    NEW: { key: 'n', ctrlKey: true, shiftKey: true, description: 'Nouveau' },
+    SAVE: { key: 's', ctrlKey: true, shiftKey: true, description: 'Sauvegarder' },
+    DELETE: { key: 'd', ctrlKey: true, shiftKey: true, description: 'Supprimer' },
+    EDIT: { key: 'e', ctrlKey: true, shiftKey: true, description: 'Modifier' },
+    REFRESH: { key: 'r', ctrlKey: true, shiftKey: true, description: 'Actualiser' }
   },
   
   // Interface
@@ -235,7 +252,7 @@ export const useKeyboardShortcuts = (config?: KeyboardHandlerConfig) => {
 
   const registerShortcut = React.useCallback((
     shortcut: KeyboardShortcut,
-    handler: (event: KeyboardEvent) => void
+    handler: (event: KeyboardHandlerEvent) => void
   ) => {
     keyboardHandler?.register(shortcut, handler);
   }, [keyboardHandler]);
@@ -245,7 +262,7 @@ export const useKeyboardShortcuts = (config?: KeyboardHandlerConfig) => {
   }, [keyboardHandler]);
 
   const registerMultiple = React.useCallback((
-    shortcuts: Array<{ shortcut: KeyboardShortcut; handler: (event: KeyboardEvent) => void }>
+    shortcuts: Array<{ shortcut: KeyboardShortcut; handler: (event: KeyboardHandlerEvent) => void }>
   ) => {
     keyboardHandler?.registerMultiple(shortcuts);
   }, [keyboardHandler]);
@@ -270,6 +287,5 @@ export const useKeyboardShortcuts = (config?: KeyboardHandlerConfig) => {
     disableShortcuts,
     getShortcuts
   };
-};
-```
+  };
 

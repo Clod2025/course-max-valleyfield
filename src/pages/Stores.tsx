@@ -5,12 +5,13 @@ import { StoreSelector } from "@/components/store-selector";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CategorySection } from "@/components/category-section";
-import { ArrowLeft, ShoppingCart } from "lucide-react";
+import { ArrowLeft, ShoppingCart, BarChart3 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useCart } from "@/hooks/useCart";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { ClientPriceComparisonModal } from "@/components/client/ClientPriceComparisonModal";
 
 interface SelectedStore {
   id: string;
@@ -40,6 +41,7 @@ const Stores = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const [groupedProducts, setGroupedProducts] = useState<Record<string, Product[]>>({});
+  const [showPriceComparison, setShowPriceComparison] = useState(false);
   
   const { user } = useAuth();
   const { toast } = useToast();
@@ -133,13 +135,26 @@ const Stores = () => {
       <main className="container mx-auto py-6">
         {!selectedStore ? (
           <div className="space-y-6">
-            <div className="text-center space-y-2">
+            <div className="text-center space-y-4">
               <h1 className="text-4xl font-bold text-gradient">
                 Choisissez votre magasin
               </h1>
               <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
                 Sélectionnez parmi nos magasins partenaires près de chez vous
               </p>
+              
+              {/* Bouton Comparer les prix */}
+              <div className="flex justify-center">
+                <Button 
+                  variant="outline" 
+                  size="lg"
+                  onClick={() => setShowPriceComparison(true)}
+                  className="flex items-center gap-2"
+                >
+                  <BarChart3 className="w-5 h-5" />
+                  Comparer les prix
+                </Button>
+              </div>
             </div>
             
             <StoreSelector onStoreSelect={handleStoreSelect} />
@@ -165,15 +180,26 @@ const Stores = () => {
                 </div>
               </div>
               
-              <Button 
-                onClick={handleGoToCheckout}
-                disabled={cartItemsCount === 0}
-                className="flex items-center gap-2" 
-                variant={cartItemsCount > 0 ? "default" : "outline"}
-              >
-                <ShoppingCart className="w-4 h-4" />
-                Panier {cartItemsCount > 0 && `(${cartItemsCount}) ${cartTotal.toFixed(2)}$`}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="outline"
+                  onClick={() => setShowPriceComparison(true)}
+                  className="flex items-center gap-2"
+                >
+                  <BarChart3 className="w-4 h-4" />
+                  Comparer
+                </Button>
+                
+                <Button 
+                  onClick={handleGoToCheckout}
+                  disabled={cartItemsCount === 0}
+                  className="flex items-center gap-2" 
+                  variant={cartItemsCount > 0 ? "default" : "outline"}
+                >
+                  <ShoppingCart className="w-4 h-4" />
+                  Panier {cartItemsCount > 0 && `(${cartItemsCount}) ${cartTotal.toFixed(2)}$`}
+                </Button>
+              </div>
             </div>
 
             {loading ? (
@@ -213,6 +239,12 @@ const Stores = () => {
       </main>
 
       <AppFooter />
+      
+      {/* Modal de comparaison de prix */}
+      <ClientPriceComparisonModal 
+        isOpen={showPriceComparison} 
+        onClose={() => setShowPriceComparison(false)} 
+      />
     </div>
   );
 };

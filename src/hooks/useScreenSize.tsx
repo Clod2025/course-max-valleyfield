@@ -21,9 +21,9 @@ export const useScreenSize = (customBreakpoints?: BreakpointConfig): UseScreenSi
   const breakpoints = customBreakpoints || DEFAULT_BREAKPOINTS;
   
   const [screenSize, setScreenSize] = useState(() => ({
-    width: window.innerWidth,
-    height: window.innerHeight,
-    pixelRatio: window.devicePixelRatio || 1
+    width: 0,
+    height: 0,
+    pixelRatio: 1
   }));
 
   const updateScreenSize = useCallback(() => {
@@ -35,6 +35,12 @@ export const useScreenSize = (customBreakpoints?: BreakpointConfig): UseScreenSi
   }, []);
 
   useEffect(() => {
+    // SSR-safe initialization
+    if (typeof window === 'undefined') return;
+    
+    // Initialize screen size on mount
+    updateScreenSize();
+    
     let timeoutId: NodeJS.Timeout;
     
     const handleResize = () => {

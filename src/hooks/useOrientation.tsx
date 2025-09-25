@@ -21,6 +21,23 @@ export const useOrientation = (): UseOrientationReturn => {
   const [angle, setAngle] = useState(0);
   const [isLocked, setIsLocked] = useState(false);
 
+  // Initialize angle with actual device angle on mount
+  useEffect(() => {
+    const getInitialAngle = () => {
+      if (typeof window !== 'undefined' && window.screen?.orientation?.angle !== undefined) {
+        return window.screen.orientation.angle;
+      } else if (typeof window !== 'undefined' && (window as any).orientation !== undefined) {
+        return (window as any).orientation;
+      } else if (typeof window !== 'undefined') {
+        // Fallback: compute from innerWidth/innerHeight
+        return window.innerWidth > window.innerHeight ? 90 : 0;
+      }
+      return 0;
+    };
+    
+    setAngle(getInitialAngle());
+  }, []);
+
   const updateOrientation = useCallback(() => {
     const newOrientation = window.innerWidth > window.innerHeight ? 'landscape' : 'portrait';
     setOrientation(newOrientation);

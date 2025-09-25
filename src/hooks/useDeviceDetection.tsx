@@ -1,5 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { detectDeviceType, DeviceInfo, onOrientationChange, onScreenSizeChange } from '@/utils/deviceUtils';
+import { 
+  DeviceInfo, 
+  detectDeviceType, 
+  onOrientationChange, 
+  onScreenSizeChange 
+} from '@/utils/deviceUtils';
 
 export interface UseDeviceDetectionReturn {
   device: DeviceInfo;
@@ -87,4 +92,3 @@ export const useDeviceDetection = (): UseDeviceDetectionReturn => {
     refresh
   };
 };
-

@@ -36,13 +36,29 @@ export class AdaptiveServiceWorker {
   }
 
   private detectDeviceType() {
-    const userAgent = navigator.userAgent.toLowerCase();
-    const screenWidth = window.innerWidth;
-    const hasTouch = 'ontouchstart' in window;
+    // SSR-safe device detection
+    if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+      this.deviceType = 'desktop';
+      return;
+    }
 
-    if (screenWidth < 768 || (hasTouch && screenWidth < 1024)) {
+    const userAgent = navigator.userAgent.toLowerCase();
+    
+    // Use stable initial width instead of innerWidth
+    const screenWidth = document.documentElement.clientWidth || window.innerWidth;
+    
+    // Use matchMedia for touch detection instead of ontouchstart
+    const hasTouch = window.matchMedia('(pointer: coarse)').matches || 
+                     'ontouchstart' in window ||
+                     navigator.maxTouchPoints > 0;
+
+    // Use media queries for more reliable detection
+    const isMobile = window.matchMedia('(max-width: 767px)').matches;
+    const isTablet = window.matchMedia('(min-width: 768px) and (max-width: 1199px)').matches;
+
+    if (isMobile || (hasTouch && screenWidth < 768)) {
       this.deviceType = 'mobile';
-    } else if (screenWidth < 1200 && hasTouch) {
+    } else if (isTablet || (hasTouch && screenWidth < 1200)) {
       this.deviceType = 'tablet';
     } else {
       this.deviceType = 'desktop';
@@ -104,42 +120,42 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
   
   // Stratégie adaptative selon le type de ressource
-  if (this.isImageRequest(request)) {
-    event.respondWith(this.handleImageRequest(request));
-  } else if (this.isAPIRequest(request)) {
-    event.respondWith(this.handleAPIRequest(request));
-  } else if (this.isStaticRequest(request)) {
-    event.respondWith(this.handleStaticRequest(request));
+  if (isImageRequest(request)) {
+    event.respondWith(handleImageRequest(request));
+  } else if (isAPIRequest(request)) {
+    event.respondWith(handleAPIRequest(request));
+  } else if (isStaticRequest(request)) {
+    event.respondWith(handleStaticRequest(request));
   } else {
-    event.respondWith(this.handleDefaultRequest(request));
+    event.respondWith(handleDefaultRequest(request));
   }
 });
 
 // Gestion des images
-handleImageRequest(request) {
+function handleImageRequest(request) {
   const strategy = CACHE_STRATEGIES.images;
   
   switch (strategy) {
     case 'cache-first':
-      return this.cacheFirst(request, DYNAMIC_CACHE);
+      return cacheFirst(request, DYNAMIC_CACHE);
     case 'network-first':
-      return this.networkFirst(request, DYNAMIC_CACHE);
+      return networkFirst(request, DYNAMIC_CACHE);
     case 'stale-while-revalidate':
-      return this.staleWhileRevalidate(request, DYNAMIC_CACHE);
+      return staleWhileRevalidate(request, DYNAMIC_CACHE);
     default:
       return fetch(request);
   }
 }
 
 // Gestion des API
-handleAPIRequest(request) {
+function handleAPIRequest(request) {
   const strategy = CACHE_STRATEGIES.api;
   
   switch (strategy) {
     case 'cache-first':
-      return this.cacheFirst(request, DYNAMIC_CACHE);
+      return cacheFirst(request, DYNAMIC_CACHE);
     case 'network-first':
-      return this.networkFirst(request, DYNAMIC_CACHE);
+      return networkFirst(request, DYNAMIC_CACHE);
     case 'network-only':
       return fetch(request);
     default:
@@ -148,21 +164,26 @@ handleAPIRequest(request) {
 }
 
 // Gestion des ressources statiques
-handleStaticRequest(request) {
+function handleStaticRequest(request) {
   const strategy = CACHE_STRATEGIES.static;
   
   switch (strategy) {
     case 'cache-first':
-      return this.cacheFirst(request, STATIC_CACHE);
+      return cacheFirst(request, STATIC_CACHE);
     case 'stale-while-revalidate':
-      return this.staleWhileRevalidate(request, STATIC_CACHE);
+      return staleWhileRevalidate(request, STATIC_CACHE);
     default:
       return fetch(request);
   }
 }
 
+// Gestion des requêtes par défaut
+function handleDefaultRequest(request) {
+  return networkFirst(request, DYNAMIC_CACHE);
+}
+
 // Stratégie Cache First
-async cacheFirst(request, cacheName) {
+async function cacheFirst(request, cacheName) {
   try {
     const cachedResponse = await caches.match(request);
     if (cachedResponse) {
@@ -183,7 +204,7 @@ async cacheFirst(request, cacheName) {
 }
 
 // Stratégie Network First
-async networkFirst(request, cacheName) {
+async function networkFirst(request, cacheName) {
   try {
     const networkResponse = await fetch(request);
     if (networkResponse.ok) {
@@ -202,13 +223,13 @@ async networkFirst(request, cacheName) {
 }
 
 // Stratégie Stale While Revalidate
-async staleWhileRevalidate(request, cacheName) {
+async function staleWhileRevalidate(request, cacheName) {
   const cachedResponse = await caches.match(request);
   
-  const fetchPromise = fetch(request).then((networkResponse) => {
+  const fetchPromise = fetch(request).then(async (networkResponse) => {
     if (networkResponse.ok) {
-      const cache = caches.open(cacheName);
-      cache.then((cache) => cache.put(request, networkResponse.clone()));
+      const cache = await caches.open(cacheName);
+      await cache.put(request, networkResponse.clone());
     }
     return networkResponse;
   });
@@ -217,27 +238,38 @@ async staleWhileRevalidate(request, cacheName) {
 }
 
 // Utilitaires
-isImageRequest(request) {
+function isImageRequest(request) {
   return request.destination === 'image' || 
-         request.url.match(/\\.(jpg|jpeg|png|gif|webp|svg)$/i);
+         /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(request.url);
 }
 
-isAPIRequest(request) {
+function isAPIRequest(request) {
   return request.url.includes('/api/') || 
          request.url.includes('/supabase/');
 }
 
-isStaticRequest(request) {
+function isStaticRequest(request) {
   return request.destination === 'script' ||
          request.destination === 'style' ||
-         request.url.match(/\\.(js|css|woff|woff2|ttf)$/i);
+         /\.(js|css|woff|woff2|ttf)$/i.test(request.url);
 }
 
 // Gestion des notifications push
 self.addEventListener('push', (event) => {
   if (!event.data) return;
   
-  const data = event.data.json();
+  let data;
+  try {
+    data = event.data.json();
+  } catch (error) {
+    console.error('Failed to parse push data:', error);
+    // Fallback to text or empty object
+    try {
+      data = { title: 'Notification', body: event.data.text() || 'New notification' };
+    } catch (textError) {
+      data = { title: 'Notification', body: 'New notification' };
+    }
+  }
   const options = {
     body: data.body,
     icon: '/icons/icon-192x192.png',
@@ -264,11 +296,11 @@ self.addEventListener('notificationclick', (event) => {
 // Gestion de la synchronisation en arrière-plan
 self.addEventListener('sync', (event) => {
   if (event.tag === 'background-sync') {
-    event.waitUntil(this.doBackgroundSync());
+    event.waitUntil(doBackgroundSync());
   }
 });
 
-async doBackgroundSync() {
+async function doBackgroundSync() {
   // Implémentation de la synchronisation en arrière-plan
   console.log('Background sync triggered');
 }
@@ -340,15 +372,26 @@ async doBackgroundSync() {
     if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
       // Afficher une notification pour mettre à jour l'app
       const notification = document.createElement('div');
-      notification.innerHTML = `
-        <div class="fixed top-4 right-4 bg-primary text-primary-foreground p-4 rounded-lg shadow-lg z-50">
-          <p class="font-semibold">Mise à jour disponible</p>
-          <p class="text-sm">Une nouvelle version de l'application est disponible.</p>
-          <button onclick="window.location.reload()" class="mt-2 bg-white text-primary px-3 py-1 rounded text-sm">
-            Mettre à jour
-          </button>
-        </div>
-      `;
+      notification.className = 'fixed top-4 right-4 bg-primary text-primary-foreground p-4 rounded-lg shadow-lg z-50';
+      
+      const title = document.createElement('p');
+      title.className = 'font-semibold';
+      title.textContent = 'Mise à jour disponible';
+      
+      const message = document.createElement('p');
+      message.className = 'text-sm';
+      message.textContent = 'Une nouvelle version de l\'application est disponible.';
+      
+      const button = document.createElement('button');
+      button.className = 'mt-2 bg-white text-primary px-3 py-1 rounded text-sm';
+      button.textContent = 'Mettre à jour';
+      button.addEventListener('click', () => {
+        window.location.reload();
+      });
+      
+      notification.appendChild(title);
+      notification.appendChild(message);
+      notification.appendChild(button);
       document.body.appendChild(notification);
       
       // Supprimer la notification après 10 secondes
@@ -358,5 +401,4 @@ async doBackgroundSync() {
     }
   }
 }
-```
 

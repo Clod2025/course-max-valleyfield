@@ -3,6 +3,7 @@ import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { useDeviceDetection } from '@/hooks/useDeviceDetection';
 import { ResponsiveContainer } from './ResponsiveContainer';
 import { cn } from '@/lib/utils';
+import './ResponsiveForm.css';
 
 interface ResponsiveFormProps {
   children: ReactNode;
@@ -32,39 +33,29 @@ export const ResponsiveForm: React.FC<ResponsiveFormProps> = ({
   const finalColumns = columns || responsiveColumns;
   const finalSpacing = spacing || responsiveSpacing;
 
-  // Styles adaptatifs
+  // CSS variables for dynamic values
   const formStyle: React.CSSProperties = {
-    display: 'flex',
-    flexDirection: finalLayout === 'stack' ? 'column' : 'row',
-    flexWrap: finalLayout === 'stack' ? 'nowrap' : 'wrap',
-    gap: finalSpacing === 'compact' ? '0.5rem' : 
-         finalSpacing === 'comfortable' ? '1rem' : '1.5rem'
-  };
-
-  // Pour les grilles sur desktop/tablet
-  if (finalLayout === 'grid' && !isMobile) {
-    formStyle.display = 'grid';
-    formStyle.gridTemplateColumns = `repeat(${finalColumns}, 1fr)`;
-  }
+    '--rf-gap': finalSpacing === 'compact' ? '0.5rem' : 
+                finalSpacing === 'comfortable' ? '1rem' : '1.5rem',
+    '--rf-columns': finalColumns.toString()
+  } as React.CSSProperties;
 
   return (
-    <ResponsiveContainer className={cn('responsive-form', className)}>
+    <div className={cn('responsive-form', className)}>
       <form 
         onSubmit={onSubmit}
         style={formStyle}
         className={cn(
-          'w-full',
-          finalLayout === 'stack' && 'space-y-4',
-          finalLayout === 'grid' && 'grid gap-4',
-          finalSpacing === 'compact' && 'space-y-2',
-          finalSpacing === 'comfortable' && 'space-y-4',
-          finalSpacing === 'spacious' && 'space-y-6'
+          'w-full responsive-form',
+          finalLayout === 'stack' && 'responsive-form--stack',
+          finalLayout === 'grid' && 'responsive-form--grid',
+          finalSpacing === 'compact' && 'responsive-form--compact',
+          finalSpacing === 'comfortable' && 'responsive-form--comfortable',
+          finalSpacing === 'spacious' && 'responsive-form--spacious'
         )}
       >
         {children}
       </form>
-    </ResponsiveContainer>
+    </div>
   );
 };
-```
-

@@ -9,6 +9,13 @@ export const AuthErrorDebugger = () => {
   const [errorLog, setErrorLog] = useState<string[]>([]);
 
   useEffect(() => {
+    // Development-only debug tool - prevent cross-instance conflicts
+    if (process.env.NODE_ENV !== 'development') return;
+    
+    // Prevent double-installation using global flag
+    if ((window as any).__authErrorDebuggerInstalled) return;
+    (window as any).__authErrorDebuggerInstalled = true;
+
     const originalConsoleError = console.error;
     console.error = (...args) => {
       const errorMessage = args.join(' ');
@@ -19,7 +26,9 @@ export const AuthErrorDebugger = () => {
     };
 
     return () => {
+      // Always restore original console.error on unmount
       console.error = originalConsoleError;
+      (window as any).__authErrorDebuggerInstalled = false;
     };
   }, []);
 

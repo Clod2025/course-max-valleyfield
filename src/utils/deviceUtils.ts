@@ -63,7 +63,9 @@ export const detectDeviceType = (): DeviceInfo => {
                       (window.navigator as any).standalone ||
                       document.referrer.includes('android-app://');
   
-  const isPWA = isStandalone || window.location.protocol === 'https:' && window.location.hostname !== 'localhost';
+  const isPWA = isStandalone || 
+                window.matchMedia('(display-mode: standalone)').matches ||
+                (window.navigator as any).standalone === true;
   
   // Détection de la plateforme
   const platform = getPlatform(userAgent);
@@ -224,7 +226,7 @@ export const onOrientationChange = (callback: (orientation: 'portrait' | 'landsc
  * Détection des changements de taille d'écran
  */
 export const onScreenSizeChange = (callback: (size: { width: number; height: number }) => void) => {
-  let timeoutId: NodeJS.Timeout;
+  let timeoutId: ReturnType<typeof setTimeout>;
   
   const handleResize = () => {
     clearTimeout(timeoutId);
