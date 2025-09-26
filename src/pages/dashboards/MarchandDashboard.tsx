@@ -5,13 +5,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { AlertCircle, ShoppingCart, Clock, Package } from 'lucide-react';
-import { MerchantHeader } from '@/components/merchant/MerchantHeader';
+import { MerchantHamburgerMenu } from '@/components/merchant/MerchantHamburgerMenu';
 import { ProductManager } from '@/components/merchant/ProductManager';
 import { MerchantFinance } from '@/components/merchant/MerchantFinance';
 import { PromotionManager } from '@/components/merchant/PromotionManager';
 import { InventorySubmission } from '@/components/merchant/InventorySubmission';
 import { MerchantSettings } from '@/components/merchant/MerchantSettings';
-import { AppFooter } from '@/components/AppFooter';
 
 const MarchandDashboard = () => {
   const { profile, loading: authLoading, isRole } = useAuth();
@@ -84,19 +83,18 @@ const MarchandDashboard = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <MerchantHeader 
+      <MerchantHamburgerMenu 
         onMenuItemClick={setActiveMenuItem}
         activeItem={activeMenuItem}
       />
       
       {/* Contenu principal avec espace pour le menu latéral */}
-      <div className="lg:ml-80">
+      <div className="lg:ml-80 pt-16 lg:pt-0">
         <div className="container mx-auto py-6 px-4">
           {renderMainContent()}
         </div>
       </div>
 
-      <AppFooter />
     </div>
   );
 };

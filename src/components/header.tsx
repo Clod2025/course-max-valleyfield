@@ -43,11 +43,7 @@ export function Header() {
         </Link>
 
         <nav className="hidden md:flex items-center gap-6">
-          {user && (
-            <Link to={getDashboardLink()} className="text-sm font-medium hover:text-primary transition-colors">
-              Mon Espace
-            </Link>
-          )}
+          {/* Navigation supprimée - Mon Espace déplacé vers le bouton de droite */}
         </nav>
 
         <div className="flex items-center gap-4">

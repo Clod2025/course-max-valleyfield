@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
+import { useSilentUpdate } from "@/hooks/useSilentUpdate";
 import GlobalErrorHandler from "@/components/GlobalErrorHandler";
 
 // Imports directs pour les pages légères
@@ -71,6 +72,9 @@ const queryClient = new QueryClient({
 });
 
 const App = () => {
+  // Hook pour la mise à jour silencieuse
+  const { isUpdateAvailable, isUpdating, checkForUpdates, forceSilentUpdate } = useSilentUpdate();
+
   if (import.meta.env.DEV) {
     console.log('App component loaded');
   }
@@ -140,6 +144,13 @@ const App = () => {
            window.location.hostname === 'localhost' && 
            ReactQueryDevtools && (
             <ReactQueryDevtools initialIsOpen={false} />
+          )}
+          
+          {/* Indicateur de mise à jour silencieuse */}
+          {isUpdating && (
+            <div className="fixed top-4 right-4 z-50 bg-primary text-primary-foreground px-4 py-2 rounded-lg shadow-lg text-sm">
+              🔄 Mise à jour en cours...
+            </div>
           )}
         </TooltipProvider>
       </AuthProvider>

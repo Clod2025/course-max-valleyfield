@@ -49,14 +49,31 @@ function registerValidSW(swUrl: string, config?: Config) {
         installingWorker.onstatechange = () => {
           if (installingWorker.state === 'installed') {
             if (navigator.serviceWorker.controller) {
-              console.log(
-                'Nouveau contenu disponible; veuillez actualiser.'
-              );
+              console.log('🔄 Nouveau contenu disponible - mise à jour silencieuse en cours...');
+              
+              // Mise à jour silencieuse automatique
+              if (installingWorker.state === 'installed') {
+                console.log('🚀 Activation de la mise à jour silencieuse...');
+                
+                // Envoyer un message au Service Worker pour forcer la mise à jour
+                if (navigator.serviceWorker.controller) {
+                  navigator.serviceWorker.controller.postMessage({
+                    type: 'SILENT_UPDATE'
+                  });
+                }
+                
+                // Recharger automatiquement après 2 secondes
+                setTimeout(() => {
+                  console.log('🔄 Rechargement automatique de la page...');
+                  window.location.reload();
+                }, 2000);
+              }
+              
               if (config && config.onUpdate) {
                 config.onUpdate(registration);
               }
             } else {
-              console.log('Contenu mis en cache pour utilisation hors ligne.');
+              console.log('✅ Contenu mis en cache pour utilisation hors ligne.');
               if (config && config.onSuccess) {
                 config.onSuccess(registration);
               }
@@ -66,7 +83,7 @@ function registerValidSW(swUrl: string, config?: Config) {
       };
     })
     .catch((error) => {
-      console.error('Erreur lors de l\'enregistrement du SW:', error);
+      console.error('❌ Erreur lors de l\'enregistrement du SW:', error);
     });
 }
 

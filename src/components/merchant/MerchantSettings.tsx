@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { MerchantHelpModal } from './MerchantHelpModal';
 
 export function MerchantSettings() {
   const { toast } = useToast();
@@ -83,10 +84,13 @@ export function MerchantSettings() {
           </p>
         </div>
         
-        <Button onClick={handleSaveSettings} disabled={loading}>
-          <Save className="w-4 h-4 mr-2" />
-          Sauvegarder
-        </Button>
+        <div className="flex items-center gap-3">
+          <MerchantHelpModal />
+          <Button onClick={handleSaveSettings} disabled={loading}>
+            <Save className="w-4 h-4 mr-2" />
+            Sauvegarder
+          </Button>
+        </div>
       </div>
 
       {/* Informations du profil */}

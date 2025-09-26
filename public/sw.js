@@ -13,6 +13,7 @@ const STATIC_ASSETS = [
 
 // Installation du Service Worker
 self.addEventListener('install', (event) => {
+  console.log('Service Worker: Installation en cours...');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
@@ -23,11 +24,14 @@ self.addEventListener('install', (event) => {
         console.error('Service Worker: Erreur lors de la mise en cache:', error);
       })
   );
+  // Force l'activation immédiate du nouveau Service Worker
   self.skipWaiting();
+  console.log('Service Worker: skipWaiting() appelé - mise à jour forcée');
 });
 
 // Activation du Service Worker
 self.addEventListener('activate', (event) => {
+  console.log('Service Worker: Activation en cours...');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
@@ -38,9 +42,12 @@ self.addEventListener('activate', (event) => {
           }
         })
       );
+    }).then(() => {
+      // Prendre le contrôle de tous les clients immédiatement
+      return self.clients.claim();
     })
   );
-  self.clients.claim();
+  console.log('Service Worker: clients.claim() appelé - contrôle pris');
 });
 
 // Interception des requêtes
@@ -162,6 +169,42 @@ self.addEventListener('fetch', (event) => {
 // Gestion des messages du client
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
+    console.log('Service Worker: Message SKIP_WAITING reçu');
     self.skipWaiting();
+  }
+  
+  if (event.data && event.data.type === 'FORCE_UPDATE') {
+    console.log('Service Worker: Mise à jour forcée demandée');
+    self.skipWaiting();
+  }
+});
+
+// Mise à jour silencieuse automatique
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'CHECK_UPDATE') {
+    console.log('Service Worker: Vérification de mise à jour...');
+    // Vérifier s'il y a une nouvelle version disponible
+    self.registration.update().then(() => {
+      console.log('Service Worker: Mise à jour vérifiée');
+    });
+  }
+});
+
+// Notification de mise à jour silencieuse
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SILENT_UPDATE') {
+    console.log('Service Worker: Mise à jour silencieuse activée');
+    // Forcer la mise à jour sans notification utilisateur
+    self.skipWaiting();
+    
+    // Notifier tous les clients de recharger
+    self.clients.matchAll().then(clients => {
+      clients.forEach(client => {
+        client.postMessage({
+          type: 'RELOAD_PAGE',
+          message: 'Mise à jour silencieuse en cours...'
+        });
+      });
+    });
   }
 });

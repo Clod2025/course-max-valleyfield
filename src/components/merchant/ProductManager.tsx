@@ -16,10 +16,12 @@ import {
   Search,
   Filter,
   Scale,
-  Package2
+  Package2,
+  Loader2
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { ProductAutocomplete } from './ProductAutocomplete';
 
 interface Product {
   id: string;
@@ -178,26 +180,64 @@ export function ProductManager() {
   };
 
   const handleSubmitInventory = async () => {
+    if (pendingProducts === 0) {
+      toast({
+        title: "Aucun produit en attente",
+        description: "Tous vos produits sont déjà disponibles",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setLoading(true);
     try {
-      const { error } = await supabase
+      // Vérifier d'abord s'il y a des produits en attente
+      const { data: pendingData, error: checkError } = await supabase
+        .from('products')
+        .select('id, name')
+        .eq('is_available', false);
+
+      if (checkError) throw checkError;
+
+      if (!pendingData || pendingData.length === 0) {
+        toast({
+          title: "Aucun produit en attente",
+          description: "Tous vos produits sont déjà disponibles",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Mettre à jour les produits
+      const { error: updateError } = await supabase
         .from('products')
         .update({ is_available: true })
         .eq('is_available', false);
 
-      if (error) throw error;
+      if (updateError) throw updateError;
 
       // Recharger les produits
       await loadProducts();
 
+      // Message de succès détaillé
       toast({
-        title: "Inventaire soumis",
-        description: "Tous vos produits sont maintenant disponibles pour les clients",
+        title: "✅ Inventaire soumis avec succès",
+        description: `${pendingData.length} produit(s) sont maintenant disponibles pour les clients`,
       });
-    } catch (error) {
+
+      // Message de confirmation supplémentaire
+      setTimeout(() => {
+        toast({
+          title: "🎉 Félicitations !",
+          description: "Vos produits sont maintenant visibles dans le catalogue client",
+        });
+      }, 2000);
+
+    } catch (error: any) {
+      console.error('Erreur lors de la soumission de l\'inventaire:', error);
       toast({
-        title: "Erreur",
-        description: "Impossible de soumettre l'inventaire",
+        title: "❌ Erreur de soumission",
+        description: error.message || "Impossible de soumettre l'inventaire. Veuillez réessayer.",
         variant: "destructive"
       });
     } finally {
@@ -232,11 +272,21 @@ export function ProductManager() {
           {pendingProducts > 0 && (
             <Button
               onClick={handleSubmitInventory}
-              className="bg-green-600 hover:bg-green-700"
+              className="bg-green-600 hover:bg-green-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
               disabled={loading}
+              size="lg"
             >
-              <Package className="w-4 h-4 mr-2" />
-              Soumettre Inventaire ({pendingProducts})
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Soumission en cours...
+                </>
+              ) : (
+                <>
+                  <Package className="w-4 h-4 mr-2" />
+                  Soumettre Inventaire ({pendingProducts})
+                </>
+              )}
             </Button>
           )}
           
@@ -293,15 +343,28 @@ export function ProductManager() {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="name">Nom du produit *</Label>
-                <Input
-                  id="name"
+                <ProductAutocomplete
                   value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="Ex: Pommes Gala"
+                  onChange={(value) => setFormData(prev => ({ ...prev, name: value }))}
+                  onSelect={(product) => {
+                    setFormData(prev => ({
+                      ...prev,
+                      name: product.name,
+                      description: product.description,
+                      price: product.price.toString(),
+                      category: product.category,
+                      unit: product.unit
+                    }));
+                    toast({
+                      title: "Produit sélectionné",
+                      description: `${product.name} (${product.brand}) ajouté avec succès`,
+                    });
+                  }}
+                  placeholder="Rechercher un produit canadien..."
+                  label="Nom du produit *"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  L'image sera générée automatiquement
+                  Recherchez parmi les produits populaires du Canada
                 </p>
               </div>
               

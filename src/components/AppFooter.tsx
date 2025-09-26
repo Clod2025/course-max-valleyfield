@@ -14,6 +14,7 @@ import { useEventTracking } from '@/hooks/useEventTracking';
 import { useValidateDeliveryAddress } from '@/hooks/useGeofencing';
 import { supabase } from '@/integrations/supabase/client';
 import { useFooterData } from '@/hooks/useFooterData';
+import { useSocialMedia } from '@/hooks/useSocialMedia';
 import { 
   ShoppingCart, 
   MessageCircle, 
@@ -26,6 +27,8 @@ import {
   Facebook,
   Instagram,
   Twitter,
+  Linkedin,
+  Youtube,
   Store,
   Users,
   Crown,
@@ -392,6 +395,11 @@ export const AppFooter: React.FC = () => {
   const navigate = useNavigate();
   const { footerData, loading } = useFooterData();
 
+  // ✅ NOUVELLE CONDITION : Ne pas afficher le footer pour les admins
+  if (profile?.role === 'admin') {
+    return null;
+  }
+
   return (
     <>
       {/* Composants flottants - SEULEMENT pour utilisateurs connectés */}
@@ -520,6 +528,9 @@ export const AppFooter: React.FC = () => {
               </div>
             </div>
 
+            {/* Section Réseaux sociaux */}
+            <SocialMediaSection />
+            
             {/* Section dynamique selon le statut utilisateur */}
             <div className="space-y-4">
               {/* Avis clients - TOUJOURS VISIBLE */}
@@ -560,5 +571,72 @@ export const AppFooter: React.FC = () => {
         </div>
       </footer>
     </>
+  );
+};
+
+// Composant Section Réseaux Sociaux
+const SocialMediaSection: React.FC = () => {
+  const { socialMedias, loading } = useSocialMedia();
+
+  // Obtenir l'icône selon la plateforme
+  const getSocialIcon = (platform: string) => {
+    switch (platform) {
+      case 'facebook':
+        return <Facebook className="w-5 h-5" />;
+      case 'instagram':
+        return <Instagram className="w-5 h-5" />;
+      case 'twitter':
+        return <Twitter className="w-5 h-5" />;
+      case 'linkedin':
+        return <Linkedin className="w-5 h-5" />;
+      case 'youtube':
+        return <Youtube className="w-5 h-5" />;
+      case 'tiktok':
+        return <ExternalLink className="w-5 h-5" />;
+      default:
+        return <ExternalLink className="w-5 h-5" />;
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-4">
+        <Loader className="w-4 h-4 animate-spin mr-2" />
+        <span className="text-sm text-muted-foreground">Chargement des réseaux sociaux...</span>
+      </div>
+    );
+  }
+
+  if (socialMedias.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h3 className="text-lg font-semibold mb-3">Suivez-nous</h3>
+        <div className="flex flex-wrap gap-3">
+          {socialMedias.map((social) => (
+            <a
+              key={social.id}
+              href={social.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-3 py-2 bg-muted hover:bg-muted/80 rounded-lg transition-colors"
+            >
+              {getSocialIcon(social.platform)}
+              <span className="text-sm font-medium capitalize">
+                {social.platform === 'twitter' ? 'Twitter' : 
+                 social.platform === 'linkedin' ? 'LinkedIn' :
+                 social.platform === 'youtube' ? 'YouTube' :
+                 social.platform === 'tiktok' ? 'TikTok' :
+                 social.platform}
+              </span>
+              <ExternalLink className="w-3 h-3 text-muted-foreground" />
+            </a>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 };

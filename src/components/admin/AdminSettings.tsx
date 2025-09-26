@@ -1,1045 +1,518 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Switch } from '@/components/ui/switch';
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select';
 import { 
   Settings, 
-  Wrench, 
-  MapPin,
-  Plus,
+  User, 
+  Shield, 
+  Bell, 
+  Globe, 
+  Database,
+  Key,
   Save,
-  AlertTriangle,
-  ChevronDown,
-  Check,
-  Trash2,
-  Phone,
-  Mail,
-  MapPin as LocationIcon
+  RefreshCw,
+  CheckCircle,
+  AlertCircle,
+  Loader2,
+  Layout
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { FooterManagement } from './FooterManagement';
+import { SocialMediaManager } from './SocialMediaManager';
 
-// Données complètes des territoires, provinces et villes du Canada
-const CANADIAN_LOCATIONS = {
-  'Alberta': {
-    regions: ['Calgary Region', 'Edmonton Region', 'Central Alberta', 'Northern Alberta', 'Southern Alberta'],
-    cities: [
-      'Calgary', 'Edmonton', 'Red Deer', 'Lethbridge', 'Medicine Hat', 'Grande Prairie', 
-      'Airdrie', 'Spruce Grove', 'Leduc', 'Lloydminster', 'Camrose', 'Brooks', 'Cold Lake',
-      'Wetaskiwin', 'Lacombe', 'Stony Plain', 'Canmore', 'Cochrane', 'Fort Saskatchewan',
-      'Okotoks', 'High River', 'Beaumont', 'Sylvan Lake', 'Whitecourt', 'Hinton'
-    ]
-  },
-  'Colombie-Britannique': {
-    regions: ['Lower Mainland', 'Vancouver Island', 'Interior', 'Northern BC', 'Kootenays'],
-    cities: [
-      'Vancouver', 'Surrey', 'Burnaby', 'Richmond', 'Abbotsford', 'Coquitlam', 'Langley',
-      'Saanich', 'Delta', 'North Vancouver', 'Maple Ridge', 'Nanaimo', 'Kamloops',
-      'Kelowna', 'Chilliwack', 'Prince George', 'Vernon', 'Courtenay', 'Campbell River',
-      'Penticton', 'Mission', 'Port Coquitlam', 'New Westminster', 'West Vancouver',
-      'North Vancouver District', 'Port Moody', 'Cranbrook', 'Fort St. John'
-    ]
-  },
-  'Manitoba': {
-    regions: ['Winnipeg Region', 'Western Manitoba', 'Eastern Manitoba', 'Northern Manitoba', 'Central Manitoba'],
-    cities: [
-      'Winnipeg', 'Brandon', 'Steinbach', 'Thompson', 'Portage la Prairie', 'Winkler',
-      'Selkirk', 'Morden', 'Dauphin', 'The Pas', 'Flin Flon', 'Swan River', 'Neepawa',
-      'Gimli', 'Stonewall', 'Carman', 'Virden', 'Minnedosa', 'Killarney', 'Boissevain'
-    ]
-  },
-  'Nouveau-Brunswick': {
-    regions: ['Sud du Nouveau-Brunswick', 'Nord du Nouveau-Brunswick', 'Vallée du fleuve Saint-Jean', 'Côte de Fundy'],
-    cities: [
-      'Moncton', 'Saint John', 'Fredericton', 'Dieppe', 'Riverview', 'Edmundston',
-      'Miramichi', 'Bathurst', 'Campbellton', 'Caraquet', 'Sussex', 'Sackville',
-      'Woodstock', 'Shediac', 'Oromocto', 'Grand Falls', 'Dalhousie', 'Tracadie-Sheila'
-    ]
-  },
-  'Terre-Neuve-et-Labrador': {
-    regions: ['Avalon Peninsula', 'Central Newfoundland', 'Western Newfoundland', 'Labrador'],
-    cities: [
-      'St. John\'s', 'Mount Pearl', 'Corner Brook', 'Conception Bay South', 'Paradise',
-      'Grand Falls-Windsor', 'Happy Valley-Goose Bay', 'Gander', 'Carbonear', 'Stephenville',
-      'Portugal Cove-St. Philip\'s', 'Torbay', 'Labrador City', 'Bay Roberts', 'Clarenville'
-    ]
-  },
-  'Territoires du Nord-Ouest': {
-    regions: ['Région de Yellowknife', 'Région du Dehcho', 'Région du Sahtu', 'Région d\'Inuvik'],
-    cities: [
-      'Yellowknife', 'Hay River', 'Inuvik', 'Fort Smith', 'Behchokǫ̀', 'Iqaluit',
-      'Norman Wells', 'Fort Simpson', 'Fort McPherson', 'Tuktoyaktuk'
-    ]
-  },
-  'Nouvelle-Écosse': {
-    regions: ['Halifax Regional Municipality', 'Cape Breton', 'South Shore', 'Annapolis Valley', 'Northern Nova Scotia'],
-    cities: [
-      'Halifax', 'Sydney', 'Dartmouth', 'Truro', 'New Glasgow', 'Glace Bay',
-      'Kentville', 'Amherst', 'Yarmouth', 'Bridgewater', 'Antigonish', 'Stellarton',
-      'Wolfville', 'Windsor', 'Liverpool', 'Digby', 'Oxford', 'Pictou'
-    ]
-  },
-  'Nunavut': {
-    regions: ['Région de Qikiqtaaluk', 'Région de Kivalliq', 'Région de Kitikmeot'],
-    cities: [
-      'Iqaluit', 'Rankin Inlet', 'Arviat', 'Baker Lake', 'Igloolik', 'Pangnirtung',
-      'Cape Dorset', 'Pond Inlet', 'Gjoa Haven', 'Cambridge Bay', 'Kugluktuk', 'Taloyoak'
-    ]
-  },
-  'Ontario': {
-    regions: ['Greater Toronto Area', 'Eastern Ontario', 'Northern Ontario', 'Southwestern Ontario', 'Central Ontario'],
-    cities: [
-      'Toronto', 'Ottawa', 'Mississauga', 'Brampton', 'Hamilton', 'London', 'Markham',
-      'Vaughan', 'Kitchener', 'Windsor', 'Richmond Hill', 'Oakville', 'Burlington',
-      'Oshawa', 'Barrie', 'St. Catharines', 'Cambridge', 'Waterloo', 'Guelph',
-      'Sudbury', 'Kingston', 'Thunder Bay', 'Whitby', 'Chatham-Kent', 'Ajax',
-      'Pickering', 'Sarnia', 'Sault Ste. Marie', 'Newmarket', 'Milton', 'Brantford'
-    ]
-  },
-  'Île-du-Prince-Édouard': {
-    regions: ['Queens County', 'Kings County', 'Prince County'],
-    cities: [
-      'Charlottetown', 'Summerside', 'Stratford', 'Cornwall', 'Montague', 'Kensington',
-      'Souris', 'Alberton', 'Georgetown', 'Tignish', 'Borden-Carleton'
-    ]
-  },
-  'Québec': {
-    regions: ['Montréal', 'Québec', 'Saguenay–Lac-Saint-Jean', 'Mauricie', 'Estrie', 'Outaouais', 'Abitibi-Témiscamingue', 'Côte-Nord', 'Nord-du-Québec', 'Gaspésie–Îles-de-la-Madeleine', 'Chaudière-Appalaches', 'Laval', 'Lanaudière', 'Laurentides', 'Montérégie', 'Centre-du-Québec', 'Bas-Saint-Laurent'],
-    cities: [
-      'Montréal', 'Québec', 'Laval', 'Gatineau', 'Longueuil', 'Sherbrooke', 'Saguenay',
-      'Lévis', 'Trois-Rivières', 'Terrebonne', 'Saint-Jean-sur-Richelieu', 'Repentigny',
-      'Boucherville', 'Saint-Jérôme', 'Châteauguay', 'Drummondville', 'Granby',
-      'Saint-Hyacinthe', 'Shawinigan', 'Dollard-des-Ormeaux', 'Rimouski', 'Victoriaville',
-      'Saint-Eustache', 'Saint-Bruno-de-Montarville', 'Mascouche', 'Beloeil', 'Salaberry-de-Valleyfield',
-      'Blainville', 'Mirabel', 'Brossard', 'Alma', 'Thetford Mines', 'Rouyn-Noranda'
-    ]
-  },
-  'Saskatchewan': {
-    regions: ['Regina Region', 'Saskatoon Region', 'Northern Saskatchewan', 'Southwest Saskatchewan', 'Southeast Saskatchewan'],
-    cities: [
-      'Saskatoon', 'Regina', 'Prince Albert', 'Moose Jaw', 'Swift Current', 'Yorkton',
-      'North Battleford', 'Estevan', 'Weyburn', 'Lloydminster', 'Martensville',
-      'Warman', 'Kindersley', 'Melfort', 'Humboldt', 'Meadow Lake', 'Melville'
-    ]
-  },
-  'Yukon': {
-    regions: ['Whitehorse Region', 'Northern Yukon', 'Southern Yukon'],
-    cities: [
-      'Whitehorse', 'Dawson City', 'Watson Lake', 'Haines Junction', 'Mayo',
-      'Carmacks', 'Faro', 'Ross River', 'Teslin', 'Old Crow'
-    ]
-  }
-};
-
-interface AutocompleteProps {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  options: string[];
-  placeholder: string;
-  required?: boolean;
-  disabled?: boolean;
-}
-
-function Autocomplete({ label, value, onChange, options, placeholder, required, disabled }: AutocompleteProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [filteredOptions, setFilteredOptions] = useState<string[]>([]);
-
-  useEffect(() => {
-    if (value) {
-      const filtered = options.filter(option =>
-        option.toLowerCase().includes(value.toLowerCase())
-      );
-      setFilteredOptions(filtered);
-    } else {
-      setFilteredOptions(options);
-    }
-  }, [value, options]);
-
-  const handleSelect = (option: string) => {
-    onChange(option);
-    setIsOpen(false);
-  };
-
-  return (
-    <div className="relative">
-      <Label htmlFor={label.toLowerCase()}>{label} {required && '*'}</Label>
-      <div className="relative">
-        <Input
-          id={label.toLowerCase()}
-          value={value}
-          onChange={(e) => {
-            onChange(e.target.value);
-            setIsOpen(true);
-          }}
-          onFocus={() => setIsOpen(true)}
-          placeholder={placeholder}
-          required={required}
-          disabled={disabled}
-          className="pr-8"
-        />
-        <ChevronDown 
-          className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground cursor-pointer"
-          onClick={() => !disabled && setIsOpen(!isOpen)}
-        />
-      </div>
-      
-      {isOpen && filteredOptions.length > 0 && !disabled && (
-        <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-y-auto">
-          {filteredOptions.slice(0, 10).map((option, index) => (
-            <div
-              key={index}
-              className="px-3 py-2 cursor-pointer hover:bg-gray-100 flex items-center justify-between"
-              onClick={() => handleSelect(option)}
-            >
-              <span>{option}</span>
-              {value === option && <Check className="w-4 h-4 text-primary" />}
-            </div>
-          ))}
-          {filteredOptions.length > 10 && (
-            <div className="px-3 py-2 text-sm text-muted-foreground border-t">
-              +{filteredOptions.length - 10} autres résultats...
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Interface pour les données du footer
-interface FooterData {
-  phone: string;
-  email: string;
-  address: string;
-  description: string;
-  socialMedia: {
-    facebook: string;
-    instagram: string;
-    twitter: string;
-  };
-  navigationLinks: Array<{
-    label: string;
-    url: string;
-  }>;
-  copyright: string;
-}
-
-export function AdminSettings() {
+export const AdminSettings: React.FC = () => {
   const { toast } = useToast();
+  const { profile, user } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [maintenanceMode, setMaintenanceMode] = useState(false);
-  const [maintenanceMessage, setMaintenanceMessage] = useState('');
-  
-  // État pour la gestion du footer
-  const [footerData, setFooterData] = useState<FooterData>({
-    phone: '(450) 123-4567',
-    email: 'support@coursemax.ca',
-    address: 'Valleyfield, QC',
-    description: 'La plateforme de livraison rapide qui connecte clients, livreurs et magasins à Valleyfield.',
-    socialMedia: {
-      facebook: '',
-      instagram: '',
-      twitter: ''
-    },
-    navigationLinks: [
-      { label: 'Confidentialité', url: '/privacy' },
-      { label: 'Conditions', url: '/terms' },
-      { label: 'Aide', url: '/help' }
-    ],
-    copyright: '© 2024 CourseMax. Tous droits réservés.'
+  const [saving, setSaving] = useState(false);
+
+  // État des paramètres
+  const [settings, setSettings] = useState({
+    // Profil admin
+    firstName: profile?.first_name || '',
+    lastName: profile?.last_name || '',
+    email: profile?.email || '',
+    phone: profile?.phone || '',
+    
+    // Paramètres de sécurité
+    twoFactorEnabled: false,
+    sessionTimeout: 30,
+    passwordExpiry: 90,
+    
+    // Notifications
+    emailNotifications: true,
+    pushNotifications: true,
+    orderNotifications: true,
+    userNotifications: true,
+    
+    // Paramètres généraux
+    platformName: 'CourseMax',
+    defaultLanguage: 'fr',
+    timezone: 'America/Montreal',
+    currency: 'CAD',
+    
+    // Maintenance
+    maintenanceMode: false,
+    debugMode: process.env.NODE_ENV === 'development'
   });
-  
-  const [newCity, setNewCity] = useState({
-    territory: '',
-    region: '',
-    city: '',
-  });
 
-  const [existingCities, setExistingCities] = useState([
-    { id: '1', territory: 'Québec', region: 'Montérégie', city: 'Salaberry-de-Valleyfield' },
-    { id: '2', territory: 'Québec', region: 'Montérégie', city: 'Beauharnois' },
-    { id: '3', territory: 'Québec', region: 'Montréal', city: 'Montréal' },
-  ]);
-
-  // Charger les données du footer depuis la base de données
-  useEffect(() => {
-    loadFooterData();
-  }, []);
-
-  const loadFooterData = async () => {
+  const handleSave = async (section: string) => {
+    setSaving(true);
     try {
-      const { data, error } = await supabase
-        .from('settings')
-        .select('*')
-        .eq('category', 'footer')
-        .eq('is_public', true);
-
-      if (error) throw error;
-
-      if (data && data.length > 0) {
-        const footerSettings = data.reduce((acc, setting) => {
-          acc[setting.key] = setting.value;
-          return acc;
-        }, {} as any);
-
-        setFooterData(prev => ({
-          ...prev,
-          ...footerSettings
-        }));
-      }
-    } catch (error) {
-      console.error('Erreur lors du chargement des données du footer:', error);
-    }
-  };
-
-  const saveFooterData = async () => {
-    setLoading(true);
-    try {
-      // Préparer les données pour la sauvegarde
-      const settingsToSave = [
-        { key: 'phone', value: footerData.phone, description: 'Numéro de téléphone du footer' },
-        { key: 'email', value: footerData.email, description: 'Email de contact du footer' },
-        { key: 'address', value: footerData.address, description: 'Adresse du footer' },
-        { key: 'description', value: footerData.description, description: 'Description de l\'entreprise' },
-        { key: 'socialMedia', value: footerData.socialMedia, description: 'Liens des réseaux sociaux' },
-        { key: 'navigationLinks', value: footerData.navigationLinks, description: 'Liens de navigation du footer' },
-        { key: 'copyright', value: footerData.copyright, description: 'Texte de copyright' }
-      ];
-
-      // Supprimer les anciens paramètres du footer
-      await supabase
-        .from('settings')
-        .delete()
-        .eq('category', 'footer');
-
-      // Insérer les nouveaux paramètres
-      const { error } = await supabase
-        .from('settings')
-        .insert(
-          settingsToSave.map(setting => ({
-            key: setting.key,
-            value: setting.value,
-            description: setting.description,
-            category: 'footer',
-            is_public: true
-          }))
-        );
-
-      if (error) throw error;
-
-      toast({
-        title: "Footer mis à jour",
-        description: "Les modifications ont été sauvegardées avec succès",
-      });
-    } catch (error) {
-      console.error('Erreur lors de la sauvegarde:', error);
-      toast({
-        title: "Erreur",
-        description: "Impossible de sauvegarder les modifications",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const resetFooterData = () => {
-    setFooterData({
-      phone: '(450) 123-4567',
-      email: 'support@coursemax.ca',
-      address: 'Valleyfield, QC',
-      description: 'La plateforme de livraison rapide qui connecte clients, livreurs et magasins à Valleyfield.',
-      socialMedia: {
-        facebook: '',
-        instagram: '',
-        twitter: ''
-      },
-      navigationLinks: [
-        { label: 'Confidentialité', url: '/privacy' },
-        { label: 'Conditions', url: '/terms' },
-        { label: 'Aide', url: '/help' }
-      ],
-      copyright: '© 2024 CourseMax. Tous droits réservés.'
-    });
-  };
-
-  const addNavigationLink = () => {
-    setFooterData(prev => ({
-      ...prev,
-      navigationLinks: [...prev.navigationLinks, { label: '', url: '' }]
-    }));
-  };
-
-  const updateNavigationLink = (index: number, field: 'label' | 'url', value: string) => {
-    setFooterData(prev => ({
-      ...prev,
-      navigationLinks: prev.navigationLinks.map((link, i) => 
-        i === index ? { ...link, [field]: value } : link
-      )
-    }));
-  };
-
-  const removeNavigationLink = (index: number) => {
-    setFooterData(prev => ({
-      ...prev,
-      navigationLinks: prev.navigationLinks.filter((_, i) => i !== index)
-    }));
-  };
-
-  const handleMaintenanceToggle = async () => {
-    setLoading(true);
-    try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      setMaintenanceMode(!maintenanceMode);
-      
-      toast({
-        title: maintenanceMode ? "Mode maintenance désactivé" : "Mode maintenance activé",
-        description: maintenanceMode 
-          ? "Le service est maintenant disponible" 
-          : "Un avis de maintenance sera affiché sur toutes les pages",
-      });
-    } catch (error) {
-      toast({
-        title: "Erreur",
-        description: "Impossible de modifier le mode maintenance",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAddCity = async () => {
-    if (!newCity.territory || !newCity.region || !newCity.city) {
-      toast({
-        title: "Erreur",
-        description: "Veuillez remplir tous les champs",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    // Vérifier si la ville existe déjà
-    const cityExists = existingCities.some(city => 
-      city.territory === newCity.territory && 
-      city.region === newCity.region && 
-      city.city.toLowerCase() === newCity.city.toLowerCase()
-    );
-
-    if (cityExists) {
-      toast({
-        title: "Erreur",
-        description: "Cette ville existe déjà dans la liste",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setLoading(true);
-    try {
+      // Simulation de sauvegarde
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      const newCityEntry = {
-        id: Date.now().toString(),
-        territory: newCity.territory,
-        region: newCity.region,
-        city: newCity.city
-      };
-
-      setExistingCities(prev => [...prev, newCityEntry]);
-      
       toast({
-        title: "Ville ajoutée",
-        description: `${newCity.city}, ${newCity.region} a été ajoutée avec succès`,
+        title: "Paramètres sauvegardés",
+        description: `Les paramètres ${section} ont été mis à jour avec succès`,
       });
-      
-      setNewCity({ territory: '', region: '', city: '' });
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Erreur",
-        description: "Impossible d'ajouter la ville",
-        variant: "destructive"
+        description: `Impossible de sauvegarder les paramètres: ${error.message}`,
+        variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
-  const handleRemoveCity = (cityId: string) => {
-    setExistingCities(prev => prev.filter(city => city.id !== cityId));
+  const handleReset = () => {
+    setSettings(prev => ({
+      ...prev,
+      firstName: profile?.first_name || '',
+      lastName: profile?.last_name || '',
+      email: profile?.email || '',
+      phone: profile?.phone || '',
+    }));
+    
     toast({
-      title: "Ville supprimée",
-      description: "La ville a été retirée de la liste",
+      title: "Paramètres réinitialisés",
+      description: "Les paramètres ont été remis à leurs valeurs par défaut",
     });
-  };
-
-  // Obtenir les options en fonction des sélections
-  const getTerritoryOptions = () => Object.keys(CANADIAN_LOCATIONS);
-  
-  const getRegionOptions = () => {
-    if (!newCity.territory) return [];
-    return CANADIAN_LOCATIONS[newCity.territory as keyof typeof CANADIAN_LOCATIONS]?.regions || [];
-  };
-  
-  const getCityOptions = () => {
-    if (!newCity.territory) return [];
-    return CANADIAN_LOCATIONS[newCity.territory as keyof typeof CANADIAN_LOCATIONS]?.cities || [];
-  };
-
-  const handleTerritoryChange = (territory: string) => {
-    setNewCity(prev => ({ 
-      ...prev, 
-      territory, 
-      region: '', 
-      city: ''
-    }));
-  };
-
-  const handleRegionChange = (region: string) => {
-    setNewCity(prev => ({ ...prev, region, city: '' }));
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <Settings className="w-8 h-8 text-primary" />
+      {/* En-tête */}
+      <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Paramètres Administrateur</h2>
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            <Settings className="w-8 h-8" />
+            Paramètres Admin
+          </h1>
           <p className="text-muted-foreground">
-            Configurez les paramètres globaux de CourseMax
+            Gérez les paramètres de la plateforme et votre profil administrateur
           </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={handleReset}>
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Réinitialiser
+          </Button>
+          <Button onClick={() => handleSave('généraux')} disabled={saving}>
+            {saving ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Sauvegarde...
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4 mr-2" />
+                Sauvegarder
+              </>
+            )}
+          </Button>
         </div>
       </div>
 
-      {/* Mode maintenance */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Wrench className="w-5 h-5" />
-            Mode Maintenance
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between p-4 border rounded-lg">
-            <div>
-              <h4 className="font-semibold">Activer le mode maintenance</h4>
-              <p className="text-sm text-muted-foreground">
-                Affiche un avis de maintenance sur toutes les interfaces
-              </p>
-            </div>
-            
-            <div className="flex items-center gap-3">
-              <Badge variant={maintenanceMode ? 'destructive' : 'outline'}>
-                {maintenanceMode ? 'Actif' : 'Inactif'}
-              </Badge>
-              <Button 
-                variant={maintenanceMode ? 'destructive' : 'default'}
-                onClick={handleMaintenanceToggle}
-                disabled={loading}
-              >
-                <AlertTriangle className="w-4 h-4 mr-2" />
-                {maintenanceMode ? 'Désactiver' : 'Activer'}
-              </Button>
-            </div>
-          </div>
-          
-          {maintenanceMode && (
-            <div>
-              <Label htmlFor="maintenance_message">Message de maintenance</Label>
-              <Textarea
-                id="maintenance_message"
-                value={maintenanceMessage}
-                onChange={(e) => setMaintenanceMessage(e.target.value)}
-                placeholder="Le service sera temporairement indisponible pour maintenance..."
-                rows={3}
-              />
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Navigation par onglets */}
+      <Tabs defaultValue="profile" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-6">
+          <TabsTrigger value="profile">Profil</TabsTrigger>
+          <TabsTrigger value="security">Sécurité</TabsTrigger>
+          <TabsTrigger value="notifications">Notifications</TabsTrigger>
+          <TabsTrigger value="general">Général</TabsTrigger>
+          <TabsTrigger value="footer">Footer</TabsTrigger>
+          <TabsTrigger value="social">Réseaux sociaux</TabsTrigger>
+        </TabsList>
 
-      {/* Gestion du Footer */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Settings className="w-5 h-5" />
-            Gestion du Footer
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-4">
-            <h4 className="font-semibold">Informations de contact</h4>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="footer_phone">Téléphone</Label>
-                <Input
-                  id="footer_phone"
-                  value={footerData.phone}
-                  onChange={(e) => setFooterData(prev => ({ ...prev, phone: e.target.value }))}
-                  placeholder="(450) 123-4567"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="footer_email">Email</Label>
-                <Input
-                  id="footer_email"
-                  value={footerData.email}
-                  onChange={(e) => setFooterData(prev => ({ ...prev, email: e.target.value }))}
-                  placeholder="support@coursemax.ca"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="footer_address">Adresse</Label>
-                <Input
-                  id="footer_address"
-                  value={footerData.address}
-                  onChange={(e) => setFooterData(prev => ({ ...prev, address: e.target.value }))}
-                  placeholder="Valleyfield, QC"
-                />
-              </div>
-              
-              <div className="md:col-span-2">
-                <Label htmlFor="footer_description">Description</Label>
-                <Textarea
-                  id="footer_description"
-                  value={footerData.description}
-                  onChange={(e) => setFooterData(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="La plateforme de livraison rapide qui connecte..."
-                  rows={3}
-                />
-              </div>
-            </div>
-            
-            <Separator />
-            
-            <div>
-              <h4 className="font-semibold mb-3">Réseaux sociaux</h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Onglet Profil */}
+        <TabsContent value="profile">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <User className="w-5 h-5" />
+                Profil Administrateur
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <Label htmlFor="footer_facebook">Facebook</Label>
+                  <Label htmlFor="firstName">Prénom</Label>
                   <Input
-                    id="footer_facebook"
-                    value={footerData.socialMedia.facebook}
-                    onChange={(e) => setFooterData(prev => ({ 
-                      ...prev, 
-                      socialMedia: { ...prev.socialMedia, facebook: e.target.value }
-                    }))}
-                    placeholder="https://facebook.com/coursemax"
+                    id="firstName"
+                    value={settings.firstName}
+                    onChange={(e) => setSettings(prev => ({ ...prev, firstName: e.target.value }))}
                   />
                 </div>
-                
                 <div>
-                  <Label htmlFor="footer_instagram">Instagram</Label>
+                  <Label htmlFor="lastName">Nom</Label>
                   <Input
-                    id="footer_instagram"
-                    value={footerData.socialMedia.instagram}
-                    onChange={(e) => setFooterData(prev => ({ 
-                      ...prev, 
-                      socialMedia: { ...prev.socialMedia, instagram: e.target.value }
-                    }))}
-                    placeholder="https://instagram.com/coursemax"
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="footer_twitter">Twitter/X</Label>
-                  <Input
-                    id="footer_twitter"
-                    value={footerData.socialMedia.twitter}
-                    onChange={(e) => setFooterData(prev => ({ 
-                      ...prev, 
-                      socialMedia: { ...prev.socialMedia, twitter: e.target.value }
-                    }))}
-                    placeholder="https://twitter.com/coursemax"
+                    id="lastName"
+                    value={settings.lastName}
+                    onChange={(e) => setSettings(prev => ({ ...prev, lastName: e.target.value }))}
                   />
                 </div>
               </div>
-            </div>
-            
-            <Separator />
-            
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="font-semibold">Liens de navigation</h4>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={addNavigationLink}
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Ajouter un lien
+              
+              <div>
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={settings.email}
+                  onChange={(e) => setSettings(prev => ({ ...prev, email: e.target.value }))}
+                  disabled
+                />
+                <p className="text-sm text-muted-foreground mt-1">
+                  L'email ne peut pas être modifié
+                </p>
+              </div>
+              
+              <div>
+                <Label htmlFor="phone">Téléphone</Label>
+                <Input
+                  id="phone"
+                  value={settings.phone}
+                  onChange={(e) => setSettings(prev => ({ ...prev, phone: e.target.value }))}
+                />
+              </div>
+              
+              <div className="flex justify-end">
+                <Button onClick={() => handleSave('profil')} disabled={saving}>
+                  {saving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Sauvegarde...
+                    </>
+                  ) : (
+                    'Sauvegarder le profil'
+                  )}
                 </Button>
               </div>
-              
-              <div className="space-y-3">
-                {footerData.navigationLinks.map((link, index) => (
-                  <div key={index} className="flex items-center gap-3 p-3 border rounded-lg">
-                    <div className="flex-1 grid grid-cols-2 gap-3">
-                      <Input
-                        value={link.label}
-                        onChange={(e) => updateNavigationLink(index, 'label', e.target.value)}
-                        placeholder="Nom du lien"
-                      />
-                      <Input
-                        value={link.url}
-                        onChange={(e) => updateNavigationLink(index, 'url', e.target.value)}
-                        placeholder="/page-url"
-                      />
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => removeNavigationLink(index)}
-                      className="text-red-600 hover:text-red-700"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ))}
-                
-                {footerData.navigationLinks.length === 0 && (
-                  <div className="text-center py-4 text-muted-foreground border-2 border-dashed rounded-lg">
-                    Aucun lien de navigation configuré
-                  </div>
-                )}
-              </div>
-            </div>
-            
-            <Separator />
-            
-            <div>
-              <h4 className="font-semibold mb-3">Copyright</h4>
-              <Input
-                value={footerData.copyright}
-                onChange={(e) => setFooterData(prev => ({ ...prev, copyright: e.target.value }))}
-                placeholder="© 2024 CourseMax. Tous droits réservés."
-              />
-            </div>
-            
-            <div className="flex justify-end gap-3">
-              <Button variant="outline" onClick={resetFooterData}>
-                Réinitialiser
-              </Button>
-              <Button onClick={saveFooterData} disabled={loading}>
-                <Save className="w-4 h-4 mr-2" />
-                {loading ? 'Sauvegarde...' : 'Sauvegarder le Footer'}
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-      {/* Gestion des villes avec autocomplétion complète */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <MapPin className="w-5 h-5" />
-            Ajouter une Nouvelle Ville
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Autocomplete
-              label="Territoire"
-              value={newCity.territory}
-              onChange={handleTerritoryChange}
-              options={getTerritoryOptions()}
-              placeholder="Ex: Québec"
-              required
-            />
-            
-            <Autocomplete
-              label="Région"
-              value={newCity.region}
-              onChange={handleRegionChange}
-              options={getRegionOptions()}
-              placeholder="Ex: Montérégie"
-              required
-              disabled={!newCity.territory}
-            />
-            
-            <Autocomplete
-              label="Ville"
-              value={newCity.city}
-              onChange={(city) => setNewCity(prev => ({ ...prev, city }))}
-              options={getCityOptions()}
-              placeholder="Ex: Salaberry-de-Valleyfield"
-              required
-              disabled={!newCity.territory}
-            />
-          </div>
-          
-          <div className="flex justify-end">
-            <Button onClick={handleAddCity} disabled={loading || !newCity.territory || !newCity.region || !newCity.city}>
-              <Plus className="w-4 h-4 mr-2" />
-              Ajouter la Ville
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Villes existantes */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Villes Desservies ({existingCities.length})</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {existingCities.map((location) => (
-              <div key={location.id} className="p-3 border rounded-lg flex items-center justify-between">
+        {/* Onglet Sécurité */}
+        <TabsContent value="security">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="w-5 h-5" />
+                Paramètres de Sécurité
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center justify-between">
                 <div>
-                  <h4 className="font-semibold">{location.city}</h4>
+                  <Label htmlFor="twoFactor">Authentification à deux facteurs</Label>
                   <p className="text-sm text-muted-foreground">
-                    {location.region}, {location.territory}
+                    Ajoutez une couche de sécurité supplémentaire à votre compte
                   </p>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-red-600 hover:text-red-700"
-                  onClick={() => handleRemoveCity(location.id)}
+                <Switch
+                  id="twoFactor"
+                  checked={settings.twoFactorEnabled}
+                  onCheckedChange={(checked) => setSettings(prev => ({ ...prev, twoFactorEnabled: checked }))}
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="sessionTimeout">Délai d'expiration de session (minutes)</Label>
+                <Select 
+                  value={settings.sessionTimeout.toString()} 
+                  onValueChange={(value) => setSettings(prev => ({ ...prev, sessionTimeout: parseInt(value) }))}
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="15">15 minutes</SelectItem>
+                    <SelectItem value="30">30 minutes</SelectItem>
+                    <SelectItem value="60">1 heure</SelectItem>
+                    <SelectItem value="120">2 heures</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <Label htmlFor="passwordExpiry">Expiration du mot de passe (jours)</Label>
+                <Select 
+                  value={settings.passwordExpiry.toString()} 
+                  onValueChange={(value) => setSettings(prev => ({ ...prev, passwordExpiry: parseInt(value) }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="30">30 jours</SelectItem>
+                    <SelectItem value="60">60 jours</SelectItem>
+                    <SelectItem value="90">90 jours</SelectItem>
+                    <SelectItem value="180">180 jours</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="flex justify-end">
+                <Button onClick={() => handleSave('sécurité')} disabled={saving}>
+                  {saving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Sauvegarde...
+                    </>
+                  ) : (
+                    'Sauvegarder la sécurité'
+                  )}
                 </Button>
               </div>
-            ))}
-          </div>
-          
-          {existingCities.length === 0 && (
-            <div className="text-center py-8 text-muted-foreground">
-              <MapPin className="w-12 h-12 mx-auto mb-2 opacity-50" />
-              <p>Aucune ville configurée</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-      {/* Gestion du Footer */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Settings className="w-5 h-5" />
-            Gestion du Footer
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-4">
-            <h4 className="font-semibold">Informations de contact</h4>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="footer_phone">Téléphone</Label>
-                <Input
-                  id="footer_phone"
-                  value={footerData.phone}
-                  onChange={(e) => setFooterData(prev => ({ ...prev, phone: e.target.value }))}
-                  placeholder="(450) 123-4567"
+        {/* Onglet Notifications */}
+        <TabsContent value="notifications">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Bell className="w-5 h-5" />
+                Paramètres de Notifications
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="emailNotifications">Notifications par email</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Recevez des notifications importantes par email
+                  </p>
+                </div>
+                <Switch
+                  id="emailNotifications"
+                  checked={settings.emailNotifications}
+                  onCheckedChange={(checked) => setSettings(prev => ({ ...prev, emailNotifications: checked }))}
                 />
               </div>
               
-              <div>
-                <Label htmlFor="footer_email">Email</Label>
-                <Input
-                  id="footer_email"
-                  value={footerData.email}
-                  onChange={(e) => setFooterData(prev => ({ ...prev, email: e.target.value }))}
-                  placeholder="support@coursemax.ca"
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="pushNotifications">Notifications push</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Recevez des notifications en temps réel
+                  </p>
+                </div>
+                <Switch
+                  id="pushNotifications"
+                  checked={settings.pushNotifications}
+                  onCheckedChange={(checked) => setSettings(prev => ({ ...prev, pushNotifications: checked }))}
                 />
               </div>
               
-              <div>
-                <Label htmlFor="footer_address">Adresse</Label>
-                <Input
-                  id="footer_address"
-                  value={footerData.address}
-                  onChange={(e) => setFooterData(prev => ({ ...prev, address: e.target.value }))}
-                  placeholder="Valleyfield, QC"
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="orderNotifications">Notifications de commandes</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Soyez informé des nouvelles commandes
+                  </p>
+                </div>
+                <Switch
+                  id="orderNotifications"
+                  checked={settings.orderNotifications}
+                  onCheckedChange={(checked) => setSettings(prev => ({ ...prev, orderNotifications: checked }))}
                 />
               </div>
               
-              <div className="md:col-span-2">
-                <Label htmlFor="footer_description">Description</Label>
-                <Textarea
-                  id="footer_description"
-                  value={footerData.description}
-                  onChange={(e) => setFooterData(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="La plateforme de livraison rapide qui connecte..."
-                  rows={3}
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="userNotifications">Notifications utilisateurs</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Soyez informé des nouvelles inscriptions
+                  </p>
+                </div>
+                <Switch
+                  id="userNotifications"
+                  checked={settings.userNotifications}
+                  onCheckedChange={(checked) => setSettings(prev => ({ ...prev, userNotifications: checked }))}
                 />
               </div>
-            </div>
-            
-            <Separator />
-            
-            <div>
-              <h4 className="font-semibold mb-3">Réseaux sociaux</h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <Label htmlFor="footer_facebook">Facebook</Label>
-                  <Input
-                    id="footer_facebook"
-                    value={footerData.socialMedia.facebook}
-                    onChange={(e) => setFooterData(prev => ({ 
-                      ...prev, 
-                      socialMedia: { ...prev.socialMedia, facebook: e.target.value }
-                    }))}
-                    placeholder="https://facebook.com/coursemax"
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="footer_instagram">Instagram</Label>
-                  <Input
-                    id="footer_instagram"
-                    value={footerData.socialMedia.instagram}
-                    onChange={(e) => setFooterData(prev => ({ 
-                      ...prev, 
-                      socialMedia: { ...prev.socialMedia, instagram: e.target.value }
-                    }))}
-                    placeholder="https://instagram.com/coursemax"
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="footer_twitter">Twitter/X</Label>
-                  <Input
-                    id="footer_twitter"
-                    value={footerData.socialMedia.twitter}
-                    onChange={(e) => setFooterData(prev => ({ 
-                      ...prev, 
-                      socialMedia: { ...prev.socialMedia, twitter: e.target.value }
-                    }))}
-                    placeholder="https://twitter.com/coursemax"
-                  />
-                </div>
-              </div>
-            </div>
-            
-            <Separator />
-            
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="font-semibold">Liens de navigation</h4>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={addNavigationLink}
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Ajouter un lien
+              
+              <div className="flex justify-end">
+                <Button onClick={() => handleSave('notifications')} disabled={saving}>
+                  {saving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Sauvegarde...
+                    </>
+                  ) : (
+                    'Sauvegarder les notifications'
+                  )}
                 </Button>
               </div>
-              
-              <div className="space-y-3">
-                {footerData.navigationLinks.map((link, index) => (
-                  <div key={index} className="flex items-center gap-3 p-3 border rounded-lg">
-                    <div className="flex-1 grid grid-cols-2 gap-3">
-                      <Input
-                        value={link.label}
-                        onChange={(e) => updateNavigationLink(index, 'label', e.target.value)}
-                        placeholder="Nom du lien"
-                      />
-                      <Input
-                        value={link.url}
-                        onChange={(e) => updateNavigationLink(index, 'url', e.target.value)}
-                        placeholder="/page-url"
-                      />
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => removeNavigationLink(index)}
-                      className="text-red-600 hover:text-red-700"
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Onglet Général */}
+        <TabsContent value="general">
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Globe className="w-5 h-5" />
+                  Paramètres Généraux
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div>
+                  <Label htmlFor="platformName">Nom de la plateforme</Label>
+                  <Input
+                    id="platformName"
+                    value={settings.platformName}
+                    onChange={(e) => setSettings(prev => ({ ...prev, platformName: e.target.value }))}
+                  />
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <Label htmlFor="defaultLanguage">Langue par défaut</Label>
+                    <Select 
+                      value={settings.defaultLanguage} 
+                      onValueChange={(value) => setSettings(prev => ({ ...prev, defaultLanguage: value }))}
                     >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="fr">Français</SelectItem>
+                        <SelectItem value="en">English</SelectItem>
+                        <SelectItem value="es">Español</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                ))}
+                  
+                  <div>
+                    <Label htmlFor="timezone">Fuseau horaire</Label>
+                    <Select 
+                      value={settings.timezone} 
+                      onValueChange={(value) => setSettings(prev => ({ ...prev, timezone: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="America/Montreal">Montréal (EST)</SelectItem>
+                        <SelectItem value="America/Toronto">Toronto (EST)</SelectItem>
+                        <SelectItem value="America/Vancouver">Vancouver (PST)</SelectItem>
+                        <SelectItem value="UTC">UTC</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
                 
-                {footerData.navigationLinks.length === 0 && (
-                  <div className="text-center py-4 text-muted-foreground border-2 border-dashed rounded-lg">
-                    Aucun lien de navigation configuré
-                  </div>
-                )}
-              </div>
-            </div>
-            
-            <Separator />
-            
-            <div>
-              <h4 className="font-semibold mb-3">Copyright</h4>
-              <Input
-                value={footerData.copyright}
-                onChange={(e) => setFooterData(prev => ({ ...prev, copyright: e.target.value }))}
-                placeholder="© 2024 CourseMax. Tous droits réservés."
-              />
-            </div>
-            
-            <div className="flex justify-end gap-3">
-              <Button variant="outline" onClick={resetFooterData}>
-                Réinitialiser
-              </Button>
-              <Button onClick={saveFooterData} disabled={loading}>
-                <Save className="w-4 h-4 mr-2" />
-                {loading ? 'Sauvegarde...' : 'Sauvegarder le Footer'}
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+                <div>
+                  <Label htmlFor="currency">Devise</Label>
+                  <Select 
+                    value={settings.currency} 
+                    onValueChange={(value) => setSettings(prev => ({ ...prev, currency: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="CAD">CAD ($)</SelectItem>
+                      <SelectItem value="USD">USD ($)</SelectItem>
+                      <SelectItem value="EUR">EUR (€)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
 
-      {/* Autres paramètres */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Paramètres Généraux</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-3">
-              <h4 className="font-semibold">Notifications</h4>
-              <div className="space-y-2">
-                <label className="flex items-center gap-2">
-                  <input type="checkbox" defaultChecked />
-                  <span className="text-sm">Notifications email</span>
-                </label>
-                <label className="flex items-center gap-2">
-                  <input type="checkbox" defaultChecked />
-                  <span className="text-sm">Notifications push</span>
-                </label>
-              </div>
-            </div>
-            
-            <div className="space-y-3">
-              <h4 className="font-semibold">Sécurité</h4>
-              <div className="space-y-2">
-                <label className="flex items-center gap-2">
-                  <input type="checkbox" defaultChecked />
-                  <span className="text-sm">Authentification à deux facteurs</span>
-                </label>
-                <label className="flex items-center gap-2">
-                  <input type="checkbox" defaultChecked />
-                  <span className="text-sm">Logs d'activité</span>
-                </label>
-              </div>
-            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Database className="w-5 h-5" />
+                  Maintenance
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label htmlFor="maintenanceMode">Mode maintenance</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Activez le mode maintenance pour les mises à jour
+                    </p>
+                  </div>
+                  <Switch
+                    id="maintenanceMode"
+                    checked={settings.maintenanceMode}
+                    onCheckedChange={(checked) => setSettings(prev => ({ ...prev, maintenanceMode: checked }))}
+                  />
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label htmlFor="debugMode">Mode debug</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Activez les logs de debug (développement uniquement)
+                    </p>
+                  </div>
+                  <Badge variant={settings.debugMode ? "default" : "secondary"}>
+                    {settings.debugMode ? "Activé" : "Désactivé"}
+                  </Badge>
+                </div>
+                
+                <div className="flex justify-end">
+                  <Button onClick={() => handleSave('généraux')} disabled={saving}>
+                    {saving ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Sauvegarde...
+                      </>
+                    ) : (
+                      'Sauvegarder les paramètres'
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           </div>
-          
-          <div className="flex justify-end">
-            <Button>
-              <Save className="w-4 h-4 mr-2" />
-              Sauvegarder les Paramètres
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+        </TabsContent>
+
+        {/* Onglet Footer */}
+        <TabsContent value="footer">
+          <FooterManagement />
+        </TabsContent>
+
+        {/* Onglet Réseaux sociaux */}
+        <TabsContent value="social">
+          <SocialMediaManager />
+        </TabsContent>
+      </Tabs>
     </div>
   );
-}
+};

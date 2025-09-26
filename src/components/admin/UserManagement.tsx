@@ -1,397 +1,688 @@
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { supabase } from '@/integrations/supabase/client';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogTrigger 
+} from '@/components/ui/dialog';
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from '@/components/ui/select';
+import { 
+  Users, 
+  UserPlus, 
+  Search, 
+  Filter,
+  MoreHorizontal,
+  Edit,
+  Trash2,
+  Eye,
+  Shield,
+  Store,
+  Truck,
+  User,
+  Mail,
+  Calendar,
+  CheckCircle,
+  XCircle,
+  Loader2,
+  RefreshCw,
+  AlertTriangle,
+  AlertCircle
+} from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Trash2, UserPlus, AlertTriangle, Shield, RefreshCw, Eye } from 'lucide-react';
-import EmailUserTools from './EmailUserTools';
-import { AuthDebugger } from './AuthDebugger';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
-interface UserResult {
+interface UserData {
   id: string;
   email: string;
-  status: 'success' | 'error' | 'pending';
-  message?: string;
+  first_name: string | null;
+  last_name: string | null;
+  role: string;
+  is_active: boolean | null;
+  created_at: string;
+  phone?: string | null;
+  address?: string | null;
+  city?: string | null;
+  user_id: string;
 }
 
-const UserManagement = () => {
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
-  const [isChecking, setIsChecking] = useState(false);
-  const [userStatuses, setUserStatuses] = useState<UserResult[]>([]);
-  const [operationResults, setOperationResults] = useState<{
-    deletions: UserResult[];
-    creations: UserResult[];
-  }>({ deletions: [], creations: [] });
+interface UserFormData {
+  email: string;
+  password: string;
+  first_name: string;
+  last_name: string;
+  role: string;
+  phone: string;
+  address: string;
+  city: string;
+}
+
+export const UserManagement: React.FC = () => {
   const { toast } = useToast();
+  const { profile, user, loading: authLoading } = useAuth();
+  const [users, setUsers] = useState<UserData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedRole, setSelectedRole] = useState<string>('all');
+  const [isAddUserOpen, setIsAddUserOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [formData, setFormData] = useState<UserFormData>({
+    email: '',
+    password: '',
+    first_name: '',
+    last_name: '',
+    role: 'client',
+    phone: '',
+    address: '',
+    city: ''
+  });
 
-  // UUIDs des utilisateurs à gérer
-  const userIds = [
-    '52fdfc2f-aebc-43cb-a1b8-4b1d5d4a11f0',
-    'baed7cf6-d07e-457c-adb5-214dd5111565',
-    'b6d46d77-465a-4f9a-aa8f-a939ccbdd40c',
-    '0a414ac4-138b-4026-a5a5-2d6afd8e1692'
-  ];
+  // Debug des permissions
+  console.log('🔍 UserManagement Debug:');
+  console.log('  - User:', user?.email);
+  console.log('  - Profile:', profile);
+  console.log('  - Profile role:', profile?.role);
+  console.log('  - Auth loading:', authLoading);
+  console.log('  - Is admin?', profile?.role === 'admin');
 
-  const testUsers = [
-    { id: userIds[0], email: 'clodenerc@yahoo.fr', role: 'client' },
-    { id: userIds[1], email: 'claircl18@gmail.com', role: 'store_manager' },
-    { id: userIds[2], email: 'desirdelia@gmail.com', role: 'livreur' },
-    { id: userIds[3], email: 'engligoclervil9@gmail.com', role: 'admin' }
-  ];
+  // Vérification des permissions admin avec debug détaillé
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Chargement des informations d'authentification...</p>
+        </div>
+      </div>
+    );
+  }
 
-  // Reset passwords for problematic users
-  const resetProblematicPasswords = async () => {
-    setIsCreating(true); // Reuse existing loading state
-    
-    const usersToReset = [
-      { email: 'clodenerc@yahoo.fr', newPassword: 'SecurePass2024!' },
-      { email: 'claircl18@gmail.com', newPassword: 'SecurePass2024!' },
-      { email: 'desirdelia@gmail.com', newPassword: 'SecurePass2024!' },
-      { email: 'engligoclervil9@gmail.com', newPassword: 'SecurePass2024!' },
-    ];
+  if (!user) {
+    return (
+      <Card>
+        <CardContent className="p-8 text-center">
+          <AlertTriangle className="w-16 h-16 mx-auto mb-4 text-orange-500" />
+          <h2 className="text-2xl font-bold mb-2">Non connecté</h2>
+          <p className="text-muted-foreground">
+            Vous devez être connecté pour accéder à cette page.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
 
+  if (!profile) {
+    return (
+      <Card>
+        <CardContent className="p-8 text-center">
+          <AlertTriangle className="w-16 h-16 mx-auto mb-4 text-orange-500" />
+          <h2 className="text-2xl font-bold mb-2">Profil non trouvé</h2>
+          <p className="text-muted-foreground">
+            Votre profil utilisateur n'a pas pu être chargé. Veuillez vous reconnecter.
+          </p>
+          <Button 
+            className="mt-4" 
+            onClick={() => window.location.reload()}
+          >
+            Recharger la page
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (profile.role !== 'admin') {
+    return (
+      <Card>
+        <CardContent className="p-8 text-center">
+          <Shield className="w-16 h-16 mx-auto mb-4 text-red-500" />
+          <h2 className="text-2xl font-bold mb-2">Accès non autorisé</h2>
+          <p className="text-muted-foreground mb-4">
+            Seuls les administrateurs peuvent accéder à la gestion des utilisateurs.
+          </p>
+          <div className="bg-muted p-4 rounded-lg text-left">
+            <p className="text-sm"><strong>Utilisateur actuel:</strong> {user.email}</p>
+            <p className="text-sm"><strong>Rôle détecté:</strong> {profile.role}</p>
+            <p className="text-sm"><strong>Rôle requis:</strong> admin</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Chargement des utilisateurs avec gestion d'erreur améliorée
+  const fetchUsers = async (showLoader = true) => {
     try {
-      const { data, error } = await supabase.functions.invoke('batch-password-reset', {
-        body: { users: usersToReset }
-      });
+      if (showLoader) setLoading(true);
+      else setRefreshing(true);
+
+      setError(null);
+      console.log('🔍 Fetching users from profiles table...');
+      
+      // ✅ CORRECTION : Requête simple et directe sans filtres
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
 
       if (error) {
+        console.error('❌ Supabase error:', error);
+        setError(`Erreur Supabase: ${error.message}`);
         throw error;
       }
 
-      // Update operation results to show password reset results
-      const passwordResets = data.results?.map((result: any) => ({
-        id: result.email,
-        email: result.email,
-        status: result.success ? 'success' : 'error',
-        message: result.message
-      })) || [];
-
-      setOperationResults(prev => ({ 
-        ...prev, 
-        creations: passwordResets 
-      }));
-
-      toast({
-        title: "Réinitialisation terminée",
-        description: `${data.summary?.succeeded || 0} mots de passe réinitialisés, ${data.summary?.failed || 0} échecs`,
-        variant: data.summary?.succeeded > 0 ? "default" : "destructive"
-      });
-    } catch (error) {
-      console.error('Erreur lors de la réinitialisation:', error);
+      console.log('✅ Users fetched:', data?.length || 0, 'users');
+      console.log('📊 Users data:', data);
+      
+      // ✅ CORRECTION : Vérification des données récupérées
+      if (data && data.length > 0) {
+        setUsers(data);
+        console.log('📋 Users by role:');
+        const roleCounts: Record<string, number> = {};
+        data.forEach(user => {
+          roleCounts[user.role] = (roleCounts[user.role] || 0) + 1;
+        });
+        console.log('📊 Role distribution:', roleCounts);
+        
+        toast({
+          title: "Données chargées",
+          description: `${data.length} utilisateur(s) trouvé(s)`,
+        });
+      } else {
+        setUsers([]);
+        console.log('⚠️ No users found in database');
+        toast({
+          title: "Aucun utilisateur",
+          description: "Aucun utilisateur trouvé dans la base de données",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      console.error('❌ Erreur lors du chargement des utilisateurs:', error);
+      setError(`Impossible de charger les utilisateurs: ${error.message}`);
       toast({
         title: "Erreur",
-        description: "Échec de la réinitialisation des mots de passe",
-        variant: "destructive"
+        description: `Impossible de charger les utilisateurs: ${error.message}`,
+        variant: "destructive",
       });
     } finally {
-      setIsCreating(false);
+      setLoading(false);
+      setRefreshing(false);
     }
   };
 
-  const handleCheckUserStatus = async () => {
-    setIsChecking(true);
+  // Mise à jour en temps réel avec Supabase Realtime
+  useEffect(() => {
+    // Chargement initial
+    fetchUsers();
+
+    // Configuration de l'écoute en temps réel
+    const channel = supabase
+      .channel('profiles-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Écouter tous les événements (INSERT, UPDATE, DELETE)
+          schema: 'public',
+          table: 'profiles'
+        },
+        (payload) => {
+          console.log('🔄 Real-time update received:', payload);
+          
+          // Recharger les données après un changement
+          fetchUsers(false);
+          
+          toast({
+            title: "Mise à jour",
+            description: "Liste des utilisateurs mise à jour",
+          });
+        }
+      )
+      .subscribe();
+
+    // Nettoyage de l'abonnement
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  // Filtrage des utilisateurs
+  const filteredUsers = users.filter(user => {
+    const matchesSearch = 
+      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.last_name?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    try {
-      const { data, error } = await supabase.functions.invoke('check-users-status', {
-        body: { userIds }
-      });
+    const matchesRole = selectedRole === 'all' || user.role === selectedRole;
+    
+    return matchesSearch && matchesRole;
+  });
 
-      if (error) {
-        throw error;
-      }
-
-      setUserStatuses(data.users);
-      toast({
-        title: "Vérification terminée",
-        description: `Statut vérifié pour ${data.users.length} utilisateurs`,
-        variant: "default"
-      });
-    } catch (error) {
-      console.error('Erreur lors de la vérification:', error);
-      toast({
-        title: "Erreur",
-        description: "Échec de la vérification du statut",
-        variant: "destructive"
-      });
-    } finally {
-      setIsChecking(false);
-    }
+  // ✅ CORRECTION : Groupement par rôle avec mapping correct des rôles de la DB
+  const usersByRole = {
+    admin: filteredUsers.filter(user => user.role === 'admin'),
+    store_manager: filteredUsers.filter(user => user.role === 'store_manager'),
+    livreur: filteredUsers.filter(user => user.role === 'livreur'),
+    client: filteredUsers.filter(user => user.role === 'client')
   };
 
-  const handleDeleteUsers = async (targetUserIds?: string[]) => {
-    setIsDeleting(true);
-    const idsToDelete = targetUserIds || userIds;
-    
-    try {
-      const { data, error } = await supabase.functions.invoke('delete-users', {
-        body: { userIds: idsToDelete }
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      const deletions = data.results || [];
-      setOperationResults(prev => ({ ...prev, deletions }));
-
-      toast({
-        title: "Suppression terminée",
-        description: `${data.deletedCount || 0} utilisateurs supprimés, ${data.errorCount || 0} erreurs`,
-        variant: data.deletedCount > 0 ? "default" : "destructive"
-      });
-    } catch (error) {
-      console.error('Erreur lors de la suppression:', error);
-      toast({
-        title: "Erreur",
-        description: "Échec de la suppression des utilisateurs",
-        variant: "destructive"
-      });
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
-  const handleCreateUsers = async () => {
-    setIsCreating(true);
-    
-    const usersToCreate = [
-      {
-        email: 'clodenerc@yahoo.fr',
-        password: 'SecurePass2024!',
-        metadata: {
-          first_name: 'Clodener',
-          last_name: 'C',
-          role: 'client'
-        }
-      },
-      {
-        email: 'claircl18@gmail.com',
-        password: 'SecurePass2024!',
-        metadata: {
-          first_name: 'Clair',
-          last_name: 'CL',
-          role: 'store_manager'
-        }
-      },
-      {
-        email: 'desirdelia@gmail.com',
-        password: 'SecurePass2024!',
-        metadata: {
-          first_name: 'Desire',
-          last_name: 'Delia',
-          role: 'livreur'
-        }
-      },
-      {
-        email: 'engligoclervil9@gmail.com',
-        password: 'SecurePass2024!',
-        metadata: {
-          first_name: 'Engligo',
-          last_name: 'Clervil',
-          role: 'admin'
-        }
-      }
-    ];
+  // Ajout d'un nouvel utilisateur
+  const handleAddUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('create-users', {
-        body: { users: usersToCreate }
+      console.log('🔄 Creating new user:', formData);
+      
+      // Créer l'utilisateur dans Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+        email: formData.email,
+        password: formData.password,
+        email_confirm: true,
+        user_metadata: {
+          first_name: formData.first_name,
+          last_name: formData.last_name,
+          role: formData.role
+        }
       });
 
-      if (error) {
-        throw error;
+      if (authError) {
+        console.error('❌ Auth error:', authError);
+        throw authError;
       }
 
-      const creations = data.results || [];
-      setOperationResults(prev => ({ ...prev, creations }));
+      console.log('✅ Auth user created:', authData.user.id);
+
+      // Créer le profil dans la table profiles
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          user_id: authData.user.id,
+          email: formData.email,
+          first_name: formData.first_name,
+          last_name: formData.last_name,
+          role: formData.role,
+          phone: formData.phone || null,
+          address: formData.address || null,
+          city: formData.city || null,
+          is_active: true
+        });
+
+      if (profileError) {
+        console.error('❌ Profile error:', profileError);
+        throw profileError;
+      }
+
+      console.log('✅ Profile created successfully');
 
       toast({
-        title: "Création terminée",
-        description: `${data.createdCount || 0} utilisateurs créés, ${data.errorCount || 0} erreurs`,
-        variant: data.createdCount > 0 ? "default" : "destructive"
+        title: "Succès",
+        description: "Utilisateur créé avec succès",
       });
-    } catch (error) {
-      console.error('Erreur lors de la création:', error);
+
+      // Réinitialiser le formulaire et fermer le modal
+      setFormData({
+        email: '',
+        password: '',
+        first_name: '',
+        last_name: '',
+        role: 'client',
+        phone: '',
+        address: '',
+        city: ''
+      });
+      setIsAddUserOpen(false);
+      
+      // La mise à jour se fera automatiquement via le realtime
+    } catch (error: any) {
+      console.error('❌ Erreur lors de la création:', error);
       toast({
         title: "Erreur",
-        description: "Échec de la création des utilisateurs",
-        variant: "destructive"
+        description: error.message || "Impossible de créer l'utilisateur",
+        variant: "destructive",
       });
     } finally {
-      setIsCreating(false);
+      setIsSubmitting(false);
     }
   };
 
-  const retryFailedDeletions = () => {
-    const failedIds = operationResults.deletions
-      .filter(result => result.status === 'error')
-      .map(result => result.id);
-    
-    if (failedIds.length > 0) {
-      handleDeleteUsers(failedIds);
+  // Génération automatique de mot de passe
+  const generatePassword = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+    let password = '';
+    for (let i = 0; i < 12; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
     }
+    setFormData(prev => ({ ...prev, password }));
   };
 
-  return (
+  // Composant de tableau d'utilisateurs
+  const UserTable: React.FC<{ users: UserData[]; title: string; icon: React.ReactNode }> = ({ 
+    users, 
+    title, 
+    icon 
+  }) => (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Shield className="w-5 h-5" />
-          Gestion des Utilisateurs Test
+          {icon}
+          {title} ({users.length})
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-6">
-        
-        {/* Status Check */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <h4 className="font-medium">Utilisateurs test :</h4>
-            <Button
-              onClick={handleCheckUserStatus}
-              disabled={isChecking}
-              variant="outline"
-              size="sm"
-              className="flex items-center gap-2"
-            >
-              <Eye className="w-4 h-4" />
-              {isChecking ? 'Vérification...' : 'Vérifier le statut'}
-            </Button>
-          </div>
-          
-          <div className="space-y-2">
-            {testUsers.map((user, index) => {
-              const status = userStatuses.find(s => s.id === user.id);
-              return (
-                <div key={user.id} className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-                  <Badge variant="outline">User {index + 1}</Badge>
-                  <div className="flex-1">
-                    <div className="text-sm font-medium">{user.email}</div>
-                    <code className="text-xs text-muted-foreground">{user.id}</code>
-                  </div>
-                  <Badge variant="secondary">{user.role}</Badge>
-                  {status && (
-                    <Badge variant={status.status === 'success' ? 'default' : 'destructive'}>
-                      {status.status === 'success' ? 'Existe' : 'Supprimé'}
-                    </Badge>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Operation Results */}
-        {(operationResults.deletions.length > 0 || operationResults.creations.length > 0) && (
+      <CardContent>
+        {users.length === 0 ? (
+          <p className="text-muted-foreground text-center py-8">Aucun utilisateur trouvé</p>
+        ) : (
           <div className="space-y-4">
-            <h4 className="font-medium">Résultats des opérations :</h4>
-            
-            {operationResults.deletions.length > 0 && (
-              <div>
-                <h5 className="text-sm font-medium mb-2">Suppressions :</h5>
-                <div className="space-y-1">
-                  {operationResults.deletions.map((result) => (
-                    <div key={result.id} className="flex items-center gap-2 text-sm p-2 bg-muted/30 rounded">
-                      <Badge variant={result.status === 'success' ? 'default' : 'destructive'} className="text-xs">
-                        {result.status}
+            {users.map((user) => (
+              <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <User className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <h4 className="font-medium">
+                      {user.first_name || 'N/A'} {user.last_name || 'N/A'}
+                    </h4>
+                    <p className="text-sm text-muted-foreground">{user.email}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Badge variant={user.is_active ? "default" : "secondary"}>
+                        {user.is_active ? "Actif" : "Inactif"}
                       </Badge>
-                      <span>{result.email}</span>
-                      {result.message && <span className="text-muted-foreground">- {result.message}</span>}
+                      <Badge variant="outline" className="text-xs">
+                        {user.role}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(user.created_at).toLocaleDateString()}
+                      </span>
                     </div>
-                  ))}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button variant="ghost" size="sm">
+                    <Eye className="w-4 h-4" />
+                  </Button>
+                  <Button variant="ghost" size="sm">
+                    <Edit className="w-4 h-4" />
+                  </Button>
+                  <Button variant="ghost" size="sm" className="text-red-600">
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
                 </div>
               </div>
-            )}
-
-            {operationResults.creations.length > 0 && (
-              <div>
-                <h5 className="text-sm font-medium mb-2">Créations :</h5>
-                <div className="space-y-1">
-                  {operationResults.creations.map((result) => (
-                    <div key={result.id} className="flex items-center gap-2 text-sm p-2 bg-muted/30 rounded">
-                      <Badge variant={result.status === 'success' ? 'default' : 'destructive'} className="text-xs">
-                        {result.status}
-                      </Badge>
-                      <span>{result.email}</span>
-                      {result.message && <span className="text-muted-foreground">- {result.message}</span>}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            ))}
           </div>
         )}
-
-        {/* Actions */}
-        <div className="flex flex-col sm:flex-row gap-4">
-          <Button
-            onClick={() => handleDeleteUsers()}
-            disabled={isDeleting}
-            variant="destructive"
-            className="flex items-center gap-2"
-          >
-            <Trash2 className="w-4 h-4" />
-            {isDeleting ? 'Suppression...' : 'Supprimer les utilisateurs'}
-          </Button>
-
-          <Button
-            onClick={handleCreateUsers}
-            disabled={isCreating}
-            variant="default"
-            className="flex items-center gap-2"
-          >
-            <UserPlus className="w-4 h-4" />
-            {isCreating ? 'Création...' : 'Recréer les utilisateurs'}
-          </Button>
-
-          <Button
-            onClick={resetProblematicPasswords}
-            disabled={isCreating}
-            variant="secondary"
-            className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white"
-          >
-            <RefreshCw className="w-4 h-4" />
-            {isCreating ? 'Réinitialisation...' : '🔑 Réinitialiser mots de passe'}
-          </Button>
-
-          {operationResults.deletions.some(r => r.status === 'error') && (
-            <Button
-              onClick={retryFailedDeletions}
-              disabled={isDeleting}
-              variant="outline"
-              className="flex items-center gap-2"
-            >
-              <RefreshCw className="w-4 h-4" />
-              Réessayer les échecs
-            </Button>
-          )}
-        </div>
-
-        <EmailUserTools />
-
-        <AuthDebugger />
-
-        {/* Avertissement */}
-        <div className="flex items-start gap-3 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-          <AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
-          <div className="text-sm">
-            <p className="font-medium text-yellow-800 dark:text-yellow-200 mb-1">
-              Attention - Actions administrateur
-            </p>
-            <p className="text-yellow-700 dark:text-yellow-300">
-              Ces actions utilisent la Service Role Key et sont irréversibles. 
-              La suppression efface définitivement les utilisateurs de Supabase Auth.
-            </p>
-            <p className="text-yellow-700 dark:text-yellow-300 mt-2">
-              <strong>📋 Mot de passe test :</strong> <code>SecurePass2024!</code>
-            </p>
-          </div>
-        </div>
       </CardContent>
     </Card>
   );
-};
 
-export default UserManagement;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Chargement des utilisateurs...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardContent className="p-8 text-center">
+          <AlertCircle className="w-16 h-16 mx-auto mb-4 text-red-500" />
+          <h2 className="text-2xl font-bold mb-2">Erreur de chargement</h2>
+          <p className="text-muted-foreground mb-4">{error}</p>
+          <Button onClick={() => fetchUsers()}>
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Réessayer
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* En-tête avec recherche et filtres */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Users className="w-6 h-6" />
+              Gestion des Utilisateurs
+              {refreshing && <Loader2 className="w-4 h-4 animate-spin" />}
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => fetchUsers(false)}
+                disabled={refreshing}
+              >
+                <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+                Actualiser
+              </Button>
+              <Dialog open={isAddUserOpen} onOpenChange={setIsAddUserOpen}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    Ajouter un utilisateur
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl">
+                  <DialogHeader>
+                    <DialogTitle>Ajouter un nouvel utilisateur</DialogTitle>
+                  </DialogHeader>
+                  <form onSubmit={handleAddUser} className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="first_name">Prénom *</Label>
+                        <Input
+                          id="first_name"
+                          value={formData.first_name}
+                          onChange={(e) => setFormData(prev => ({ ...prev, first_name: e.target.value }))}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="last_name">Nom *</Label>
+                        <Input
+                          id="last_name"
+                          value={formData.last_name}
+                          onChange={(e) => setFormData(prev => ({ ...prev, last_name: e.target.value }))}
+                          required
+                        />
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="email">Email *</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        value={formData.email}
+                        onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                        required
+                      />
+                    </div>
+
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <Label htmlFor="password">Mot de passe *</Label>
+                        <Input
+                          id="password"
+                          type="password"
+                          value={formData.password}
+                          onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                          required
+                        />
+                      </div>
+                      <Button type="button" variant="outline" onClick={generatePassword}>
+                        Générer
+                      </Button>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="role">Rôle *</Label>
+                      <Select value={formData.role} onValueChange={(value) => setFormData(prev => ({ ...prev, role: value }))}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="client">Client</SelectItem>
+                          <SelectItem value="store_manager">Marchand</SelectItem>
+                          <SelectItem value="livreur">Livreur</SelectItem>
+                          <SelectItem value="admin">Administrateur</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="phone">Téléphone</Label>
+                        <Input
+                          id="phone"
+                          value={formData.phone}
+                          onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="city">Ville</Label>
+                        <Input
+                          id="city"
+                          value={formData.city}
+                          onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="address">Adresse</Label>
+                      <Input
+                        id="address"
+                        value={formData.address}
+                        onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                      />
+                    </div>
+
+                    <div className="flex justify-end gap-2">
+                      <Button type="button" variant="outline" onClick={() => setIsAddUserOpen(false)}>
+                        Annuler
+                      </Button>
+                      <Button type="submit" disabled={isSubmitting}>
+                        {isSubmitting ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Création...
+                          </>
+                        ) : (
+                          'Créer l\'utilisateur'
+                        )}
+                      </Button>
+                    </div>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-4 mb-6">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Rechercher un utilisateur..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            <Select value={selectedRole} onValueChange={setSelectedRole}>
+              <SelectTrigger className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les rôles</SelectItem>
+                <SelectItem value="admin">Administrateurs</SelectItem>
+                <SelectItem value="store_manager">Marchands</SelectItem>
+                <SelectItem value="livreur">Livreurs</SelectItem>
+                <SelectItem value="client">Clients</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Tableaux par rôle */}
+      <Tabs defaultValue="all" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="all">Tous ({filteredUsers.length})</TabsTrigger>
+          <TabsTrigger value="admin">Admins ({usersByRole.admin.length})</TabsTrigger>
+          <TabsTrigger value="store_manager">Marchands ({usersByRole.store_manager.length})</TabsTrigger>
+          <TabsTrigger value="livreur">Livreurs ({usersByRole.livreur.length})</TabsTrigger>
+          <TabsTrigger value="client">Clients ({usersByRole.client.length})</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="all">
+          <UserTable 
+            users={filteredUsers} 
+            title="Tous les utilisateurs" 
+            icon={<Users className="w-5 h-5" />} 
+          />
+        </TabsContent>
+
+        <TabsContent value="admin">
+          <UserTable 
+            users={usersByRole.admin} 
+            title="Administrateurs" 
+            icon={<Shield className="w-5 h-5" />} 
+          />
+        </TabsContent>
+
+        <TabsContent value="store_manager">
+          <UserTable 
+            users={usersByRole.store_manager} 
+            title="Marchands" 
+            icon={<Store className="w-5 h-5" />} 
+          />
+        </TabsContent>
+
+        <TabsContent value="livreur">
+          <UserTable 
+            users={usersByRole.livreur} 
+            title="Livreurs" 
+            icon={<Truck className="w-5 h-5" />} 
+          />
+        </TabsContent>
+
+        <TabsContent value="client">
+          <UserTable 
+            users={usersByRole.client} 
+            title="Clients" 
+            icon={<User className="w-5 h-5" />} 
+          />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+};
