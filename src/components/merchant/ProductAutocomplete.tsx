@@ -332,7 +332,7 @@ export function ProductAutocomplete({
       {isOpen && (suggestions.length > 0 || isLoading) && (
         <Card 
           ref={listRef}
-          className="absolute z-50 w-full mt-1 max-h-80 overflow-y-auto shadow-lg border"
+          className="absolute z-50 w-full mt-1 max-h-60 sm:max-h-80 overflow-y-auto shadow-lg border"
         >
           <CardContent className="p-0">
             {isLoading ? (
@@ -345,12 +345,12 @@ export function ProductAutocomplete({
                 {suggestions.map((product, index) => (
                   <div
                     key={product.id}
-                    className={`flex items-center gap-3 p-3 cursor-pointer hover:bg-muted transition-colors ${
+                    className={`flex items-center gap-2 sm:gap-3 p-2 sm:p-3 cursor-pointer hover:bg-muted transition-colors ${
                       index === selectedIndex ? 'bg-muted' : ''
                     }`}
                     onClick={() => handleSelect(product)}
                   >
-                    <div className="w-12 h-12 rounded-lg overflow-hidden bg-muted flex-shrink-0">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg overflow-hidden bg-muted flex-shrink-0">
                       <img
                         src={product.image_url}
                         alt={product.name}

@@ -201,25 +201,25 @@ export function HelpMessagesManager() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4">
+        <div className="grid gap-3 sm:gap-4">
           {messages.map((message) => (
             <Card key={message.id} className="cursor-pointer hover:shadow-md transition-shadow">
               <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <CardTitle className="text-lg">{message.subject}</CardTitle>
-                    <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <CardTitle className="text-base sm:text-lg truncate">{message.subject}</CardTitle>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-2 text-sm text-muted-foreground">
                       <div className="flex items-center gap-1">
-                        <User className="w-4 h-4" />
-                        {message.merchant_name}
+                        <User className="w-4 h-4 flex-shrink-0" />
+                        <span className="truncate">{message.merchant_name}</span>
                       </div>
                       <div className="flex items-center gap-1">
-                        <Mail className="w-4 h-4" />
-                        {message.merchant_email}
+                        <Mail className="w-4 h-4 flex-shrink-0" />
+                        <span className="truncate">{message.merchant_email}</span>
                       </div>
                       <div className="flex items-center gap-1">
-                        <Calendar className="w-4 h-4" />
-                        {new Date(message.created_at).toLocaleDateString()}
+                        <Calendar className="w-4 h-4 flex-shrink-0" />
+                        <span>{new Date(message.created_at).toLocaleDateString()}</span>
                       </div>
                     </div>
                   </div>
@@ -256,8 +256,8 @@ export function HelpMessagesManager() {
 
       {/* Modal de réponse */}
       {selectedMessage && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <Card className="max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4">
+          <Card className="max-w-2xl w-full max-h-[90vh] overflow-y-auto w-[95vw] sm:w-full">
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 Répondre au message
@@ -312,16 +312,18 @@ export function HelpMessagesManager() {
                 />
               </div>
 
-              <div className="flex justify-end gap-3">
+              <div className="flex flex-col sm:flex-row justify-end gap-3">
                 <Button
                   variant="outline"
                   onClick={() => setSelectedMessage(null)}
+                  className="w-full sm:w-auto"
                 >
                   Annuler
                 </Button>
                 <Button
                   onClick={() => updateMessageStatus(selectedMessage.id, 'in_progress', adminResponse)}
                   disabled={responding}
+                  className="w-full sm:w-auto"
                 >
                   {responding ? (
                     <>
@@ -339,6 +341,7 @@ export function HelpMessagesManager() {
                   onClick={() => updateMessageStatus(selectedMessage.id, 'resolved', adminResponse)}
                   disabled={responding}
                   variant="default"
+                  className="w-full sm:w-auto"
                 >
                   {responding ? (
                     <>

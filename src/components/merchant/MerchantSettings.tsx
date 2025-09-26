@@ -84,9 +84,9 @@ export function MerchantSettings() {
           </p>
         </div>
         
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           <MerchantHelpModal />
-          <Button onClick={handleSaveSettings} disabled={loading}>
+          <Button onClick={handleSaveSettings} disabled={loading} className="w-full sm:w-auto">
             <Save className="w-4 h-4 mr-2" />
             Sauvegarder
           </Button>
@@ -128,7 +128,7 @@ export function MerchantSettings() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="store_name">Nom du magasin</Label>
               <Input

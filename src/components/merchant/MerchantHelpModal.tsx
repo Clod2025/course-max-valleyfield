@@ -178,7 +178,7 @@ export function MerchantHelpModal() {
           Aide
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-full">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <MessageSquare className="w-5 h-5" />
@@ -309,18 +309,19 @@ export function MerchantHelpModal() {
           </Card>
 
           {/* Actions */}
-          <div className="flex justify-end gap-3">
+          <div className="flex flex-col sm:flex-row justify-end gap-3">
             <Button
               variant="outline"
               onClick={() => setIsOpen(false)}
               disabled={loading}
+              className="w-full sm:w-auto"
             >
               Annuler
             </Button>
             <Button
               onClick={handleSubmit}
               disabled={loading || !formData.subject.trim() || !formData.message.trim()}
-              className="min-w-[120px]"
+              className="w-full sm:min-w-[120px]"
             >
               {loading ? (
                 <>

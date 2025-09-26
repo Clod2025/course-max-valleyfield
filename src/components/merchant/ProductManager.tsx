@@ -109,7 +109,22 @@ export function ProductManager() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setProducts(data || []);
+      
+      // Mapper les données pour correspondre à l'interface Product
+      const mappedProducts = (data || []).map((item: any) => ({
+        id: item.id,
+        name: item.name,
+        description: item.description || '',
+        price: item.price || 0,
+        category: item.category || '',
+        stock: item.stock || 0,
+        unit: item.unit || 'unité',
+        image_url: item.image_url || item.image || '',
+        is_available: item.is_available !== undefined ? item.is_available : (item.is_active || false),
+        created_at: item.created_at || new Date().toISOString()
+      }));
+      
+      setProducts(mappedProducts);
     } catch (error) {
       toast({
         title: "Erreur",
@@ -146,7 +161,7 @@ export function ProductManager() {
           stock: parseInt(formData.stock) || 0,
           unit: formData.unit,
           image_url: imageUrl,
-          is_available: false // Par défaut non disponible jusqu'à soumission inventaire
+          is_active: false // Par défaut non disponible jusqu'à soumission inventaire
         })
         .select()
         .single();
@@ -195,7 +210,7 @@ export function ProductManager() {
       const { data: pendingData, error: checkError } = await supabase
         .from('products')
         .select('id, name')
-        .eq('is_available', false);
+        .eq('is_active', false);
 
       if (checkError) throw checkError;
 
@@ -211,8 +226,8 @@ export function ProductManager() {
       // Mettre à jour les produits
       const { error: updateError } = await supabase
         .from('products')
-        .update({ is_available: true })
-        .eq('is_available', false);
+        .update({ is_active: true })
+        .eq('is_active', false);
 
       if (updateError) throw updateError;
 
@@ -298,7 +313,7 @@ export function ProductManager() {
       </div>
 
       {/* Statistiques rapides */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
         <Card>
           <CardContent className="p-4 text-center">
             <div className="text-2xl font-bold text-primary">{products.length}</div>
@@ -341,7 +356,7 @@ export function ProductManager() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <ProductAutocomplete
                   value={formData.name}

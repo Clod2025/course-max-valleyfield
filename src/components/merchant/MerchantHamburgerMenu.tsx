@@ -73,6 +73,7 @@ export function MerchantHamburgerMenu({ onMenuItemClick, activeItem }: MerchantH
         ${showMenu ? 'translate-x-0' : '-translate-x-full'}
         lg:translate-x-0 lg:z-40
         ${isCollapsed ? 'w-16' : 'w-80'}
+        w-full max-w-sm lg:max-w-none
       `}>
         <div className="h-full flex flex-col">
           {/* Header du menu */}
@@ -167,15 +168,15 @@ export function MerchantHamburgerMenu({ onMenuItemClick, activeItem }: MerchantH
                   {menuItems.map((item) => {
                     const Icon = item.icon;
                     return (
-                      <Button
-                        key={item.id}
-                        variant={activeItem === item.id ? 'default' : 'ghost'}
-                        className="w-full justify-start"
-                        onClick={() => handleMenuItemClick(item.id)}
-                      >
-                        <Icon className="w-4 h-4 mr-3" />
-                        {item.label}
-                      </Button>
+                  <Button
+                    key={item.id}
+                    variant={activeItem === item.id ? 'default' : 'ghost'}
+                    className="w-full justify-start h-12 text-left"
+                    onClick={() => handleMenuItemClick(item.id)}
+                  >
+                    <Icon className="w-4 h-4 mr-3 flex-shrink-0" />
+                    <span className="truncate">{item.label}</span>
+                  </Button>
                     );
                   })}
                 </div>

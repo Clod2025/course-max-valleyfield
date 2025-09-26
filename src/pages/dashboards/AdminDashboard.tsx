@@ -150,7 +150,7 @@ export default function AdminDashboard() {
             </div>
 
             {/* Actions principales */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('users')}>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -296,21 +296,21 @@ export default function AdminDashboard() {
       <div className="container mx-auto px-4 py-8">
         {/* Navigation par onglets */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-8">
-            <TabsTrigger value="overview">Vue d'ensemble</TabsTrigger>
-            <TabsTrigger value="users">Utilisateurs</TabsTrigger>
-            <TabsTrigger value="pricing">Tarification</TabsTrigger>
-            <TabsTrigger value="documents">Documents</TabsTrigger>
-            <TabsTrigger value="finance">Finance</TabsTrigger>
-            <TabsTrigger value="help">Messages d'Aide</TabsTrigger>
-            <TabsTrigger value="settings">Paramètres</TabsTrigger>
-            {process.env.NODE_ENV === 'development' && (
-              <>
-                <TabsTrigger value="debug">Debug</TabsTrigger>
-                <TabsTrigger value="data-debug">Data Debug</TabsTrigger>
-              </>
-            )}
-          </TabsList>
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-1">
+          <TabsTrigger value="overview" className="text-xs sm:text-sm">Vue d'ensemble</TabsTrigger>
+          <TabsTrigger value="users" className="text-xs sm:text-sm">Utilisateurs</TabsTrigger>
+          <TabsTrigger value="pricing" className="text-xs sm:text-sm">Tarification</TabsTrigger>
+          <TabsTrigger value="documents" className="text-xs sm:text-sm">Documents</TabsTrigger>
+          <TabsTrigger value="finance" className="text-xs sm:text-sm">Finance</TabsTrigger>
+          <TabsTrigger value="help" className="text-xs sm:text-sm">Aide</TabsTrigger>
+          <TabsTrigger value="settings" className="text-xs sm:text-sm">Paramètres</TabsTrigger>
+          {process.env.NODE_ENV === 'development' && (
+            <>
+              <TabsTrigger value="debug" className="text-xs sm:text-sm">Debug</TabsTrigger>
+              <TabsTrigger value="data-debug" className="text-xs sm:text-sm">Data</TabsTrigger>
+            </>
+          )}
+        </TabsList>
 
           <TabsContent value="overview">
             {renderMainContent()}
