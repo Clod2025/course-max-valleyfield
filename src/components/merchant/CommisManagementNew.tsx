@@ -29,15 +29,18 @@ import { supabase } from '@/integrations/supabase/client';
 interface Commis {
   id: string;
   nom: string;
+  prenom: string;
   email: string;
   code_unique: string;
   role: string;
+  must_change_password: boolean;
   is_active: boolean;
   created_at: string;
 }
 
 interface CommisFormData {
   nom: string;
+  prenom: string;
   email: string;
   password: string;
   role: string;
@@ -52,6 +55,7 @@ export function CommisManagementNew() {
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
   const [formData, setFormData] = useState<CommisFormData>({
     nom: '',
+    prenom: '',
     email: '',
     password: '',
     role: 'commis'
@@ -59,7 +63,52 @@ export function CommisManagementNew() {
 
   useEffect(() => {
     loadCommis();
-  }, []);
+    
+    // Abonnement en temps réel pour les nouveaux commis
+    const subscription = supabase
+      .channel('commis_changes')
+      .on('postgres_changes', 
+        { 
+          event: 'INSERT', 
+          schema: 'public', 
+          table: 'commis',
+          filter: `merchant_id=eq.${profile?.id}`
+        }, 
+        (payload) => {
+          console.log('Nouveau commis ajouté:', payload.new);
+          loadCommis(); // Recharger la liste
+        }
+      )
+      .on('postgres_changes', 
+        { 
+          event: 'UPDATE', 
+          schema: 'public', 
+          table: 'commis',
+          filter: `merchant_id=eq.${profile?.id}`
+        }, 
+        (payload) => {
+          console.log('Commis mis à jour:', payload.new);
+          loadCommis(); // Recharger la liste
+        }
+      )
+      .on('postgres_changes', 
+        { 
+          event: 'DELETE', 
+          schema: 'public', 
+          table: 'commis',
+          filter: `merchant_id=eq.${profile?.id}`
+        }, 
+        (payload) => {
+          console.log('Commis supprimé:', payload.old);
+          loadCommis(); // Recharger la liste
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [profile?.id]);
 
   const loadCommis = async () => {
     if (!profile?.id) return;
@@ -76,19 +125,23 @@ export function CommisManagementNew() {
           const demoCommis: Commis[] = [
             {
               id: 'demo-commis-1',
-              nom: 'Jean Dupont',
+              nom: 'Dupont',
+              prenom: 'Jean',
               email: 'jean.dupont@demo.com',
               code_unique: 'COM-ABC123',
               role: 'commis',
+              must_change_password: true,
               is_active: true,
               created_at: new Date().toISOString()
             },
             {
               id: 'demo-commis-2',
-              nom: 'Marie Martin',
+              nom: 'Martin',
+              prenom: 'Marie',
               email: 'marie.martin@demo.com',
               code_unique: 'COM-DEF456',
               role: 'supervisor',
+              must_change_password: false,
               is_active: true,
               created_at: new Date(Date.now() - 86400000).toISOString()
             }
@@ -105,10 +158,12 @@ export function CommisManagementNew() {
       const demoCommis: Commis[] = [
         {
           id: 'demo-commis-error',
-          nom: 'Employé Démo',
+          nom: 'Démo',
+          prenom: 'Employé',
           email: 'demo@demo.com',
           code_unique: 'COM-DEMO1',
           role: 'commis',
+          must_change_password: true,
           is_active: true,
           created_at: new Date().toISOString()
         }
@@ -134,7 +189,7 @@ export function CommisManagementNew() {
   };
 
   const handleAddCommis = async () => {
-    if (!formData.nom || !formData.email || !formData.password) {
+    if (!formData.nom || !formData.prenom || !formData.email || !formData.password) {
       toast({
         title: "Erreur",
         description: "Tous les champs sont obligatoires",
@@ -153,9 +208,11 @@ export function CommisManagementNew() {
         const newCommis: Commis = {
           id: 'demo-commis-' + Date.now(),
           nom: formData.nom,
+          prenom: formData.prenom,
           email: formData.email,
           code_unique: 'COM-' + Math.random().toString(36).substr(2, 8).toUpperCase(),
           role: formData.role,
+          must_change_password: true,
           is_active: true,
           created_at: new Date().toISOString()
         };
@@ -163,6 +220,7 @@ export function CommisManagementNew() {
         setCommis(prev => [newCommis, ...prev]);
         setFormData({
           nom: '',
+          prenom: '',
           email: '',
           password: '',
           role: 'commis'
@@ -179,6 +237,7 @@ export function CommisManagementNew() {
       // Mode production - utiliser la fonction sécurisée
       const { data, error } = await supabase.rpc('create_commis', {
         p_nom: formData.nom,
+        p_prenom: formData.prenom,
         p_email: formData.email,
         p_mot_de_passe: formData.password, // Le hashage doit être fait côté application
         p_role: formData.role
@@ -190,10 +249,12 @@ export function CommisManagementNew() {
       const newCommis: Commis = {
         id: data.id,
         nom: data.nom,
+        prenom: data.prenom,
         email: data.email,
         code_unique: data.code_unique,
         role: data.role,
-        is_active: true,
+        must_change_password: data.must_change_password,
+        is_active: data.is_active || true, // Default to true if not provided
         created_at: data.created_at
       };
       
@@ -202,6 +263,7 @@ export function CommisManagementNew() {
       // Réinitialiser le formulaire
       setFormData({
         nom: '',
+        prenom: '',
         email: '',
         password: '',
         role: 'commis'
@@ -385,14 +447,14 @@ export function CommisManagementNew() {
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-green-600">{commis.filter(c => c.is_active).length}</div>
+            <div className="text-2xl font-bold text-green-600">{commis.filter(c => !c.must_change_password).length}</div>
             <div className="text-sm text-muted-foreground">Actifs</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-red-600">{commis.filter(c => !c.is_active).length}</div>
-            <div className="text-sm text-muted-foreground">Inactifs</div>
+            <div className="text-2xl font-bold text-red-600">{commis.filter(c => c.must_change_password).length}</div>
+            <div className="text-sm text-muted-foreground">Mot de passe temporaire</div>
           </CardContent>
         </Card>
       </div>
@@ -409,24 +471,34 @@ export function CommisManagementNew() {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="nom">Nom complet *</Label>
+                <Label htmlFor="nom">Nom *</Label>
                 <Input
                   id="nom"
                   value={formData.nom}
                   onChange={(e) => setFormData(prev => ({ ...prev, nom: e.target.value }))}
-                  placeholder="Jean Dupont"
+                  placeholder="Dupont"
                 />
               </div>
               <div>
-                <Label htmlFor="email">Email *</Label>
+                <Label htmlFor="prenom">Prénom *</Label>
                 <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                  placeholder="jean.dupont@email.com"
+                  id="prenom"
+                  value={formData.prenom}
+                  onChange={(e) => setFormData(prev => ({ ...prev, prenom: e.target.value }))}
+                  placeholder="Jean"
                 />
               </div>
+            </div>
+            
+            <div>
+              <Label htmlFor="email">Email *</Label>
+              <Input
+                id="email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                placeholder="jean.dupont@email.com"
+              />
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -511,7 +583,7 @@ export function CommisManagementNew() {
                         <User className="w-5 h-5 text-primary" />
                       </div>
                       <div>
-                        <h4 className="font-semibold text-lg">{commis.nom}</h4>
+                        <h4 className="font-semibold text-lg">{commis.prenom} {commis.nom}</h4>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           <Mail className="w-4 h-4" />
                           {commis.email}
@@ -523,8 +595,8 @@ export function CommisManagementNew() {
                         <Shield className="w-3 h-3 mr-1" />
                         {getRoleLabel(commis.role)}
                       </Badge>
-                      <Badge variant={commis.is_active ? 'default' : 'secondary'}>
-                        {commis.is_active ? 'Actif' : 'Inactif'}
+                      <Badge variant={commis.must_change_password ? 'destructive' : 'default'}>
+                        {commis.must_change_password ? 'Mot de passe temporaire' : 'Actif'}
                       </Badge>
                     </div>
                   </div>

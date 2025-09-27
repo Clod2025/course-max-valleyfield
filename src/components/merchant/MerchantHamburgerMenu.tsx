@@ -22,6 +22,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { NotificationBar } from './NotificationBar';
 
 interface MerchantHamburgerMenuProps {
   onMenuItemClick: (item: string) => void;
@@ -47,10 +48,12 @@ export function MerchantHamburgerMenu({ onMenuItemClick, activeItem, onSidebarTo
   };
 
   const menuItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: Store },
     { id: 'orders', label: 'Commandes', icon: ShoppingCart },
     { id: 'products', label: 'Gestion Produits', icon: Package },
     { id: 'inventory', label: 'Soumettre Inventaire', icon: Upload },
     { id: 'promotions', label: 'Affiches & Promos', icon: Megaphone },
+    { id: 'employees', label: 'Gestion Employés', icon: User },
     { id: 'finance', label: 'Finance & Paiements', icon: DollarSign },
     { id: 'settings', label: 'Paramètres', icon: Settings },
   ];
@@ -201,6 +204,13 @@ export function MerchantHamburgerMenu({ onMenuItemClick, activeItem, onSidebarTo
                 })}
               </div>
             )}
+          </div>
+
+          {/* Notifications */}
+          <div className="p-4 border-t bg-gray-50">
+            <div className="flex items-center justify-center">
+              <NotificationBar merchantId={profile?.id} />
+            </div>
           </div>
 
           {/* Footer avec déconnexion */}

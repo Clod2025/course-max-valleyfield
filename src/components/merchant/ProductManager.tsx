@@ -22,6 +22,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { ProductAutocomplete } from './ProductAutocomplete';
+import { NewProductForm } from './NewProductForm';
 
 interface Product {
   id: string;
@@ -66,6 +67,7 @@ export function ProductManager() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showNewProductForm, setShowNewProductForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -398,9 +400,14 @@ export function ProductManager() {
             </Button>
           )}
           
-          <Button onClick={() => setShowAddForm(true)}>
+          <Button onClick={() => setShowNewProductForm(true)} className="bg-primary hover:bg-primary/90">
             <Plus className="w-4 h-4 mr-2" />
             Nouveau Produit
+          </Button>
+          
+          <Button onClick={() => setShowAddForm(true)} variant="outline">
+            <Package className="w-4 h-4 mr-2" />
+            Ancien Formulaire
           </Button>
         </div>
       </div>
@@ -437,7 +444,23 @@ export function ProductManager() {
         </Card>
       </div>
 
-      {/* Formulaire d'ajout */}
+      {/* Nouveau formulaire avec recherche d'images */}
+      {showNewProductForm && (
+        <NewProductForm
+          onProductAdded={(newProduct) => {
+            // Ajouter le produit à la liste locale
+            const productWithId = {
+              ...newProduct,
+              id: 'new-product-' + Date.now()
+            };
+            setProducts(prev => [productWithId, ...prev]);
+            setShowNewProductForm(false);
+          }}
+          onCancel={() => setShowNewProductForm(false)}
+        />
+      )}
+
+      {/* Ancien formulaire d'ajout */}
       {showAddForm && (
         <Card>
           <CardHeader>
@@ -665,7 +688,7 @@ export function ProductManager() {
           <p className="text-muted-foreground mb-4">
             Commencez par ajouter votre premier produit
           </p>
-          <Button onClick={() => setShowAddForm(true)}>
+          <Button onClick={() => setShowNewProductForm(true)}>
             <Plus className="w-4 h-4 mr-2" />
             Ajouter un produit
           </Button>
