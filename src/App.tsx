@@ -17,9 +17,9 @@ import ForgotPassword from "./pages/ForgotPassword";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import OrderSuccess from "./pages/OrderSuccess";
-import MerchantDashboard from "./pages/MerchantDashboard";
 import DriverDashboard from "./pages/DriverDashboard";
 import UnauthorizedPage from "./pages/UnauthorizedPage";
+import CommisChangePassword from "./pages/CommisChangePassword";
 
 // Imports lazy pour les composants lourds
 import {
@@ -99,6 +99,7 @@ const App = () => {
               <Route path="/old-index" element={<Index />} />
               <Route path="/auth/unauthorized" element={<UnauthorizedPage />} />
               <Route path="/order-success/:orderId" element={<OrderSuccess />} />
+              <Route path="/commis-change-password" element={<CommisChangePassword />} />
               
               {/* Routes lourdes - avec lazy loading */}
               <Route path="/stores" element={<Stores />} />

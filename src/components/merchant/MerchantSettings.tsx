@@ -19,11 +19,13 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { MerchantHelpModal } from './MerchantHelpModal';
+import { CommisManagementNew } from './CommisManagementNew';
 
 export function MerchantSettings() {
   const { toast } = useToast();
   const { profile } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('store');
 
   const [storeSettings, setStoreSettings] = useState({
     store_name: '',
@@ -80,21 +82,46 @@ export function MerchantSettings() {
         <div>
           <h2 className="text-2xl font-bold">Paramètres du Magasin</h2>
           <p className="text-muted-foreground">
-            Configurez les informations de votre magasin
+            Configurez les informations de votre magasin et gérez vos employés
           </p>
         </div>
         
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           <MerchantHelpModal />
-          <Button onClick={handleSaveSettings} disabled={loading} className="w-full sm:w-auto">
-            <Save className="w-4 h-4 mr-2" />
-            Sauvegarder
-          </Button>
+          {activeTab === 'store' && (
+            <Button onClick={handleSaveSettings} disabled={loading} className="w-full sm:w-auto">
+              <Save className="w-4 h-4 mr-2" />
+              Sauvegarder
+            </Button>
+          )}
         </div>
       </div>
 
-      {/* Informations du profil */}
-      <Card>
+      {/* Onglets */}
+      <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg w-fit">
+        <Button
+          variant={activeTab === 'store' ? 'default' : 'ghost'}
+          size="sm"
+          onClick={() => setActiveTab('store')}
+        >
+          <Store className="w-4 h-4 mr-2" />
+          Magasin
+        </Button>
+        <Button
+          variant={activeTab === 'employees' ? 'default' : 'ghost'}
+          size="sm"
+          onClick={() => setActiveTab('employees')}
+        >
+          <User className="w-4 h-4 mr-2" />
+          Employés
+        </Button>
+      </div>
+
+      {/* Contenu selon l'onglet actif */}
+      {activeTab === 'store' ? (
+        <>
+          {/* Informations du profil */}
+          <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <User className="w-5 h-5" />
@@ -278,6 +305,10 @@ export function MerchantSettings() {
           </div>
         </CardContent>
       </Card>
+        </>
+              ) : (
+                <CommisManagementNew />
+              )}
     </div>
   );
 }

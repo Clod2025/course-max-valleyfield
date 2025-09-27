@@ -26,12 +26,25 @@ import { useAuth } from '@/hooks/useAuth';
 interface MerchantHamburgerMenuProps {
   onMenuItemClick: (item: string) => void;
   activeItem: string;
+  onSidebarToggle?: (collapsed: boolean) => void;
+  isCollapsed?: boolean;
 }
 
-export function MerchantHamburgerMenu({ onMenuItemClick, activeItem }: MerchantHamburgerMenuProps) {
+export function MerchantHamburgerMenu({ onMenuItemClick, activeItem, onSidebarToggle, isCollapsed = false }: MerchantHamburgerMenuProps) {
   const { profile, signOut } = useAuth();
-  const [showMenu, setShowMenu] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [internalCollapsed, setInternalCollapsed] = useState(false);
+  
+  // Utiliser la prop externe si fournie, sinon l'état interne
+  const collapsed = isCollapsed !== undefined ? isCollapsed : internalCollapsed;
+  
+  const handleToggle = () => {
+    const newCollapsed = !collapsed;
+    if (onSidebarToggle) {
+      onSidebarToggle(newCollapsed);
+    } else {
+      setInternalCollapsed(newCollapsed);
+    }
+  };
 
   const menuItems = [
     { id: 'orders', label: 'Commandes', icon: ShoppingCart },
@@ -44,7 +57,6 @@ export function MerchantHamburgerMenu({ onMenuItemClick, activeItem }: MerchantH
 
   const handleMenuItemClick = (itemId: string) => {
     onMenuItemClick(itemId);
-    setShowMenu(false); // Fermer le menu mobile après sélection
   };
 
   return (
@@ -53,33 +65,23 @@ export function MerchantHamburgerMenu({ onMenuItemClick, activeItem }: MerchantH
       <Button
         variant="ghost"
         size="sm"
-        onClick={() => setShowMenu(!showMenu)}
+        onClick={handleToggle}
         className="fixed top-4 left-4 z-50 bg-white shadow-lg border"
       >
         <Menu className="w-5 h-5" />
       </Button>
 
-      {/* Overlay pour mobile */}
-      {showMenu && (
-        <div 
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden" 
-          onClick={() => setShowMenu(false)} 
-        />
-      )}
-
-      {/* Menu Latéral */}
+      {/* Menu Latéral - Toujours visible, fixé à gauche */}
       <div className={`
-        fixed top-0 left-0 h-full bg-white shadow-xl z-50 transition-all duration-300
-        ${showMenu ? 'translate-x-0' : '-translate-x-full'}
-        lg:translate-x-0 lg:z-40
-        ${isCollapsed ? 'w-16' : 'w-80'}
-        w-full max-w-sm lg:max-w-none
+        fixed top-0 left-0 h-full bg-gray-50 shadow-xl z-40 transition-all duration-300
+        ${collapsed ? 'w-20' : 'w-80'}
+        border-r border-gray-200
       `}>
         <div className="h-full flex flex-col">
           {/* Header du menu */}
-          <div className="p-4 border-b">
+          <div className="p-4 border-b bg-gray-50">
             <div className="flex items-center justify-between">
-              {!isCollapsed && (
+              {!collapsed && (
                 <div className="flex items-center gap-3">
                   <img 
                     src="/lovable-uploads/482dd564-f9a1-48f4-bef4-6569e9c64c0b.png" 
@@ -87,31 +89,21 @@ export function MerchantHamburgerMenu({ onMenuItemClick, activeItem }: MerchantH
                     className="h-8 w-auto"
                   />
                   <div>
-                    <h2 className="text-lg font-bold text-primary">Merchant</h2>
-                    <p className="text-xs text-muted-foreground">Espace Marchand</p>
+                    <h2 className="text-lg font-bold text-primary">Espace Marchand</h2>
+                    <p className="text-xs text-muted-foreground">Gestion de votre magasin</p>
                   </div>
                 </div>
               )}
               
               <div className="flex items-center gap-2">
-                {/* Bouton collapse/expand pour desktop */}
+                {/* Bouton collapse/expand */}
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setIsCollapsed(!isCollapsed)}
-                  className="hidden lg:flex"
+                  onClick={handleToggle}
+                  className="opacity-70 hover:opacity-100"
                 >
-                  {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-                </Button>
-                
-                {/* Bouton fermer pour mobile */}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowMenu(false)}
-                  className="lg:hidden"
-                >
-                  <X className="w-4 h-4" />
+                  {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
                 </Button>
               </div>
             </div>
@@ -119,11 +111,11 @@ export function MerchantHamburgerMenu({ onMenuItemClick, activeItem }: MerchantH
 
           {/* Contenu du menu */}
           <div className="flex-1 overflow-y-auto">
-            {!isCollapsed ? (
+            {!collapsed ? (
               <>
                 {/* Profil Marchand */}
                 <div className="p-4">
-                  <Card>
+                  <Card className="bg-white">
                     <CardContent className="p-4">
                       <div className="flex items-center gap-3 mb-4">
                         <Avatar className="w-12 h-12">
@@ -164,26 +156,30 @@ export function MerchantHamburgerMenu({ onMenuItemClick, activeItem }: MerchantH
                 <Separator className="mx-4" />
 
                 {/* Menu Items */}
-                <div className="p-4 space-y-2">
+                <div className="p-4 space-y-1">
                   {menuItems.map((item) => {
                     const Icon = item.icon;
                     return (
-                  <Button
-                    key={item.id}
-                    variant={activeItem === item.id ? 'default' : 'ghost'}
-                    className="w-full justify-start h-12 text-left"
-                    onClick={() => handleMenuItemClick(item.id)}
-                  >
-                    <Icon className="w-4 h-4 mr-3 flex-shrink-0" />
-                    <span className="truncate">{item.label}</span>
-                  </Button>
+                      <Button
+                        key={item.id}
+                        variant={activeItem === item.id ? 'default' : 'ghost'}
+                        className={`w-full justify-start h-12 text-left transition-all duration-200 ${
+                          activeItem === item.id 
+                            ? 'bg-primary text-primary-foreground shadow-sm' 
+                            : 'hover:bg-white text-gray-700'
+                        }`}
+                        onClick={() => handleMenuItemClick(item.id)}
+                      >
+                        <Icon className="w-5 h-5 mr-3 flex-shrink-0" />
+                        <span className="font-medium text-sm">{item.label}</span>
+                      </Button>
                     );
                   })}
                 </div>
               </>
             ) : (
               /* Menu Collapsed - Seulement les icônes */
-              <div className="p-2 space-y-2">
+              <div className="p-2 space-y-1">
                 {menuItems.map((item) => {
                   const Icon = item.icon;
                   return (
@@ -191,11 +187,15 @@ export function MerchantHamburgerMenu({ onMenuItemClick, activeItem }: MerchantH
                       key={item.id}
                       variant={activeItem === item.id ? 'default' : 'ghost'}
                       size="sm"
-                      className="w-full p-2"
+                      className={`w-full p-3 transition-all duration-200 ${
+                        activeItem === item.id 
+                          ? 'bg-primary text-primary-foreground shadow-sm' 
+                          : 'hover:bg-white text-gray-700'
+                      }`}
                       onClick={() => handleMenuItemClick(item.id)}
                       title={item.label}
                     >
-                      <Icon className="w-4 h-4" />
+                      <Icon className="w-5 h-5" />
                     </Button>
                   );
                 })}
@@ -204,14 +204,14 @@ export function MerchantHamburgerMenu({ onMenuItemClick, activeItem }: MerchantH
           </div>
 
           {/* Footer avec déconnexion */}
-          <div className="p-4 border-t">
+          <div className="p-4 border-t bg-gray-50">
             <Button
               variant="ghost"
-              className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+              className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 h-12 transition-all duration-200"
               onClick={signOut}
             >
-              <X className="w-4 h-4 mr-3" />
-              {!isCollapsed && 'Déconnexion'}
+              <X className="w-5 h-5 mr-3" />
+              {!collapsed && <span className="font-medium text-sm">Déconnexion</span>}
             </Button>
           </div>
         </div>

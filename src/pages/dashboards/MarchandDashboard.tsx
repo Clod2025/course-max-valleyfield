@@ -11,11 +11,13 @@ import { MerchantFinance } from '@/components/merchant/MerchantFinance';
 import { PromotionManager } from '@/components/merchant/PromotionManager';
 import { InventorySubmission } from '@/components/merchant/InventorySubmission';
 import { MerchantSettings } from '@/components/merchant/MerchantSettings';
+import { EnhancedOrdersDisplay } from '@/components/merchant/EnhancedOrdersDisplay';
 
 const MarchandDashboard = () => {
   const { profile, loading: authLoading, isRole } = useAuth();
   const navigate = useNavigate();
   const [activeMenuItem, setActiveMenuItem] = useState('orders'); // Par défaut sur les commandes
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // ✅ VÉRIFICATION CORRIGÉE AVEC TOUS LES RÔLES MARCHAND POSSIBLES
   const isMerchantRole = isRole(['merchant', 'store_manager', 'marchand', 'Merchant', 'Marchand', 'MERCHANT']);
@@ -77,7 +79,7 @@ const MarchandDashboard = () => {
         return <MerchantSettings />;
       case 'orders':
       default:
-        return <OrdersDisplay />;
+        return <EnhancedOrdersDisplay />;
     }
   };
 
@@ -86,12 +88,18 @@ const MarchandDashboard = () => {
       <MerchantHamburgerMenu 
         onMenuItemClick={setActiveMenuItem}
         activeItem={activeMenuItem}
+        onSidebarToggle={setSidebarCollapsed}
+        isCollapsed={sidebarCollapsed}
       />
       
       {/* Contenu principal avec espace pour le menu latéral */}
-      <div className="lg:ml-80 pt-16 lg:pt-0">
-        <div className="container mx-auto py-6 px-4">
-          {renderMainContent()}
+      <div className={`${sidebarCollapsed ? 'ml-20' : 'ml-80'} pt-16 transition-all duration-300`}>
+        <div className="container mx-auto py-6 px-4 max-w-7xl">
+          <div className="bg-white rounded-lg shadow-sm border min-h-[calc(100vh-8rem)]">
+            <div className="p-6">
+              {renderMainContent()}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -99,147 +107,5 @@ const MarchandDashboard = () => {
   );
 };
 
-// Composant pour afficher les commandes (zone principale par défaut)
-const OrdersDisplay = () => {
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // Simuler le chargement des commandes
-    setTimeout(() => {
-      setOrders([
-        {
-          id: '1',
-          customer: 'Marie Dubois',
-          items: ['Pommes Gala x2 kg', 'Lait 2L x1 unité'],
-          total: 12.50,
-          status: 'pending',
-          time: '10:30'
-        },
-        {
-          id: '2',
-          customer: 'Jean Martin',
-          items: ['Pain complet x1 unité', 'Beurre x1 unité'],
-          total: 8.75,
-          status: 'preparing',
-          time: '10:45'
-        },
-        {
-          id: '3',
-          customer: 'Sophie Tremblay',
-          items: ['Bananes x1.5 kg', 'Fromage cheddar x0.5 kg'],
-          total: 15.25,
-          status: 'ready',
-          time: '11:15'
-        }
-      ]);
-      setLoading(false);
-    }, 1000);
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        <h2 className="text-2xl font-bold">Commandes en cours</h2>
-        <div className="grid gap-4">
-          {[1, 2, 3].map(i => (
-            <Card key={i} className="animate-pulse">
-              <CardContent className="p-6">
-                <div className="h-4 bg-gray-200 rounded w-1/4 mb-2"></div>
-                <div className="h-3 bg-gray-200 rounded w-1/2 mb-4"></div>
-                <div className="h-3 bg-gray-200 rounded w-1/3"></div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Commandes en cours</h2>
-          <p className="text-muted-foreground">
-            Gérez vos commandes et préparez les articles
-          </p>
-        </div>
-        <Badge variant="secondary">{orders.length} commandes</Badge>
-      </div>
-
-      {orders.length === 0 ? (
-        <Card>
-          <CardContent className="p-12 text-center">
-            <ShoppingCart className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-            <h3 className="text-lg font-semibold mb-2">Aucune commande</h3>
-            <p className="text-muted-foreground">
-              Les nouvelles commandes apparaîtront ici
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-4">
-          {orders.map((order) => (
-            <Card key={order.id} className="hover:shadow-lg transition-shadow">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h3 className="font-semibold text-lg">{order.customer}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Commande #{order.id} • {order.time}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-xl font-bold">{order.total.toFixed(2)}$</div>
-                    <Badge variant={
-                      order.status === 'pending' ? 'secondary' :
-                      order.status === 'preparing' ? 'default' : 
-                      order.status === 'ready' ? 'outline' : 'destructive'
-                    }>
-                      {order.status === 'pending' ? 'En attente' :
-                       order.status === 'preparing' ? 'En préparation' : 
-                       order.status === 'ready' ? 'Prête' : 'Livrée'}
-                    </Badge>
-                  </div>
-                </div>
-                
-                <div className="space-y-2 mb-4">
-                  <h4 className="font-medium">Articles commandés:</h4>
-                  <ul className="text-sm text-muted-foreground">
-                    {order.items.map((item, index) => (
-                      <li key={index}>• {item}</li>
-                    ))}
-                  </ul>
-                </div>
-                
-                <div className="flex gap-3">
-                  {order.status === 'pending' && (
-                    <Button variant="outline" className="flex-1">
-                      <Clock className="w-4 h-4 mr-2" />
-                      Commencer préparation
-                    </Button>
-                  )}
-                  {order.status === 'preparing' && (
-                    <Button className="flex-1">
-                      <Package className="w-4 h-4 mr-2" />
-                      Marquer comme prête
-                    </Button>
-                  )}
-                  {order.status === 'ready' && (
-                    <Button variant="outline" className="flex-1" disabled>
-                      <Package className="w-4 h-4 mr-2" />
-                      En attente de livraison
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
 
 export default MarchandDashboard;
