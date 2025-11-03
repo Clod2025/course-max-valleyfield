@@ -18,6 +18,7 @@ const Register = () => {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [role, setRole] = useState(searchParams.get('role') || 'client');
+  const [merchantType, setMerchantType] = useState('');
   const [loading, setLoading] = useState(false);
   
   const { user, profile } = useAuth();
@@ -57,20 +58,42 @@ const Register = () => {
     setLoading(true);
 
     try {
-      const { error } = await signUp(email, password, {
-        first_name: firstName,
-        last_name: lastName,
-        role: role
+      // Validation pour les marchands
+      if (role === 'merchant' && !merchantType) {
+        toast({
+          title: "Erreur",
+          description: "Veuillez sélectionner un type de marchand",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            first_name: firstName,
+            last_name: lastName,
+            role: role === 'merchant' ? 'store_manager' : role,
+            type_compte: role === 'merchant' ? 'Marchand' : role === 'driver' ? 'Livreur' : 'Client',
+            type_marchand: role === 'merchant' ? merchantType : null
+          }
+        }
       });
 
       if (error) throw error;
 
+      // Stocker l'email pour la page de confirmation
+      localStorage.setItem('signup_email', email);
+
       toast({
         title: "Inscription réussie",
-        description: "Votre compte a été créé avec succès. Vérifiez votre email pour confirmer votre compte.",
+        description: "Votre compte a été créé avec succès. Veuillez vérifier votre email pour confirmer votre compte.",
       });
 
-      navigate('/login');
+      // Redirection vers la page de confirmation
+      navigate(`/signup-confirmation?email=${encodeURIComponent(email)}`);
     } catch (error: any) {
       toast({
         title: "Erreur d'inscription",
@@ -97,7 +120,12 @@ const Register = () => {
             <form onSubmit={handleRegister} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="role">Type de compte</Label>
-                <Select value={role} onValueChange={setRole}>
+                <Select value={role} onValueChange={(value) => {
+                  setRole(value);
+                  if (value !== 'merchant') {
+                    setMerchantType('');
+                  }
+                }}>
                   <SelectTrigger>
                     <SelectValue placeholder="Choisissez votre rôle" />
                   </SelectTrigger>
@@ -108,6 +136,23 @@ const Register = () => {
                   </SelectContent>
                 </Select>
               </div>
+
+              {role === 'merchant' && (
+                <div className="space-y-2 animate-fadeIn">
+                  <Label htmlFor="merchantType">Type de marchand</Label>
+                  <Select value={merchantType} onValueChange={setMerchantType}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choisissez votre type de commerce" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Supermarché">🏪 Supermarché</SelectItem>
+                      <SelectItem value="Pharmacie">💊 Pharmacie</SelectItem>
+                      <SelectItem value="Restaurant">🍽️ Restaurant</SelectItem>
+                      <SelectItem value="Épicerie">🛒 Épicerie</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">

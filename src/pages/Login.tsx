@@ -66,6 +66,18 @@ const Login = () => {
         variant: "destructive",
       });
     } else {
+      // Vérifier si l'email est confirmé
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (currentUser && !currentUser.email_confirmed_at) {
+        toast({
+          title: "Email non confirmé",
+          description: "Veuillez confirmer votre email avant de vous connecter.",
+          variant: "destructive",
+        });
+        navigate('/signup-confirmation');
+        return;
+      }
+      
       toast({
         title: "Connexion réussie",
         description: "Redirection en cours...",

@@ -16,7 +16,8 @@ import {
   Phone,
   Mail,
   MapPin,
-  X
+  X,
+  Home
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -34,6 +35,12 @@ export function DriverHeader() {
       console.log('Photo sélectionnée:', file);
       setShowPhotoUpload(false);
     }
+  };
+
+  // ✅ NOUVEAU : Fonction pour retourner au dashboard principal
+  const handleDashboardClick = () => {
+    setShowMenu(false);
+    navigate('/dashboard/livreur');
   };
 
   // Fonctions de navigation pour chaque bouton
@@ -196,10 +203,23 @@ export function DriverHeader() {
 
             <Separator />
 
-            {/* Boutons fonctionnels - MAINTENANT CONNECTÉS */}
+            {/* Boutons fonctionnels */}
             <div className="p-4 space-y-2">
               <h3 className="font-semibold mb-3">Actions</h3>
               
+              {/* ✅ NOUVEAU : Bouton Dashboard Principal */}
+              <Button
+                variant="default"
+                className="w-full justify-start h-12 bg-blue-600 hover:bg-blue-700"
+                onClick={handleDashboardClick}
+              >
+                <Home className="h-4 w-4 mr-3" />
+                <div className="text-left">
+                  <p className="font-medium">Dashboard Principal</p>
+                  <p className="text-xs text-white/80">Recevoir les courses</p>
+                </div>
+              </Button>
+
               {/* Finance / Paiement */}
               <Button
                 variant="outline"

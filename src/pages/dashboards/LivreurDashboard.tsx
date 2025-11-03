@@ -5,52 +5,33 @@ import { DriverFinance } from '@/components/driver/DriverFinance';
 import { DriverTips } from '@/components/driver/DriverTips';
 import { DriverSupport } from '@/components/driver/DriverSupport';
 import { DriverSettings } from '@/components/driver/DriverSettings';
-import { AppFooter } from '@/components/AppFooter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
   Package, 
-  Clock, 
-  MapPin, 
   Bell,
   CheckCircle,
   AlertCircle,
   Truck,
   DollarSign,
-  Navigation,
-  Phone,
   User,
-  Star,
   Timer,
-  Route
+  Clock,
+  HelpCircle
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useDriverAssignments } from '@/hooks/useDriverAssignments';
-import DriverAssignmentCard from '@/components/DriverAssignmentCard';
-
-interface Assignment {
-  id: string;
-  order_id: string;
-  order_number: string;
-  customer_name: string;
-  customer_phone: string;
-  pickup_address: string;
-  delivery_address: string;
-  distance: number;
-  estimated_time: number;
-  payment_amount: number;
-  items_count: number;
-  priority: 'normal' | 'urgent' | 'express';
-  created_at: string;
-  store_name: string;
-}
+import { DriverAssignmentCard } from '@/components/DriverAssignmentCard';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 const LivreurDashboard = () => {
   const { profile, loading: authLoading, isRole } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { toast } = useToast();
   const { 
     assignments, 
     loading, 
@@ -58,20 +39,46 @@ const LivreurDashboard = () => {
     acceptAssignment 
   } = useDriverAssignments();
 
-  const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
   const [driverStatus, setDriverStatus] = useState<'online' | 'offline' | 'busy'>('online');
 
   // ✅ VÉRIFICATION CORRIGÉE AVEC TOUS LES RÔLES LIVREUR POSSIBLES
   const isDriverRole = isRole(['livreur', 'driver', 'Driver', 'Livreur', 'DRIVER']);
 
   useEffect(() => {
-    if (isDriverRole) {
+    if (isDriverRole && profile?.user_id) {
       fetchAssignments();
-      // Actualiser les assignations toutes les 30 secondes
+      
+      // ✅ NOUVEAU: Realtime pour driver_assignments
+      const channel = supabase
+        .channel('driver-assignments-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'driver_assignments',
+            filter: `available_drivers=cs.{${profile.user_id}}`
+          },
+          (payload) => {
+            console.log('🔔 Nouvelle assignation reçue:', payload);
+            toast({
+              title: "📦 Nouvelle livraison disponible!",
+              description: "Une nouvelle assignation vous attend",
+            });
+            fetchAssignments();
+          }
+        )
+        .subscribe();
+
+      // Actualiser toutes les 30 secondes
       const interval = setInterval(fetchAssignments, 30000);
-      return () => clearInterval(interval);
+      
+      return () => {
+        supabase.removeChannel(channel);
+        clearInterval(interval);
+      };
     }
-  }, [profile, isDriverRole]);
+  }, [profile, isDriverRole, profile?.user_id, fetchAssignments, toast]);
 
   // Déterminer quelle vue afficher selon l'URL
   const getCurrentView = () => {
@@ -150,22 +157,6 @@ const LivreurDashboard = () => {
       }
     };
 
-    const getPriorityColor = (priority: string) => {
-      switch (priority) {
-        case 'urgent': return 'bg-red-600';
-        case 'express': return 'bg-orange-600';
-        default: return 'bg-blue-600';
-      }
-    };
-
-    const getPriorityLabel = (priority: string) => {
-      switch (priority) {
-        case 'urgent': return 'URGENT';
-        case 'express': return 'EXPRESS';
-        default: return 'NORMAL';
-      }
-    };
-
     return (
       <div className="container mx-auto py-6 px-4">
         {/* Statut du livreur */}
@@ -176,9 +167,6 @@ const LivreurDashboard = () => {
                 <Truck className="w-7 h-7 text-blue-600" />
                 Assignations Disponibles
               </h1>
-              <p className="text-muted-foreground mt-1">
-                Bienvenue, {profile.first_name} - Choisissez vos livraisons
-              </p>
             </div>
             <div className="flex items-center gap-3">
               <Button
@@ -273,7 +261,7 @@ const LivreurDashboard = () => {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={fetchAssignments}
+                  onClick={() => fetchAssignments()}
                   disabled={loading}
                 >
                   <Bell className="w-4 h-4 mr-2" />
@@ -282,105 +270,12 @@ const LivreurDashboard = () => {
               </div>
 
               {assignments.map((assignment) => (
-                <Card 
-                  key={assignment.id} 
-                  className="hover:shadow-lg transition-all duration-200 border-l-4 border-l-blue-500"
-                >
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="bg-blue-100 p-2 rounded-lg">
-                          <Package className="w-5 h-5 text-blue-600" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-lg">
-                            Commande #{assignment.order_number}
-                          </h3>
-                          <p className="text-sm text-muted-foreground">
-                            {assignment.store_name} • {assignment.items_count} article{assignment.items_count > 1 ? 's' : ''}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge className={getPriorityColor(assignment.priority)}>
-                          {getPriorityLabel(assignment.priority)}
-                        </Badge>
-                        <Badge variant="outline" className="text-green-600 border-green-600">
-                          {assignment.payment_amount.toFixed(2)}$
-                        </Badge>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                      {/* Récupération */}
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-sm font-medium text-blue-600">
-                          <MapPin className="w-4 h-4" />
-                          Récupération
-                        </div>
-                        <p className="text-sm pl-6">{assignment.pickup_address}</p>
-                      </div>
-
-                      {/* Livraison */}
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-sm font-medium text-green-600">
-                          <Navigation className="w-4 h-4" />
-                          Livraison
-                        </div>
-                        <p className="text-sm pl-6">{assignment.delivery_address}</p>
-                      </div>
-                    </div>
-
-                    {/* Informations client */}
-                    <div className="flex items-center gap-4 mb-4 p-3 bg-gray-50 rounded-lg">
-                      <div className="flex items-center gap-2">
-                        <User className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-sm font-medium">{assignment.customer_name}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Phone className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-sm">{assignment.customer_phone}</span>
-                      </div>
-                    </div>
-
-                    {/* Détails de la course */}
-                    <div className="grid grid-cols-3 gap-4 mb-4">
-                      <div className="text-center p-2 bg-blue-50 rounded-lg">
-                        <Route className="w-5 h-5 text-blue-600 mx-auto mb-1" />
-                        <p className="text-xs text-muted-foreground">Distance</p>
-                        <p className="font-semibold">{assignment.distance} km</p>
-                      </div>
-                      <div className="text-center p-2 bg-green-50 rounded-lg">
-                        <Timer className="w-5 h-5 text-green-600 mx-auto mb-1" />
-                        <p className="text-xs text-muted-foreground">Temps estimé</p>
-                        <p className="font-semibold">{assignment.estimated_time} min</p>
-                      </div>
-                      <div className="text-center p-2 bg-purple-50 rounded-lg">
-                        <DollarSign className="w-5 h-5 text-purple-600 mx-auto mb-1" />
-                        <p className="text-xs text-muted-foreground">Gain</p>
-                        <p className="font-semibold">{assignment.payment_amount.toFixed(2)}$</p>
-                      </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex gap-3">
-                      <Button
-                        className="flex-1 bg-blue-600 hover:bg-blue-700"
-                        onClick={() => handleAcceptAssignment(assignment.id)}
-                        disabled={driverStatus !== 'online'}
-                      >
-                        <CheckCircle className="w-4 h-4 mr-2" />
-                        Accepter la Livraison
-                      </Button>
-                      <Button
-                        variant="outline"
-                        onClick={() => setSelectedAssignment(assignment)}
-                      >
-                        Détails
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
+                <DriverAssignmentCard
+                  key={assignment.id}
+                  assignment={assignment}
+                  onAccept={handleAcceptAssignment}
+                  canAccept={driverStatus === 'online'}
+                />
               ))}
             </>
           ) : (
@@ -405,87 +300,45 @@ const LivreurDashboard = () => {
             </Card>
           )}
         </div>
-
-        {/* Modal détails assignation */}
-        {selectedAssignment && (
-          <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-            <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle>Détails de la Livraison</CardTitle>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setSelectedAssignment(null)}
-                  >
-                    ×
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {/* Contenu détaillé de l'assignation */}
-                <div className="space-y-6">
-                  {/* Informations générales */}
-                  <div>
-                    <h4 className="font-semibold mb-3">Informations Générales</h4>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Numéro de commande</p>
-                        <p className="font-medium">#{selectedAssignment.order_number}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Magasin</p>
-                        <p className="font-medium">{selectedAssignment.store_name}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Articles</p>
-                        <p className="font-medium">{selectedAssignment.items_count} article{selectedAssignment.items_count > 1 ? 's' : ''}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Priorité</p>
-                        <Badge className={getPriorityColor(selectedAssignment.priority)}>
-                          {getPriorityLabel(selectedAssignment.priority)}
-                        </Badge>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex gap-3">
-                    <Button
-                      className="flex-1 bg-blue-600 hover:bg-blue-700"
-                      onClick={() => {
-                        handleAcceptAssignment(selectedAssignment.id);
-                        setSelectedAssignment(null);
-                      }}
-                      disabled={driverStatus !== 'online'}
-                    >
-                      <CheckCircle className="w-4 h-4 mr-2" />
-                      Accepter cette Livraison
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => setSelectedAssignment(null)}
-                    >
-                      Fermer
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
       </div>
     );
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       <DriverHeader />
       
-      {renderContent()}
+      {/* Contenu principal avec flex-grow */}
+      <div className="flex-1">
+        {renderContent()}
+      </div>
 
-      <AppFooter />
+      {/* ✅ REMPLACÉ : Footer minimaliste et professionnel pour livreur */}
+      <footer className="border-t bg-background mt-auto">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center gap-4 text-muted-foreground">
+              <span className="font-semibold text-foreground">
+                <Truck className="inline w-4 h-4 mr-1" />
+                CourseMax Livreur
+              </span>
+              <span>•</span>
+              <span>© {new Date().getFullYear()}</span>
+            </div>
+            <div className="flex items-center gap-4 text-muted-foreground">
+              <Button variant="ghost" size="sm" className="h-auto p-0" onClick={() => navigate('/dashboard/livreur/aide')}>
+                <HelpCircle className="w-4 h-4 mr-1" />
+                Support
+              </Button>
+              <span>•</span>
+              <Button variant="ghost" size="sm" className="h-auto p-0" onClick={() => navigate('/dashboard/livreur/parametres')}>
+                <User className="w-4 h-4 mr-1" />
+                Paramètres
+              </Button>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 };

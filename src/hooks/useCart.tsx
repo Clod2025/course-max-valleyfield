@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
@@ -23,7 +23,7 @@ export const useCart = (storeId?: string) => {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const fetchCart = async () => {
+  const fetchCart = useCallback(async () => {
     if (!user || !storeId) return;
 
     try {
@@ -44,9 +44,24 @@ export const useCart = (storeId?: string) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id, storeId]);
 
-  const addToCart = async (productId: string, quantity: number = 1) => {
+  const addToCart = async (productId: string | { store_id: string; product_id: string; product_name: string; quantity: number; price: number }, quantity: number = 1) => {
+    if (typeof productId === 'object') {
+      // Handle the object format from ClientPriceComparisonModal
+      const { store_id, product_id, product_name, quantity: qty, price } = productId;
+      if (!user || !store_id) {
+        toast({
+          title: "Erreur",
+          description: "Vous devez être connecté pour ajouter des produits au panier",
+          variant: "destructive",
+        });
+        return;
+      }
+      productId = product_id;
+      quantity = qty;
+    }
+    
     if (!user || !storeId) {
       toast({
         title: "Erreur",
@@ -57,19 +72,14 @@ export const useCart = (storeId?: string) => {
     }
 
     try {
-      // Check if item already exists in cart
       const existingItem = cartItems.find(item => item.product_id === productId);
-
       if (existingItem) {
-        // Update quantity
         const { error } = await supabase
           .from('cart')
           .update({ quantity: existingItem.quantity + quantity })
           .eq('id', existingItem.id);
-
         if (error) throw error;
       } else {
-        // Add new item
         const { error } = await supabase
           .from('cart')
           .insert({
@@ -78,10 +88,8 @@ export const useCart = (storeId?: string) => {
             product_id: productId,
             quantity
           });
-
         if (error) throw error;
       }
-
       fetchCart();
       toast({
         title: "Produit ajouté",
@@ -184,7 +192,7 @@ export const useCart = (storeId?: string) => {
     if (user && storeId) {
       fetchCart();
     }
-  }, [user, storeId]);
+  }, [user, storeId, fetchCart]);
 
   return {
     cartItems,

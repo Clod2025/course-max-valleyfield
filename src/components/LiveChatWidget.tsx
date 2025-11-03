@@ -12,6 +12,7 @@ import { useLoyaltyAccount } from '@/hooks/useLoyalty';
 import { useRecentOrders } from '@/hooks/useRecentOrders';
 import { useEventTracking } from '@/hooks/useEventTracking';
 import { useValidateDeliveryAddress } from '@/hooks/useGeofencing';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   ShoppingCart, 
   MessageCircle, 
@@ -272,14 +273,71 @@ const ServiceAvailability: React.FC = () => {
   );
 };
 
-// Composant Section Partenaires
+// Composant Section Partenaires - Données dynamiques depuis Supabase
 const PartnersSection: React.FC = () => {
-  const partners = [
-    { name: 'IGA Valleyfield', type: 'Épicerie', logo: '🏪' },
-    { name: 'Metro Plus', type: 'Épicerie', logo: '🛒' },
-    { name: 'Pharmacie Jean Coutu', type: 'Pharmacie', logo: '💊' },
-    { name: 'Boulangerie Artisanale', type: 'Boulangerie', logo: '🥖' },
-  ];
+  const [partners, setPartners] = useState<Array<{ name: string; type: string; logo: string }>>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchPartners();
+  }, []);
+
+  const fetchPartners = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('stores')
+        .select('*')
+        .eq('is_active', true)
+        .limit(4)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Mapper les types et emojis
+      const categoryMap: Record<string, { label: string; logo: string }> = {
+        'grocery': { label: 'Épicerie', logo: '🏪' },
+        'pharmacy': { label: 'Pharmacie', logo: '💊' },
+        'warehouse': { label: 'Grande surface', logo: '🛒' },
+        'restaurant': { label: 'Restaurant', logo: '🍽️' },
+        'alcohol': { label: 'Alcool', logo: '🍷' }
+      };
+
+      const transformedPartners = (data || []).map((store: any) => {
+        const category = categoryMap[store.store_type as string] || { label: store.store_type || 'Autre', logo: '🏪' };
+        return {
+          name: store.name,
+          type: category.label,
+          logo: category.logo
+        };
+      });
+
+      // Remplir avec des données par défaut si moins de 4 magasins
+      const defaultPartners = [
+        { name: 'IGA Valleyfield', type: 'Épicerie', logo: '🏪' },
+        { name: 'Metro Plus', type: 'Épicerie', logo: '🛒' },
+        { name: 'Pharmacie Jean Coutu', type: 'Pharmacie', logo: '💊' },
+        { name: 'Boulangerie Artisanale', type: 'Boulangerie', logo: '🥖' },
+      ];
+
+      setPartners(
+        transformedPartners.length >= 4 
+          ? transformedPartners 
+          : transformedPartners.concat(defaultPartners.slice(transformedPartners.length))
+      );
+    } catch (error) {
+      console.error('Erreur lors du chargement des partenaires:', error);
+      // Données par défaut en cas d'erreur
+      setPartners([
+        { name: 'IGA Valleyfield', type: 'Épicerie', logo: '🏪' },
+        { name: 'Metro Plus', type: 'Épicerie', logo: '🛒' },
+        { name: 'Pharmacie Jean Coutu', type: 'Pharmacie', logo: '💊' },
+        { name: 'Boulangerie Artisanale', type: 'Boulangerie', logo: '🥖' },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -287,23 +345,39 @@ const PartnersSection: React.FC = () => {
         <Users className="w-4 h-4 mr-2" />
         Nos partenaires
       </h4>
-      <div className="grid grid-cols-2 gap-2">
-        {partners.map((partner, index) => (
-          <div key={index} className="flex items-center space-x-2 p-2 bg-muted/50 rounded text-sm">
-            <span className="text-lg">{partner.logo}</span>
-            <div>
-              <div className="font-medium">{partner.name}</div>
-              <div className="text-xs text-muted-foreground">{partner.type}</div>
+      {loading ? (
+        <div className="grid grid-cols-2 gap-2">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="flex items-center space-x-2 p-2 bg-muted/50 rounded text-sm animate-pulse">
+              <div className="w-6 h-6 bg-gray-200 rounded"></div>
+              <div className="flex-1">
+                <div className="h-4 bg-gray-200 rounded w-3/4 mb-1"></div>
+                <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+              </div>
             </div>
+          ))}
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-2">
+            {partners.map((partner, index) => (
+              <div key={index} className="flex items-center space-x-2 p-2 bg-muted/50 rounded text-sm">
+                <span className="text-lg">{partner.logo}</span>
+                <div>
+                  <div className="font-medium">{partner.name}</div>
+                  <div className="text-xs text-muted-foreground">{partner.type}</div>
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
-      <Button variant="outline" size="sm" className="w-full" asChild>
-        <Link to="/devenir-partenaire">
-          <Store className="w-4 h-4 mr-2" />
-          Devenir partenaire
-        </Link>
-      </Button>
+          <Button variant="outline" size="sm" className="w-full" asChild>
+            <Link to="/devenir-partenaire">
+              <Store className="w-4 h-4 mr-2" />
+              Devenir partenaire
+            </Link>
+          </Button>
+        </>
+      )}
     </div>
   );
 };

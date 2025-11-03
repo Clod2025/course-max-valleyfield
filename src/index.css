@@ -2,36 +2,20 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Corrections pour footer sticky et layout */
-html, body {
-  height: 100%;
-  margin: 0;
-  padding: 0;
+/* ============================================
+   ANIMATIONS OPTIMISÉES
+   ============================================ */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-#root {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
-
-/* Assurer que les pages utilisent flex correctement */
-.page-layout {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
-
-.page-content {
-  flex: 1;
-}
-
-/* Footer toujours en bas */
-footer {
-  margin-top: auto;
-}
-
-/* Animations optimisées */
 @keyframes slide-up {
   from {
     opacity: 0;
@@ -40,6 +24,15 @@ footer {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }
 
@@ -52,6 +45,33 @@ footer {
   }
 }
 
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Classes d'animations */
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.6s ease-out;
+}
+
 .animate-slide-up {
   animation: slide-up 0.6s ease-out;
 }
@@ -60,7 +80,42 @@ footer {
   animation: pulse-gentle 2s ease-in-out infinite;
 }
 
-/* PWA specific styles */
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* ============================================
+   LAYOUT & STRUCTURE
+   ============================================ */
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.page-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.page-content {
+  flex: 1;
+}
+
+footer {
+  margin-top: auto;
+}
+
+/* ============================================
+   PWA SPECIFIC STYLES
+   ============================================ */
 @media (display-mode: standalone) {
   body {
     user-select: none;
@@ -68,13 +123,14 @@ footer {
     -webkit-user-select: none;
   }
   
-  /* Masquer la barre de scroll sur mobile PWA */
   ::-webkit-scrollbar {
     display: none;
   }
 }
 
-/* Design system corrections */
+/* ============================================
+   DESIGN SYSTEM - COULEURS COURSEMAX
+   ============================================ */
 :root {
   --coursemax-primary: 10 100% 59%;
   --coursemax-secondary: 0 0% 18%;
@@ -124,20 +180,94 @@ footer {
   --ring: 10 100% 59%;
 }
 
-/* Responsive optimizations */
+/* ============================================
+   COURSEMAX CUSTOM UTILITIES
+   ============================================ */
+
+/* Gradient Text */
+.text-gradient {
+  background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Gradient Backgrounds */
+.bg-gradient-primary {
+  background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(10, 100%, 65%) 100%);
+}
+
+.bg-gradient-accent {
+  background: linear-gradient(135deg, hsl(var(--accent)) 0%, hsl(152, 62%, 80%) 100%);
+}
+
+.bg-gradient-coursemax {
+  background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
+}
+
+/* Shadows */
+.shadow-coursemax {
+  box-shadow: 0 10px 40px rgba(255, 79, 46, 0.15), 0 0 20px rgba(152, 200, 180, 0.1);
+}
+
+.shadow-coursemax-hover {
+  transition: all 0.3s ease;
+}
+
+.shadow-coursemax-hover:hover {
+  box-shadow: 0 15px 50px rgba(255, 79, 46, 0.2), 0 0 30px rgba(152, 200, 180, 0.15);
+}
+
+/* ============================================
+   RESPONSIVE OPTIMIZATIONS
+   ============================================ */
 @media (max-width: 768px) {
   .container {
     padding-left: 1rem;
     padding-right: 1rem;
   }
   
-  /* Optimisations PWA mobile */
   .floating-elements {
     bottom: env(safe-area-inset-bottom, 80px);
   }
+  
+  /* Amélioration de la lisibilité mobile */
+  h1 {
+    font-size: 2.5rem !important;
+    line-height: 1.1 !important;
+  }
+  
+  h2 {
+    font-size: 2rem !important;
+    line-height: 1.2 !important;
+  }
+  
+  /* Boutons plus grands sur mobile */
+  button, .btn {
+    min-height: 44px;
+    padding: 0.75rem 1.5rem;
+  }
 }
 
-/* Performance optimizations */
+@media (max-width: 640px) {
+  h1 {
+    font-size: 2rem !important;
+  }
+  
+  h2 {
+    font-size: 1.75rem !important;
+  }
+  
+  /* Espacement réduit sur petit mobile */
+  .section-padding {
+    padding-top: 3rem;
+    padding-bottom: 3rem;
+  }
+}
+
+/* ============================================
+   PERFORMANCE OPTIMIZATIONS
+   ============================================ */
 * {
   box-sizing: border-box;
 }
@@ -159,11 +289,49 @@ img {
   animation: loading 1.5s infinite;
 }
 
-@keyframes loading {
-  0% {
-    background-position: 200% 0;
+/* ============================================
+   ACCESSIBILITY IMPROVEMENTS
+   ============================================ */
+/* Focus visible pour tous les éléments interactifs */
+*:focus-visible {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Skip to main content link */
+.skip-to-main {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: hsl(var(--primary));
+  color: white;
+  padding: 8px 16px;
+  text-decoration: none;
+  z-index: 100;
+}
+
+.skip-to-main:focus {
+  top: 0;
+}
+
+/* Smooth scrolling */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
   }
-  100% {
-    background-position: -200% 0;
+}
+
+/* ============================================
+   PRINT STYLES
+   ============================================ */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  body {
+    background: white;
+    color: black;
   }
 }

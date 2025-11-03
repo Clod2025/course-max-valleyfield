@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { StoreCard } from "@/components/ui/store-card";
 import { MapPin, Search, Navigation } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Store {
   id: string;
@@ -13,102 +14,20 @@ interface Store {
   address: string;
   coordinates: [number, number];
   phone: string;
-  type: 'grocery' | 'pharmacy' | 'warehouse';
+  type: 'grocery' | 'pharmacy' | 'warehouse' | 'restaurant';
   hours: string;
   isOpen: boolean;
   minOrder: number;
 }
-
-const VALLEYFIELD_STORES: Store[] = [
-  {
-    id: "iga-valleyfield",
-    name: "IGA Valleyfield",
-    address: "83 Rue Nicholson, Valleyfield",
-    coordinates: [45.2467, -74.1256],
-    phone: "(450) 377-1234",
-    type: "grocery",
-    hours: "8h-21h",
-    isOpen: true,
-    minOrder: 0
-  },
-  {
-    id: "metro-plus",
-    name: "Metro Plus Valleyfield",
-    address: "60 Bd Monseigneur-Langlois, Valleyfield",
-    coordinates: [45.2489, -74.1198],
-    phone: "(450) 377-5678",
-    type: "grocery",
-    hours: "8h-22h",
-    isOpen: true,
-    minOrder: 0
-  },
-  {
-    id: "super-c",
-    name: "Super C",
-    address: "405 Bd Harwood, Valleyfield",
-    coordinates: [45.2523, -74.1345],
-    phone: "(450) 377-9876",
-    type: "grocery",
-    hours: "8h-21h",
-    isOpen: true,
-    minOrder: 0
-  },
-  {
-    id: "provigo",
-    name: "Provigo",
-    address: "15 Rue Victoria, Valleyfield",
-    coordinates: [45.2445, -74.1278],
-    phone: "(450) 377-4567",
-    type: "grocery",
-    hours: "7h-23h",
-    isOpen: true,
-    minOrder: 0
-  },
-  {
-    id: "pharmaprix",
-    name: "Pharmaprix",
-    address: "405 Bd Harwood, Valleyfield",
-    coordinates: [45.2523, -74.1345],
-    phone: "(450) 377-3456",
-    type: "pharmacy",
-    hours: "9h-21h",
-    isOpen: true,
-    minOrder: 0
-  },
-  {
-    id: "jean-coutu",
-    name: "Jean Coutu",
-    address: "169 Rue Victoria, Valleyfield",
-    coordinates: [45.2456, -74.1289],
-    phone: "(450) 377-2345",
-    type: "pharmacy",
-    hours: "9h-21h",
-    isOpen: true,
-    minOrder: 0
-  },
-  {
-    id: "walmart",
-    name: "Walmart Valleyfield",
-    address: "50 Bd Mgr Langlois, Valleyfield",
-    coordinates: [45.2478, -74.1234],
-    phone: "(450) 377-1111",
-    type: "warehouse",
-    hours: "8h-22h",
-    isOpen: true,
-    minOrder: 0
-  }
-];
 
 // Calcul prix livraison dynamique
 function calculateDeliveryFee(distance: number, storeType: string): number {
   let basePrice = 5.00;
   let perKm = 1.50;
   
-  // Majoration distance
   if (distance > 10) perKm = 2.00;
   
-  // Minimum par type magasin
-  const minFees = { 'grocery': 6.00, 'pharmacy': 4.50, 'warehouse': 7.00 };
+  const minFees = { 'grocery': 6.00, 'pharmacy': 4.50, 'warehouse': 7.00, 'restaurant': 5.50 };
   
   return Math.max(
     basePrice + (distance * perKm),
@@ -116,12 +35,11 @@ function calculateDeliveryFee(distance: number, storeType: string): number {
   );
 }
 
-// Simulation calcul distance (remplacer par Google Maps API)
 function calculateDistance(userCoords: [number, number], storeCoords: [number, number]): number {
   const [lat1, lon1] = userCoords;
   const [lat2, lon2] = storeCoords;
   
-  const R = 6371; // Rayon de la Terre en km
+  const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
   
@@ -134,8 +52,8 @@ function calculateDistance(userCoords: [number, number], storeCoords: [number, n
 }
 
 function getEstimatedTime(distance: number): string {
-  const baseTime = 20; // minutes base
-  const timePerKm = 2; // minutes par km
+  const baseTime = 20;
+  const timePerKm = 2;
   const total = Math.round(baseTime + (distance * timePerKm));
   return `${total}-${total + 10} min`;
 }
@@ -146,11 +64,59 @@ interface StoreSelectorProps {
 
 export function StoreSelector({ onStoreSelect }: StoreSelectorProps) {
   const [userAddress, setUserAddress] = useState("");
-  const [userCoords, setUserCoords] = useState<[number, number]>([45.2467, -74.1256]); // Valleyfield center
-  const [filteredStores, setFilteredStores] = useState(VALLEYFIELD_STORES);
+  const [userCoords, setUserCoords] = useState<[number, number]>([45.2467, -74.1256]);
+  const [stores, setStores] = useState<Store[]>([]);
+  const [filteredStores, setFilteredStores] = useState<Store[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const { toast } = useToast();
+
+  // ✅ Charger les magasins depuis Supabase
+  useEffect(() => {
+    fetchStores();
+  }, []);
+
+  const fetchStores = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('stores')
+        .select('*')
+        .eq('is_active', true)
+        .order('name');
+
+      if (error) throw error;
+
+      // Transformer les données Supabase en format Store
+      const transformedStores: Store[] = (data || []).map(store => ({
+        id: store.id,
+        name: store.name,
+        address: `${store.address}, ${store.city}`,
+        coordinates: [
+          store.latitude || 45.2467, 
+          store.longitude || -74.1256
+        ],
+        phone: store.phone || '',
+        type: (store.store_type as 'grocery' | 'pharmacy' | 'warehouse' | 'restaurant') || 'grocery',
+        hours: store.opening_hours || '9h-18h',
+        isOpen: store.is_active,
+        minOrder: store.minimum_order || 25.00
+      }));
+
+      setStores(transformedStores);
+      setFilteredStores(transformedStores);
+    } catch (error: any) {
+      console.error('Erreur lors du chargement des magasins:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de charger les magasins",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getCurrentLocation = () => {
     if (navigator.geolocation) {
@@ -184,8 +150,9 @@ export function StoreSelector({ onStoreSelect }: StoreSelectorProps) {
     });
   };
 
-  const filterStores = () => {
-    let filtered = VALLEYFIELD_STORES;
+  // Filtres des magasins
+  useEffect(() => {
+    let filtered = stores;
     
     if (searchTerm) {
       filtered = filtered.filter(store => 
@@ -199,21 +166,17 @@ export function StoreSelector({ onStoreSelect }: StoreSelectorProps) {
     }
     
     setFilteredStores(filtered);
-  };
-
-  useEffect(() => {
-    filterStores();
-  }, [searchTerm, selectedType]);
+  }, [searchTerm, selectedType, stores]);
 
   const storeTypes = [
-    { key: 'grocery', label: 'Épiceries', count: VALLEYFIELD_STORES.filter(s => s.type === 'grocery').length },
-    { key: 'pharmacy', label: 'Pharmacies', count: VALLEYFIELD_STORES.filter(s => s.type === 'pharmacy').length },
-    { key: 'warehouse', label: 'Grandes surfaces', count: VALLEYFIELD_STORES.filter(s => s.type === 'warehouse').length }
+    { key: 'grocery', label: 'Épiceries', count: stores.filter(s => s.type === 'grocery').length },
+    { key: 'pharmacy', label: 'Pharmacies', count: stores.filter(s => s.type === 'pharmacy').length },
+    { key: 'warehouse', label: 'Grandes surfaces', count: stores.filter(s => s.type === 'warehouse').length },
+    { key: 'restaurant', label: 'Restaurants', count: stores.filter(s => s.type === 'restaurant').length }
   ];
 
   return (
     <div className="max-w-4xl mx-auto p-4 space-y-6">
-      {/* Header avec adresse */}
       <Card className="shadow-coursemax">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-xl">
@@ -243,7 +206,6 @@ export function StoreSelector({ onStoreSelect }: StoreSelectorProps) {
         </CardContent>
       </Card>
 
-      {/* Filtres */}
       <div className="space-y-4">
         <div className="flex items-center gap-2">
           <Search className="w-4 h-4 text-muted-foreground" />
@@ -280,31 +242,39 @@ export function StoreSelector({ onStoreSelect }: StoreSelectorProps) {
         </div>
       </div>
 
-      {/* Liste des magasins */}
-      <div className="grid gap-4 md:grid-cols-2">
-        {filteredStores.map((store) => {
-          const distance = calculateDistance(userCoords, store.coordinates);
-          const deliveryFee = calculateDeliveryFee(distance, store.type);
-          const estimatedTime = getEstimatedTime(distance);
-          
-          return (
-            <StoreCard
-              key={store.id}
-              id={store.id}
-              name={store.name}
-              address={store.address}
-              distance={distance}
-              deliveryFee={deliveryFee}
-              estimatedTime={estimatedTime}
-              type={store.type}
-              isOpen={store.isOpen}
-              onClick={() => handleStoreClick(store)}
-            />
-          );
-        })}
-      </div>
+      {loading ? (
+        <Card>
+          <CardContent className="text-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+            <p className="text-muted-foreground mt-4">Chargement des magasins...</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2">
+          {filteredStores.map((store) => {
+            const distance = calculateDistance(userCoords, store.coordinates);
+            const deliveryFee = calculateDeliveryFee(distance, store.type);
+            const estimatedTime = getEstimatedTime(distance);
+            
+            return (
+              <StoreCard
+                key={store.id}
+                id={store.id}
+                name={store.name}
+                address={store.address}
+                distance={distance}
+                deliveryFee={deliveryFee}
+                estimatedTime={estimatedTime}
+                type={store.type}
+                isOpen={store.isOpen}
+                onClick={() => handleStoreClick(store)}
+              />
+            );
+          })}
+        </div>
+      )}
 
-      {filteredStores.length === 0 && (
+      {!loading && filteredStores.length === 0 && (
         <Card>
           <CardContent className="text-center py-8">
             <p className="text-muted-foreground">Aucun magasin trouvé</p>

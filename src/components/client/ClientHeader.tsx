@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -19,20 +19,21 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useCart } from '@/hooks/useCart';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { ClientHelpModal } from './ClientHelpModal';
 import { ClientPriceComparisonModal } from './ClientPriceComparisonModal';
+import { ClientNotificationsDropdown } from './ClientNotificationsDropdown';
 
 export function ClientHeader() {
   const navigate = useNavigate();
-  const { profile, signOut } = useAuth();
+  const { profile, signOut, user } = useAuth();
   const { cartItems } = useCart();
   const [showMenu, setShowMenu] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [showPriceComparison, setShowPriceComparison] = useState(false);
+  const [notificationsCount, setNotificationsCount] = useState(0);
 
-  // ✅ VÉRIFICATION DE SÉCURITÉ POUR ÉVITER LES ERREURS
   const safeCartItems = cartItems || [];
   const cartItemsCount = safeCartItems.length;
 
@@ -42,7 +43,6 @@ export function ClientHeader() {
     { id: 'orders', label: 'Mes Commandes', icon: Clock, action: () => navigate('/dashboard/client') },
     { id: 'favorites', label: 'Favoris', icon: Heart, action: () => navigate('/dashboard/client') },
     { id: 'settings', label: 'Paramètres', icon: Settings, action: () => navigate('/dashboard/client/settings') },
-    // ✅ CORRECTION : Bouton Aide avec ouverture du modal
     { id: 'help', label: 'Aide', icon: HelpCircle, action: () => setShowHelpModal(true) },
   ];
 
@@ -50,7 +50,6 @@ export function ClientHeader() {
     <>
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
-          {/* Menu Hamburger + Logo Client */}
           <div className="flex items-center gap-3">
             <Button
               variant="ghost"
@@ -69,46 +68,38 @@ export function ClientHeader() {
             </Link>
           </div>
 
-          {/* Actions du header */}
           <div className="flex items-center gap-2">
-            {/* Comparateur de prix */}
-            {/* Comparateur de prix */}
-             <Button 
-             variant="ghost" 
-             size="sm" 
-            className="flex items-center gap-2 px-3 py-2" 
-            onClick={() => setShowPriceComparison(true)}
-            title="Comparer les prix"
->
-           <BarChart3 className="h-5 w-5" />
-          <span className="text-sm font-medium">Comparer les prix</span>
-           </Button>
-
-            {/* Notifications */}
-            <Button variant="ghost" size="sm" className="relative p-2">
-              <Bell className="h-5 w-5" />
-              <Badge 
-                variant="destructive" 
-                className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 text-xs"
-              >
-                3
-              </Badge>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="flex items-center gap-2 px-3 py-2 hover:bg-primary/10 transition-colors" 
+              onClick={() => setShowPriceComparison(true)}
+              title="Comparer les prix en temps réel"
+            >
+              <BarChart3 className="h-5 w-5" />
+              <span className="hidden sm:inline text-sm font-medium">Comparer les prix</span>
             </Button>
 
-            {/* Panier */}
-            <Button variant="ghost" size="sm" className="relative p-2" onClick={() => navigate('/stores')}>
+            {/* ✅ CORRECTION : Notifications réelles */}
+            <ClientNotificationsDropdown onCountChange={setNotificationsCount} />
+
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="relative p-2" 
+              onClick={() => navigate('/stores')}
+            >
               <ShoppingCart className="h-5 w-5" />
               {cartItemsCount > 0 && (
                 <Badge 
                   variant="destructive" 
-                  className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 text-xs"
+                  className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 text-xs flex items-center justify-center"
                 >
                   {cartItemsCount}
                 </Badge>
               )}
             </Button>
 
-            {/* Avatar utilisateur */}
             <Button
               variant="ghost"
               size="sm"
@@ -126,10 +117,12 @@ export function ClientHeader() {
         </div>
       </header>
 
-      {/* Menu latéral */}
       {showMenu && (
         <div className="fixed inset-0 z-50 bg-black/50" onClick={() => setShowMenu(false)}>
-          <div className="fixed left-0 top-0 h-full w-80 bg-background shadow-xl">
+          <div 
+            className="fixed left-0 top-0 h-full w-80 bg-background shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex h-16 items-center justify-between border-b px-4">
               <div className="flex items-center gap-2">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
@@ -147,8 +140,7 @@ export function ClientHeader() {
               </Button>
             </div>
 
-            <div className="p-4">
-              {/* Profil utilisateur */}
+            <div className="p-4 overflow-y-auto h-[calc(100vh-4rem)]">
               <Card className="mb-6">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
@@ -162,7 +154,7 @@ export function ClientHeader() {
                       <h3 className="font-semibold">
                         {profile?.first_name} {profile?.last_name}
                       </h3>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-muted-foreground truncate">
                         {profile?.email}
                       </p>
                     </div>
@@ -170,7 +162,6 @@ export function ClientHeader() {
                 </CardContent>
               </Card>
 
-              {/* Menu items */}
               <div className="space-y-2">
                 {menuItems.map((item) => {
                   const Icon = item.icon;
@@ -193,10 +184,9 @@ export function ClientHeader() {
 
               <Separator className="my-4" />
 
-              {/* Déconnexion */}
               <Button
                 variant="ghost"
-                className="w-full justify-start gap-3 h-12 text-red-600 hover:text-red-700 hover:bg-red-50"
+                className="w-full justify-start gap-3 h-12 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20"
                 onClick={() => {
                   signOut();
                   setShowMenu(false);
@@ -210,13 +200,11 @@ export function ClientHeader() {
         </div>
       )}
 
-      {/* ✅ NOUVEAU : Modal d'aide client */}
       <ClientHelpModal 
         isOpen={showHelpModal} 
         onClose={() => setShowHelpModal(false)} 
       />
 
-      {/* ✅ NOUVEAU : Modal de comparaison de prix */}
       <ClientPriceComparisonModal 
         isOpen={showPriceComparison} 
         onClose={() => setShowPriceComparison(false)} 

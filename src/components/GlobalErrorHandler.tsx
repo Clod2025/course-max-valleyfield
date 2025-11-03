@@ -1,35 +1,43 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
 export const GlobalErrorHandler: React.FC = () => {
   const { toast } = useToast();
+  
+  // ✅ CORRECTION : Utiliser useRef pour capturer la fonction toast stable
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
 
-  // ✅ CORRECTION : Utiliser useCallback pour stabiliser les fonctions
+  // ✅ CORRECTION : useCallback sans dépendances pour éviter boucle infinie
   const handleError = useCallback((event: ErrorEvent) => {
-    console.error('Erreur JavaScript globale:', event.error);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Erreur JavaScript globale:', event.error);
+    }
     
     // ✅ CORRECTION : Utiliser setTimeout pour éviter les mises à jour pendant le rendu
     setTimeout(() => {
-      toast({
+      toastRef.current({
         title: "Erreur JavaScript",
         description: "Une erreur inattendue s'est produite. Veuillez recharger la page.",
         variant: "destructive",
       });
     }, 0);
-  }, [toast]);
+  }, []); // ✅ Pas de dépendances = stable
 
   const handleUnhandledRejection = useCallback((event: PromiseRejectionEvent) => {
-    console.error('Promesse rejetée non gérée:', event.reason);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Promesse rejetée non gérée:', event.reason);
+    }
     
     // ✅ CORRECTION : Utiliser setTimeout pour éviter les mises à jour pendant le rendu
     setTimeout(() => {
-      toast({
+      toastRef.current({
         title: "Erreur de promesse",
         description: "Une opération a échoué. Veuillez réessayer.",
         variant: "destructive",
       });
     }, 0);
-  }, [toast]);
+  }, []); // ✅ Pas de dépendances = stable
 
   useEffect(() => {
     // Ajouter les écouteurs d'événements
@@ -41,7 +49,7 @@ export const GlobalErrorHandler: React.FC = () => {
       window.removeEventListener('error', handleError);
       window.removeEventListener('unhandledrejection', handleUnhandledRejection);
     };
-  }, [handleError, handleUnhandledRejection]);
+  }, [handleError, handleUnhandledRejection]); // ✅ Maintenant stable
 
   return null; // Ce composant ne rend rien
 };

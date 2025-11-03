@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -69,6 +69,112 @@ interface UserFormData {
   address: string;
   city: string;
 }
+
+// ✅ OPTIMISATION : Composant mémorisé pour éviter les re-renders
+const UserTable: React.FC<{ users: UserData[]; title: string; icon: React.ReactNode }> = memo(({ 
+  users, 
+  title, 
+  icon 
+}) => {
+  const { toast } = useToast();
+  
+  // ✅ CORRECTION : Handlers fonctionnels pour les boutons
+  const handleView = useCallback((user: UserData) => {
+    toast({
+      title: "Détails de l'utilisateur",
+      description: `${user.first_name} ${user.last_name} - ${user.email}`,
+    });
+  }, [toast]);
+  
+  const handleEdit = useCallback((user: UserData) => {
+    toast({
+      title: "Modifier utilisateur",
+      description: `Modification de ${user.email}`,
+    });
+  }, [toast]);
+  
+  const handleDelete = useCallback(async (user: UserData) => {
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer ${user.email}?`)) return;
+    
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', user.id);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Utilisateur supprimé",
+        description: `${user.email} a été supprimé avec succès`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Erreur",
+        description: `Impossible de supprimer: ${error.message}`,
+        variant: "destructive",
+      });
+    }
+  }, [toast]);
+  
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          {icon}
+          {title} ({users.length})
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {users.length === 0 ? (
+          <p className="text-muted-foreground text-center py-8">Aucun utilisateur trouvé</p>
+        ) : (
+          <div className="space-y-4">
+            {users.map((user) => (
+              <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <User className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <h4 className="font-medium">
+                      {user.first_name || 'N/A'} {user.last_name || 'N/A'}
+                    </h4>
+                    <p className="text-sm text-muted-foreground">{user.email}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Badge variant={user.is_active ? "default" : "secondary"}>
+                        {user.is_active ? "Actif" : "Inactif"}
+                      </Badge>
+                      <Badge variant="outline" className="text-xs">
+                        {user.role}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(user.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button variant="ghost" size="sm" onClick={() => handleView(user)}>
+                    <Eye className="w-4 h-4" />
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => handleEdit(user)}>
+                    <Edit className="w-4 h-4" />
+                  </Button>
+                  <Button variant="ghost" size="sm" className="text-red-600" onClick={() => handleDelete(user)}>
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+});
+
+UserTable.displayName = 'UserTable';
 
 export const UserManagement: React.FC = () => {
   const { toast } = useToast();
@@ -165,8 +271,8 @@ export const UserManagement: React.FC = () => {
     );
   }
 
-  // Chargement des utilisateurs avec gestion d'erreur améliorée
-  const fetchUsers = async (showLoader = true) => {
+  // ✅ OPTIMISATION : fetchUsers mémorisé avec useCallback
+  const fetchUsers = useCallback(async (showLoader = true) => {
     try {
       if (showLoader) setLoading(true);
       else setRefreshing(true);
@@ -174,7 +280,6 @@ export const UserManagement: React.FC = () => {
       setError(null);
       console.log('🔍 Fetching users from profiles table...');
       
-      // ✅ CORRECTION : Requête simple et directe sans filtres
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -187,17 +292,28 @@ export const UserManagement: React.FC = () => {
       }
 
       console.log('✅ Users fetched:', data?.length || 0, 'users');
-      console.log('📊 Users data:', data);
-      
-      // ✅ CORRECTION : Vérification des données récupérées
+      // ✅ DEBUG : Log détaillé des rôles pour diagnostiquer le problème
       if (data && data.length > 0) {
-        setUsers(data);
-        console.log('📋 Users by role:');
+        console.log('📊 Detailed users data:');
         const roleCounts: Record<string, number> = {};
-        data.forEach(user => {
-          roleCounts[user.role] = (roleCounts[user.role] || 0) + 1;
+        data.forEach((user, index) => {
+          const roleKey = user.role || 'NULL';
+          roleCounts[roleKey] = (roleCounts[roleKey] || 0) + 1;
+          console.log(`  User ${index + 1}:`, {
+            email: user.email,
+            role: user.role,
+            'role type': typeof user.role,
+            'is admin?': user.role === 'admin',
+            'is client?': user.role === 'client',
+            'is livreur?': user.role === 'livreur',
+            'is store_manager?': user.role === 'store_manager',
+            'first_name': user.first_name,
+            'last_name': user.last_name
+          });
         });
         console.log('📊 Role distribution:', roleCounts);
+        
+        setUsers(data);
         
         toast({
           title: "Données chargées",
@@ -224,28 +340,34 @@ export const UserManagement: React.FC = () => {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [toast]);
 
-  // Mise à jour en temps réel avec Supabase Realtime
+  // ✅ OPTIMISATION : useEffect avec fetchUsers mémorisé + realtime optimisé
   useEffect(() => {
-    // Chargement initial
     fetchUsers();
 
-    // Configuration de l'écoute en temps réel
     const channel = supabase
       .channel('profiles-changes')
       .on(
         'postgres_changes',
         {
-          event: '*', // Écouter tous les événements (INSERT, UPDATE, DELETE)
+          event: '*',
           schema: 'public',
           table: 'profiles'
         },
         (payload) => {
           console.log('🔄 Real-time update received:', payload);
           
-          // Recharger les données après un changement
-          fetchUsers(false);
+          // ✅ OPTIMISATION : Mise à jour optimiste au lieu de re-fetch complet
+          if (payload.eventType === 'INSERT') {
+            setUsers(prev => [payload.new as UserData, ...prev]);
+          } else if (payload.eventType === 'UPDATE') {
+            setUsers(prev => prev.map(user => 
+              user.id === payload.new.id ? payload.new as UserData : user
+            ));
+          } else if (payload.eventType === 'DELETE') {
+            setUsers(prev => prev.filter(user => user.id !== payload.old.id));
+          }
           
           toast({
             title: "Mise à jour",
@@ -255,31 +377,45 @@ export const UserManagement: React.FC = () => {
       )
       .subscribe();
 
-    // Nettoyage de l'abonnement
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [fetchUsers, toast]);
 
-  // Filtrage des utilisateurs
-  const filteredUsers = users.filter(user => {
-    const matchesSearch = 
-      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.last_name?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesRole = selectedRole === 'all' || user.role === selectedRole;
-    
-    return matchesSearch && matchesRole;
-  });
+  // ✅ OPTIMISATION : Filtres mémorisés
+  const filteredUsers = useMemo(() => {
+    return users.filter(user => {
+      const matchesSearch = 
+        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.last_name?.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesRole = selectedRole === 'all' || user.role === selectedRole;
+      
+      return matchesSearch && matchesRole;
+    });
+  }, [users, searchTerm, selectedRole]);
 
-  // ✅ CORRECTION : Groupement par rôle avec mapping correct des rôles de la DB
-  const usersByRole = {
-    admin: filteredUsers.filter(user => user.role === 'admin'),
-    store_manager: filteredUsers.filter(user => user.role === 'store_manager'),
-    livreur: filteredUsers.filter(user => user.role === 'livreur'),
-    client: filteredUsers.filter(user => user.role === 'client')
-  };
+  // ✅ OPTIMISATION : Groupement par rôle mémorisé + DEBUG
+  const usersByRole = useMemo(() => {
+    const grouped = {
+      admin: filteredUsers.filter(user => user.role === 'admin'),
+      store_manager: filteredUsers.filter(user => user.role === 'store_manager'),
+      livreur: filteredUsers.filter(user => user.role === 'livreur'),
+      client: filteredUsers.filter(user => user.role === 'client')
+    };
+    
+    // ✅ DEBUG : Log pour voir combien dans chaque groupe
+    console.log('📊 Users grouped by role:', {
+      admin: grouped.admin.length,
+      store_manager: grouped.store_manager.length,
+      livreur: grouped.livreur.length,
+      client: grouped.client.length,
+      total: filteredUsers.length
+    });
+    
+    return grouped;
+  }, [filteredUsers]);
 
   // Ajout d'un nouvel utilisateur
   const handleAddUser = async (e: React.FormEvent) => {
@@ -289,7 +425,6 @@ export const UserManagement: React.FC = () => {
     try {
       console.log('🔄 Creating new user:', formData);
       
-      // Créer l'utilisateur dans Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.admin.createUser({
         email: formData.email,
         password: formData.password,
@@ -308,7 +443,6 @@ export const UserManagement: React.FC = () => {
 
       console.log('✅ Auth user created:', authData.user.id);
 
-      // Créer le profil dans la table profiles
       const { error: profileError } = await supabase
         .from('profiles')
         .insert({
@@ -335,7 +469,6 @@ export const UserManagement: React.FC = () => {
         description: "Utilisateur créé avec succès",
       });
 
-      // Réinitialiser le formulaire et fermer le modal
       setFormData({
         email: '',
         password: '',
@@ -348,7 +481,6 @@ export const UserManagement: React.FC = () => {
       });
       setIsAddUserOpen(false);
       
-      // La mise à jour se fera automatiquement via le realtime
     } catch (error: any) {
       console.error('❌ Erreur lors de la création:', error);
       toast({
@@ -361,7 +493,6 @@ export const UserManagement: React.FC = () => {
     }
   };
 
-  // Génération automatique de mot de passe
   const generatePassword = () => {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
     let password = '';
@@ -370,67 +501,6 @@ export const UserManagement: React.FC = () => {
     }
     setFormData(prev => ({ ...prev, password }));
   };
-
-  // Composant de tableau d'utilisateurs
-  const UserTable: React.FC<{ users: UserData[]; title: string; icon: React.ReactNode }> = ({ 
-    users, 
-    title, 
-    icon 
-  }) => (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          {icon}
-          {title} ({users.length})
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        {users.length === 0 ? (
-          <p className="text-muted-foreground text-center py-8">Aucun utilisateur trouvé</p>
-        ) : (
-          <div className="space-y-4">
-            {users.map((user) => (
-              <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                    <User className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <h4 className="font-medium">
-                      {user.first_name || 'N/A'} {user.last_name || 'N/A'}
-                    </h4>
-                    <p className="text-sm text-muted-foreground">{user.email}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Badge variant={user.is_active ? "default" : "secondary"}>
-                        {user.is_active ? "Actif" : "Inactif"}
-                      </Badge>
-                      <Badge variant="outline" className="text-xs">
-                        {user.role}
-                      </Badge>
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(user.created_at).toLocaleDateString()}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="sm">
-                    <Eye className="w-4 h-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm">
-                    <Edit className="w-4 h-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm" className="text-red-600">
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
 
   if (loading) {
     return (

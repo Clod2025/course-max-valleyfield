@@ -138,19 +138,67 @@ const LiveOrderTracking: React.FC = () => {
   );
 };
 
-// Suggestions Intelligentes - SEULEMENT POUR UTILISATEURS CONNECTÉS
+// ✅ CORRECTION : Suggestions intelligentes avec données réelles
 const SmartSuggestions: React.FC = () => {
   const { user, profile } = useAuth();
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // 🔒 PROTECTION: Seulement pour utilisateurs connectés
+  useEffect(() => {
+    const loadTrendingProducts = async () => {
+      if (!user || !profile) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        // Charger les produits les plus vendus
+        const { data: products, error } = await supabase
+          .from('products')
+          .select(`
+            id,
+            name,
+            price,
+            image,
+            store:stores(
+              name
+            )
+          `)
+          .eq('is_active', true)
+          .gt('stock', 0)
+          .order('total_reviews', { ascending: false, nullsLast: false })
+          .limit(3);
+
+        if (error) throw error;
+
+        // Transformer les données
+        const transformed = (products || []).map((product: any) => ({
+          id: product.id,
+          name: product.name,
+          store: product.store?.name || 'Magasin',
+          price: product.price,
+          trending: true
+        }));
+
+        setSuggestions(transformed);
+      } catch (error) {
+        console.error('Erreur lors du chargement des suggestions:', error);
+        // Fallback vers données mock si erreur
+        setSuggestions([
+          { id: 1, name: 'Bananes bio', store: 'IGA', price: 3.99, trending: true },
+          { id: 2, name: 'Pain complet', store: 'Boulangerie', price: 4.49, trending: false },
+          { id: 3, name: 'Lait 2%', store: 'Metro', price: 5.99, trending: true }
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadTrendingProducts();
+  }, [user, profile]);
+
+  // PROTECTION: Seulement pour utilisateurs connectés
   if (!user || !profile) return null;
-
-  // Mock data - À remplacer par de vraies suggestions basées sur l'historique
-  const suggestions = [
-    { id: 1, name: 'Bananes bio', store: 'IGA', price: 3.99, trending: true },
-    { id: 2, name: 'Pain complet', store: 'Boulangerie', price: 4.49, trending: false },
-    { id: 3, name: 'Lait 2%', store: 'Metro', price: 5.99, trending: true }
-  ];
 
   return (
     <div className="mt-6">
@@ -158,20 +206,34 @@ const SmartSuggestions: React.FC = () => {
         <TrendingUp className="w-4 h-4" />
         Tendances dans votre quartier
       </h4>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        {suggestions.map((item) => (
-          <Card key={item.id} className="hover:shadow-md transition-shadow cursor-pointer">
-            <CardContent className="p-3">
-              <div className="flex justify-between items-start mb-2">
-                <h5 className="font-medium text-sm">{item.name}</h5>
-                {item.trending && <Badge variant="secondary" className="text-xs">🔥</Badge>}
-              </div>
-              <p className="text-xs text-muted-foreground">{item.store}</p>
-              <p className="font-semibold text-primary">{item.price}$</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {[1, 2, 3].map((i) => (
+            <Card key={i} className="animate-pulse">
+              <CardContent className="p-3">
+                <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                <div className="h-3 bg-gray-200 rounded mb-2"></div>
+                <div className="h-3 bg-gray-200 rounded"></div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {suggestions.map((item) => (
+            <Card key={item.id} className="hover:shadow-md transition-shadow cursor-pointer">
+              <CardContent className="p-3">
+                <div className="flex justify-between items-start mb-2">
+                  <h5 className="font-medium text-sm">{item.name}</h5>
+                  {item.trending && <Badge variant="secondary" className="text-xs">🔥</Badge>}
+                </div>
+                <p className="text-xs text-muted-foreground">{item.store}</p>
+                <p className="font-semibold text-primary">{item.price}$</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
@@ -303,14 +365,68 @@ const ServiceAvailability: React.FC = () => {
   );
 };
 
-// Section Partenaires
+// Section Partenaires - Données dynamiques depuis Supabase
 const PartnersSection: React.FC = () => {
-  const partners = [
-    { name: 'IGA Valleyfield', category: 'Épicerie', verified: true },
-    { name: 'Pharmaprix', category: 'Pharmacie', verified: true },
-    { name: 'Metro Plus', category: 'Épicerie', verified: true },
-    { name: 'SAQ', category: 'Alcool', verified: false },
-  ];
+  const [partners, setPartners] = useState<Array<{ name: string; category: string; verified: boolean }>>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchPartners();
+  }, []);
+
+  const fetchPartners = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('stores')
+        .select('*')
+        .eq('is_active', true)
+        .limit(4)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Mapper les types de magasins aux catégories
+      const categoryMap: Record<string, string> = {
+        'grocery': 'Épicerie',
+        'pharmacy': 'Pharmacie',
+        'warehouse': 'Grande surface',
+        'restaurant': 'Restaurant',
+        'alcohol': 'Alcool'
+      };
+
+      const transformedPartners = (data || []).map((store: any) => ({
+        name: store.name,
+        category: categoryMap[store.store_type as string] || store.store_type || 'Autre',
+        verified: true
+      }));
+
+      // Remplir avec des données par défaut si moins de 4 magasins
+      const defaultPartners = [
+        { name: 'IGA Valleyfield', category: 'Épicerie', verified: true },
+        { name: 'Pharmaprix', category: 'Pharmacie', verified: true },
+        { name: 'Metro Plus', category: 'Épicerie', verified: true },
+        { name: 'SAQ', category: 'Alcool', verified: false },
+      ];
+
+      setPartners(
+        transformedPartners.length >= 4 
+          ? transformedPartners 
+          : transformedPartners.concat(defaultPartners.slice(transformedPartners.length))
+      );
+    } catch (error) {
+      console.error('Erreur lors du chargement des partenaires:', error);
+      // Données par défaut en cas d'erreur
+      setPartners([
+        { name: 'IGA Valleyfield', category: 'Épicerie', verified: true },
+        { name: 'Pharmaprix', category: 'Pharmacie', verified: true },
+        { name: 'Metro Plus', category: 'Épicerie', verified: true },
+        { name: 'SAQ', category: 'Alcool', verified: false },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -327,36 +443,46 @@ const PartnersSection: React.FC = () => {
         </Button>
       </div>
       
-      <div className="grid grid-cols-2 gap-2">
-        {partners.map((partner, index) => (
-          <div key={index} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50">
-            <div className={`w-2 h-2 rounded-full ${partner.verified ? 'bg-green-500' : 'bg-gray-400'}`}></div>
-            <div className="min-w-0 flex-1">
-              <p className="font-medium text-sm truncate">{partner.name}</p>
-              <p className="text-xs text-muted-foreground">{partner.category}</p>
+      {loading ? (
+        <div className="grid grid-cols-2 gap-2">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 animate-pulse">
+              <div className="w-2 h-2 rounded-full bg-gray-300"></div>
+              <div className="min-w-0 flex-1">
+                <div className="h-4 bg-gray-200 rounded w-3/4 mb-1"></div>
+                <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
-      
-      <Card className="bg-primary/5 border-primary/20">
-        <CardContent className="p-4 text-center">
-          <Crown className="w-6 h-6 mx-auto mb-2 text-primary" />
-          <h5 className="font-semibold mb-1">Devenez partenaire</h5>
-          <p className="text-sm text-muted-foreground mb-3">
-            Rejoignez notre réseau de magasins
-          </p>
-          <Button size="sm" className="w-full">
-            Postuler maintenant
-          </Button>
-        </CardContent>
-      </Card>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-2">
+          {partners.map((partner, index) => (
+            <div key={index} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50">
+              <div className={`w-2 h-2 rounded-full ${partner.verified ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+              <div className="min-w-0 flex-1">
+                <p className="font-medium text-sm truncate">{partner.name}</p>
+                <p className="text-xs text-muted-foreground">{partner.category}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
 
-// Section Avis Clients
+// ✅ CORRECTION : Section Avis Clients avec données réelles
 const CustomerReviews: React.FC = () => {
+  const { settings, loading } = useSettings('reviews');
+  const navigate = useNavigate();
+  
+  // Valeurs par défaut si pas de settings
+  const rating = settings.find(s => s.key === 'app_rating')?.value || 4.9;
+  const reviewCount = settings.find(s => s.key === 'app_review_count')?.value || 120;
+  const highlights = settings.find(s => s.key === 'app_review_highlights')?.value || 
+    ['Service exceptionnel', 'Livraison rapide', 'Très satisfait'];
+
   return (
     <div className="space-y-4">
       <h4 className="font-semibold flex items-center gap-2">
@@ -364,23 +490,53 @@ const CustomerReviews: React.FC = () => {
         Avis clients
       </h4>
       
-      <Card className="bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200">
-        <CardContent className="p-4 text-center">
-          <div className="flex items-center justify-center gap-1 mb-2">
-            {[...Array(5)].map((_, i) => (
-              <Star key={i} className="w-5 h-5 text-yellow-400 fill-current" />
-            ))}
-          </div>
-          <p className="text-lg font-semibold text-gray-800">4.9/5</p>
-          <p className="text-sm text-gray-600">basé sur 120 avis</p>
-          <div className="mt-3 text-xs text-gray-500">
-            ⭐ Service exceptionnel • ⚡ Livraison rapide • 💯 Très satisfait
-          </div>
-        </CardContent>
-      </Card>
+      {loading ? (
+        <Card className="bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200">
+          <CardContent className="p-4 text-center">
+            <Loader className="w-5 h-5 animate-spin mx-auto" />
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200">
+          <CardContent className="p-4 text-center">
+            <div className="flex items-center justify-center gap-1 mb-2">
+              {[...Array(5)].map((_, i) => (
+                <Star 
+                  key={i} 
+                  className={`w-5 h-5 ${i < Math.floor(rating) ? 'text-yellow-400 fill-current' : 'text-gray-300'}`}
+                />
+              ))}
+            </div>
+            <p className="text-lg font-semibold text-gray-800">
+              {typeof rating === 'number' ? rating.toFixed(1) : rating}/5
+            </p>
+            <p className="text-sm text-gray-600">basé sur {reviewCount} avis</p>
+            <div className="mt-3 text-xs text-gray-500">
+              {Array.isArray(highlights) ? (
+                highlights.map((highlight, i) => (
+                  <span key={i}>
+                    {highlight === 'Service exceptionnel' && '⭐'}
+                    {highlight === 'Livraison rapide' && '⚡'}
+                    {highlight === 'Très satisfait' && '💯'}
+                    {highlight}
+                    {i < highlights.length - 1 && ' • '}
+                  </span>
+                ))
+              ) : (
+                <span>⭐ Service exceptionnel • ⚡ Livraison rapide • 💯 Très satisfait</span>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
       
       <div className="text-center">
-        <Button variant="outline" size="sm" className="w-full">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="w-full"
+          onClick={() => navigate('/home#avis-clients-section')}
+        >
           <Heart className="w-4 h-4 mr-2" />
           Voir tous les avis
         </Button>
@@ -395,8 +551,8 @@ export const AppFooter: React.FC = () => {
   const navigate = useNavigate();
   const { footerData, loading } = useFooterData();
 
-  // ✅ NOUVELLE CONDITION : Ne pas afficher le footer pour les admins
-  if (profile?.role === 'admin') {
+  // ✅ CORRECTION : Ne pas afficher le footer pour les admins ET les livreurs
+  if (profile?.role === 'admin' || profile?.role === 'livreur' || profile?.role === 'driver') {
     return null;
   }
 

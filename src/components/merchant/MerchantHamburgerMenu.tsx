@@ -11,7 +11,8 @@ import {
   Package, 
   Upload, 
   Megaphone, 
-  DollarSign, 
+  DollarSign,
+  CreditCard, 
   Settings,
   Store,
   Mail,
@@ -48,13 +49,13 @@ export function MerchantHamburgerMenu({ onMenuItemClick, activeItem, onSidebarTo
   };
 
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: Store },
     { id: 'orders', label: 'Commandes', icon: ShoppingCart },
     { id: 'products', label: 'Gestion Produits', icon: Package },
     { id: 'inventory', label: 'Soumettre Inventaire', icon: Upload },
     { id: 'promotions', label: 'Affiches & Promos', icon: Megaphone },
     { id: 'employees', label: 'Gestion Employés', icon: User },
-    { id: 'finance', label: 'Finance & Paiements', icon: DollarSign },
+    { id: 'payments', label: 'Paiements', icon: CreditCard },
+    { id: 'finance', label: 'Finance & Rapports', icon: DollarSign },
     { id: 'settings', label: 'Paramètres', icon: Settings },
   ];
 

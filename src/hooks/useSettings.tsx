@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface Setting {
@@ -15,11 +15,7 @@ export const useSettings = (category?: string) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchSettings();
-  }, [category]);
-
-  const fetchSettings = async () => {
+  const fetchSettings = useCallback(async () => {
     try {
       setLoading(true);
       let query = supabase
@@ -41,7 +37,11 @@ export const useSettings = (category?: string) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [category]);
+
+  useEffect(() => {
+    fetchSettings();
+  }, [category, fetchSettings]);
 
   const getSettingByKey = (key: string) => {
     return settings.find(setting => setting.key === key);

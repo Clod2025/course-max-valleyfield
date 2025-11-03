@@ -104,6 +104,69 @@ export type Database = {
         }
         Relationships: []
       }
+      driver_assignments: {
+        Row: {
+          accepted_at: string | null
+          assigned_driver_id: string | null
+          available_drivers: string[]
+          completed_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          order_ids: string[]
+          status: string
+          store_id: string
+          total_orders: number
+          total_value: number
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          assigned_driver_id?: string | null
+          available_drivers: string[]
+          completed_at?: string | null
+          created_at?: string
+          expires_at: string
+          id?: string
+          order_ids: string[]
+          status?: string
+          store_id: string
+          total_orders?: number
+          total_value?: number
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          assigned_driver_id?: string | null
+          available_drivers?: string[]
+          completed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          order_ids?: string[]
+          status?: string
+          store_id?: string
+          total_orders?: number
+          total_value?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "driver_assignments_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "driver_assignments_assigned_driver_id_fkey"
+            columns: ["assigned_driver_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          }
+        ]
+      }
       order_items: {
         Row: {
           created_at: string
@@ -144,6 +207,7 @@ export type Database = {
           delivery_instructions: string | null
           delivery_postal_code: string | null
           estimated_delivery: string | null
+          fulfilled_by_employee: string | null
           id: string
           items: Json
           notes: string | null
@@ -166,6 +230,7 @@ export type Database = {
           delivery_instructions?: string | null
           delivery_postal_code?: string | null
           estimated_delivery?: string | null
+          fulfilled_by_employee?: string | null
           id?: string
           items: Json
           notes?: string | null
@@ -188,6 +253,7 @@ export type Database = {
           delivery_instructions?: string | null
           delivery_postal_code?: string | null
           estimated_delivery?: string | null
+          fulfilled_by_employee?: string | null
           id?: string
           items?: Json
           notes?: string | null
@@ -211,7 +277,8 @@ export type Database = {
           category: string
           price: number
           stock: number
-          image: string | null
+          unit: string
+          image_url: string | null
           store_id: string
           is_active: boolean
           created_at: string
@@ -224,7 +291,8 @@ export type Database = {
           category: string
           price: number
           stock: number
-          image?: string | null
+          unit?: string
+          image_url?: string | null
           store_id: string
           is_active?: boolean
           created_at?: string
@@ -237,7 +305,8 @@ export type Database = {
           category?: string
           price?: number
           stock?: number
-          image?: string | null
+          unit?: string
+          image_url?: string | null
           store_id?: string
           is_active?: boolean
           created_at?: string
@@ -267,6 +336,11 @@ export type Database = {
           phone: string | null
           postal_code: string | null
           role: Database["public"]["Enums"]["user_role"]
+          store_id: string | null
+          territory: string | null
+          region: string | null
+          type_compte: string | null
+          type_marchand: string | null
           updated_at: string
           user_id: string
         }
@@ -283,6 +357,11 @@ export type Database = {
           phone?: string | null
           postal_code?: string | null
           role?: Database["public"]["Enums"]["user_role"]
+          store_id?: string | null
+          territory?: string | null
+          region?: string | null
+          type_compte?: string | null
+          type_marchand?: string | null
           updated_at?: string
           user_id: string
         }
@@ -299,6 +378,11 @@ export type Database = {
           phone?: string | null
           postal_code?: string | null
           role?: Database["public"]["Enums"]["user_role"]
+          store_id?: string | null
+          territory?: string | null
+          region?: string | null
+          type_compte?: string | null
+          type_marchand?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -717,11 +801,228 @@ export type Database = {
           }
         ]
       }
+      promotions: {
+        Row: {
+          id: string
+          merchant_id: string
+          store_id: string | null
+          title: string
+          description: string | null
+          discount_percent: number
+          start_at: string
+          end_at: string
+          is_active: boolean
+          image_url: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          merchant_id: string
+          store_id?: string | null
+          title: string
+          description?: string | null
+          discount_percent: number
+          start_at: string
+          end_at: string
+          is_active?: boolean
+          image_url?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          merchant_id?: string
+          store_id?: string | null
+          title?: string
+          description?: string | null
+          discount_percent?: number
+          start_at?: string
+          end_at?: string
+          is_active?: boolean
+          image_url?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promotions_merchant_id_fkey"
+            columns: ["merchant_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          }
+        ]
+      }
+      merchant_employees: {
+        Row: {
+          id: string
+          merchant_id: string
+          store_id: string | null
+          first_name: string
+          last_name: string
+          phone: string | null
+          email: string | null
+          employee_code: string
+          password_hash: string
+          role: string
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          merchant_id: string
+          store_id?: string | null
+          first_name: string
+          last_name: string
+          phone?: string | null
+          email?: string | null
+          employee_code: string
+          password_hash: string
+          role?: string
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          merchant_id?: string
+          store_id?: string | null
+          first_name?: string
+          last_name?: string
+          phone?: string | null
+          email?: string | null
+          employee_code?: string
+          password_hash?: string
+          role?: string
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "merchant_employees_merchant_id_fkey"
+            columns: ["merchant_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          }
+        ]
+      }
+      merchant_payment_methods: {
+        Row: {
+          id: string
+          merchant_id: string
+          store_id: string | null
+          type: string
+          provider_account_id: string | null
+          credentials: Json | null
+          is_enabled: boolean
+          is_default: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          merchant_id: string
+          store_id?: string | null
+          type: string
+          provider_account_id?: string | null
+          credentials?: Json | null
+          is_enabled?: boolean
+          is_default?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          merchant_id?: string
+          store_id?: string | null
+          type?: string
+          provider_account_id?: string | null
+          credentials?: Json | null
+          is_enabled?: boolean
+          is_default?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "merchant_payment_methods_merchant_id_fkey"
+            columns: ["merchant_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          }
+        ]
+      }
+      audit_log: {
+        Row: {
+          id: string
+          merchant_id: string | null
+          employee_id: string | null
+          action: string
+          table_name: string
+          record_id: string | null
+          old_values: Json | null
+          new_values: Json | null
+          ip_address: string | null
+          user_agent: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          merchant_id?: string | null
+          employee_id?: string | null
+          action: string
+          table_name: string
+          record_id?: string | null
+          old_values?: Json | null
+          new_values?: Json | null
+          ip_address?: string | null
+          user_agent?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          merchant_id?: string | null
+          employee_id?: string | null
+          action?: string
+          table_name?: string
+          record_id?: string | null
+          old_values?: Json | null
+          new_values?: Json | null
+          ip_address?: string | null
+          user_agent?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_log_merchant_id_fkey"
+            columns: ["merchant_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "audit_log_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "merchant_employees"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      cleanup_expired_assignments: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       generate_order_number: {
         Args: Record<PropertyKey, never>
         Returns: string
@@ -729,6 +1030,14 @@ export type Database = {
       get_user_role: {
         Args: { user_uuid: string }
         Returns: Database["public"]["Enums"]["user_role"]
+      }
+      generate_employee_code: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      log_audit_action: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
     }
     Enums: {

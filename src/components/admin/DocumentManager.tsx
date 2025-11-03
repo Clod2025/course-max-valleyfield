@@ -14,7 +14,16 @@ import {
   User,
   Truck
 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+// Toast hook implementation
+const useToast = () => {
+  return {
+    toast: ({ title, description, variant }: { title: string; description: string; variant?: string }) => {
+      // Simple toast notification using browser alert for demo
+      alert(`${title}\n${description}`);
+    }
+  };
+};
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface Document {
   id: string;
@@ -34,6 +43,7 @@ export function DocumentManager() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
   const [loading, setLoading] = useState(false);
+  const [viewingDocument, setViewingDocument] = useState<Document | null>(null);
 
   useEffect(() => {
     loadDocuments();
@@ -41,7 +51,6 @@ export function DocumentManager() {
 
   const loadDocuments = async () => {
     setLoading(true);
-    // Simuler le chargement des documents
     setTimeout(() => {
       setDocuments([
         {
@@ -78,6 +87,39 @@ export function DocumentManager() {
       ]);
       setLoading(false);
     }, 1000);
+  };
+
+  // ✅ NOUVELLE FONCTION : Ouvrir le document dans une nouvelle fenêtre
+  const handleView = (document: Document) => {
+    setViewingDocument(document);
+    toast({
+      title: "Ouverture du document",
+      description: `Visualisation de ${getDocumentTypeLabel(document.document_type)}`,
+    });
+  };
+
+  // ✅ NOUVELLE FONCTION : Télécharger le document
+  const handleDownload = (document: Document) => {
+    // Créer un lien de téléchargement
+    const link = document.createElement('a');
+    link.href = document.document_url;
+    link.download = `${document.user_name}_${document.document_type}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast({
+      title: "Téléchargement démarré",
+      description: `${getDocumentTypeLabel(document.document_type)} de ${document.user_name}`,
+    });
+  };
+
+  const handleEdit = (documentId: string) => {
+    const doc = documents.find(d => d.id === documentId);
+    toast({
+      title: "Modifier document",
+      description: `Modification du document: ${doc?.document_type} de ${doc?.user_name}`,
+    });
   };
 
   const handleApprove = (documentId: string) => {
@@ -177,7 +219,6 @@ export function DocumentManager() {
       {/* Liste des documents */}
       <div className="grid gap-4">
         {loading ? (
-          // Skeleton loading
           [...Array(3)].map((_, i) => (
             <Card key={i} className="animate-pulse">
               <CardContent className="p-6">
@@ -261,12 +302,20 @@ export function DocumentManager() {
                 )}
                 
                 <div className="flex gap-3">
-                  <Button variant="outline" size="sm">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => handleView(document)}
+                  >
                     <Eye className="w-4 h-4 mr-2" />
                     Voir
                   </Button>
                   
-                  <Button variant="outline" size="sm">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => handleDownload(document)}
+                  >
                     <Download className="w-4 h-4 mr-2" />
                     Télécharger
                   </Button>
@@ -294,7 +343,7 @@ export function DocumentManager() {
                   )}
                   
                   {document.status !== 'pending' && (
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" onClick={() => handleEdit(document.id)}>
                       <Edit className="w-4 h-4 mr-2" />
                       Modifier
                     </Button>
@@ -305,6 +354,30 @@ export function DocumentManager() {
           ))
         )}
       </div>
+
+      {/* ✅ NOUVEAU: Dialog pour visualiser le document */}
+      <Dialog open={!!viewingDocument} onOpenChange={() => setViewingDocument(null)}>
+        <DialogContent className="max-w-4xl h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>
+              {viewingDocument && (
+                <>
+                  {getDocumentTypeLabel(viewingDocument.document_type)} - {viewingDocument.user_name}
+                </>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-hidden">
+            {viewingDocument && (
+              <iframe
+                src={viewingDocument.document_url}
+                className="w-full h-full border rounded"
+                title="Aperçu du document"
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

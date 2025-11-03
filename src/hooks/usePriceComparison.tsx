@@ -66,20 +66,29 @@ export const usePriceComparison = (options: UsePriceComparisonOptions = {}): Use
     setError(null);
 
     try {
-      // Simuler une recherche de produits
+      // ✅ CORRECTION : Requête avec toutes les colonnes nécessaires
       const { data: products, error } = await supabase
         .from('products')
         .select(`
           *,
-          store:stores(name, address, phone)
+          store:stores(
+            id,
+            name,
+            address,
+            city,
+            phone,
+            logo_url,
+            is_active
+          )
         `)
         .ilike('name', `%${query}%`)
         .eq('is_active', true)
+        .gt('stock', 0)
         .limit(20);
 
       if (error) throw error;
 
-      // Grouper par magasin et calculer les prix
+      // ✅ CORRECTION : Grouper par magasin avec la structure MerchantPrice correcte
       const merchantMap = new Map<string, MerchantPrice>();
       
       products?.forEach((product: any) => {
@@ -90,33 +99,36 @@ export const usePriceComparison = (options: UsePriceComparisonOptions = {}): Use
           merchantMap.set(storeId, {
             id: storeId,
             name: storeName,
+            logo_url: product.store?.logo_url || undefined,
             address: product.store?.address || '',
-            phone: product.store?.phone || '',
-            products: [],
-            totalPrice: 0,
-            deliveryFee: 0,
-            estimatedDelivery: '25-45 min'
+            city: product.store?.city || '',
+            phone: product.store?.phone || undefined,
+            price: product.price, // Prix du produit
+            isBestPrice: false, // Sera calculé après
+            rating: 4.5, // Simulation
+            deliveryTime: '25-45 min',
+            isAvailable: true,
+            lastUpdated: product.updated_at || new Date().toISOString()
           });
+        } else {
+          // Prendre le prix le plus bas si plusieurs produits du même magasin
+          const merchant = merchantMap.get(storeId)!;
+          if (product.price < merchant.price) {
+            merchant.price = product.price;
+          }
         }
-        
-        const merchant = merchantMap.get(storeId)!;
-        merchant.products.push({
-          id: product.id,
-          name: product.name,
-          price: product.price,
-          unit: product.unit,
-          image_url: product.image_url,
-          stock: product.stock
+      });
+
+      // ✅ Calculer quel magasin a le meilleur prix
+      const merchantsArray = Array.from(merchantMap.values());
+      if (merchantsArray.length > 0) {
+        const lowestPrice = Math.min(...merchantsArray.map(m => m.price));
+        merchantsArray.forEach(merchant => {
+          merchant.isBestPrice = merchant.price === lowestPrice;
         });
-        merchant.totalPrice += product.price;
-      });
+      }
 
-      // Calculer les frais de livraison (simulation)
-      merchantMap.forEach(merchant => {
-        merchant.deliveryFee = Math.max(3.99, merchant.totalPrice * 0.1);
-      });
-
-      setMerchants(Array.from(merchantMap.values()));
+      setMerchants(merchantsArray);
       setLastUpdated(new Date());
     } catch (err: any) {
       console.error('Erreur lors de la recherche:', err);

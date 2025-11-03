@@ -521,6 +521,7 @@ export const FinanceManager: React.FC = () => {
 
           {/* Actions rapides */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+            {/* ✅ CORRECTION : Supprimé Button redondant - le Card onClick suffit */}
             <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setIsTransferCommissionOpen(true)}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -531,14 +532,9 @@ export const FinanceManager: React.FC = () => {
                   Transférer vos commissions vers votre compte bancaire
                 </p>
               </CardHeader>
-              <CardContent>
-                <Button className="w-full">
-                  <ArrowUp className="w-4 h-4 mr-2" />
-                  Transférer
-                </Button>
-              </CardContent>
             </Card>
 
+            {/* ✅ CORRECTION : Supprimé Button redondant */}
             <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setIsAddPaymentMethodOpen(true)}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -549,14 +545,9 @@ export const FinanceManager: React.FC = () => {
                   Configurer un nouveau moyen de paiement
                 </p>
               </CardHeader>
-              <CardContent>
-                <Button className="w-full">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Ajouter
-                </Button>
-              </CardContent>
             </Card>
 
+            {/* ✅ CORRECTION : Supprimé Button redondant */}
             <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setIsPayDriverOpen(true)}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -567,12 +558,6 @@ export const FinanceManager: React.FC = () => {
                   Effectuer un paiement à un livreur
                 </p>
               </CardHeader>
-              <CardContent>
-                <Button className="w-full">
-                  <Users className="w-4 h-4 mr-2" />
-                  Payer
-                </Button>
-              </CardContent>
             </Card>
           </div>
         </TabsContent>

@@ -55,7 +55,7 @@ export const useOrders = () => {
   const { toast } = useToast();
   const { updateStockForOrder } = useOrderStock();
 
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
       let query = supabase
@@ -85,7 +85,7 @@ export const useOrders = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   const createOrder = async (orderData: {
     store_id: string;
@@ -206,7 +206,7 @@ export const useOrders = () => {
     if (user) {
       fetchOrders();
     }
-  }, [user]);
+  }, [user, fetchOrders]);
 
   // Real-time subscription for orders
   useEffect(() => {
@@ -231,7 +231,7 @@ export const useOrders = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user, fetchOrders]);
 
   return {
     orders,

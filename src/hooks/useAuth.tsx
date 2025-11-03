@@ -17,6 +17,8 @@ interface Profile {
   role: 'client' | 'admin' | 'livreur' | 'store_manager';
   is_active: boolean;
   store_id?: string;
+  type_compte?: 'Client' | 'Marchand' | 'Livreur' | 'Admin';
+  type_marchand?: 'Supermarché' | 'Pharmacie' | 'Restaurant' | 'Épicerie';
 }
 
 interface AuthContextType {
@@ -73,11 +75,126 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         .single();
 
       if (error) {
-        console.error('❌ Error fetching profile:', error);
+        console.error('❌ Error fetching profile by id:', error);
+        
+        // Fallback: essayer de récupérer par email si l'utilisateur existe
+        const { data: userData } = await supabase.auth.getUser();
+        if (userData?.user?.email) {
+          console.log('🔄 Trying to fetch profile by email:', userData.user.email);
+          const { data: emailData, error: emailError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('email', userData.user.email)
+            .single();
+          
+          if (emailError) {
+            console.error('❌ Error fetching profile by email:', emailError);
+            throw error; // Lancer l'erreur originale
+          }
+          
+          console.log('✅ Profile fetched by email:', emailData);
+          
+          // ✅ CORRECTION : Appliquer la logique de correction pour les profils récupérés par email
+          if (emailData && emailData.role === 'store_manager' && (!emailData.type_compte || !emailData.type_marchand)) {
+            console.log('🔧 Fixing legacy merchant profile (email fetch):', emailData.email);
+            
+            // Déterminer le type de marchand selon l'email
+            let merchantType = 'Supermarché'; // Par défaut
+            if (emailData.email === 'clovensyohan2020@gmail.com') {
+              merchantType = 'Pharmacie';
+            } else if (emailData.email === 'biduellodieujuste2@gmail.com') {
+              merchantType = 'Restaurant';
+            } else if (emailData.email === 'epicerie.marchand@gmail.com') {
+              merchantType = 'Épicerie';
+            }
+            
+            const { error: updateError } = await supabase
+              .from('profiles')
+              .update({
+                role: 'store_manager',
+                type_compte: 'Marchand',
+                type_marchand: merchantType
+              })
+              .eq('id', emailData.id);
+
+            if (updateError) {
+              console.error('❌ Error updating legacy profile (email fetch):', updateError);
+              console.log('🔄 Using fallback: returning corrected profile data locally');
+              // Fallback: retourner les données corrigées localement même si la mise à jour DB échoue
+              const updatedProfile = {
+                ...emailData,
+                role: 'store_manager',
+                type_compte: 'Marchand',
+                type_marchand: merchantType
+              };
+              return updatedProfile as Profile;
+            } else {
+              console.log('✅ Legacy profile updated successfully (email fetch) for:', merchantType);
+              // Retourner les données mises à jour
+              const updatedProfile = {
+                ...emailData,
+                role: 'store_manager',
+                type_compte: 'Marchand',
+                type_marchand: merchantType
+              };
+              return updatedProfile as Profile;
+            }
+          }
+          
+          return emailData as Profile;
+        }
+        
         throw error;
       }
       
       console.log('✅ Profile fetched:', data);
+      console.log('🔍 Profile check:', {
+        hasData: !!data,
+        role: data?.role,
+        type_compte: data?.type_compte,
+        type_marchand: data?.type_marchand,
+        shouldFix: data && data.role === 'store_manager' && (!data.type_compte || !data.type_marchand)
+      });
+      
+      // ✅ CORRECTION : Mettre à jour les profils existants avec role 'store_manager' mais sans type_compte
+      if (data && data.role === 'store_manager' && (!data.type_compte || !data.type_marchand)) {
+        console.log('🔧 Fixing legacy merchant profile:', data.email);
+        
+        // Déterminer le type de marchand selon l'email
+        let merchantType = 'Supermarché'; // Par défaut
+        if (data.email === 'clovensyohan2020@gmail.com') {
+          merchantType = 'Pharmacie';
+        } else if (data.email === 'biduellodieujuste2@gmail.com') {
+          merchantType = 'Restaurant';
+        } else if (data.email === 'epicerie.marchand@gmail.com') {
+          merchantType = 'Épicerie';
+        }
+        
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({
+            role: 'store_manager',
+            type_compte: 'Marchand',
+            type_marchand: merchantType
+          })
+          .eq('id', data.id);
+
+        if (updateError) {
+          console.error('❌ Error updating legacy profile:', updateError);
+        } else {
+          console.log('✅ Legacy profile updated successfully for:', merchantType);
+          // Retourner les données mises à jour
+          const updatedProfile = {
+            ...data,
+            role: 'store_manager',
+            type_compte: 'Marchand',
+            type_marchand: merchantType
+          };
+          setProfile(updatedProfile as Profile);
+          return updatedProfile as Profile;
+        }
+      }
+      
       setProfile(data as Profile);
       return data as Profile;
     } catch (error: any) {
@@ -87,10 +204,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   }, []);
 
-  // ✅ CORRECTION : redirectBasedOnRole avec useCallback stable
+  // ✅ CORRECTION : redirectBasedOnRole avec user dans useRef pour éviter la boucle
+  const userRef = useRef(user);
+  userRef.current = user;
+  
   const redirectBasedOnRole = useCallback((userProfile: Profile | null, isSigningIn = false) => {
     console.log('🔄 Redirect check:', { 
-      userProfile, 
+      userProfile: !!userProfile,
+      role: userProfile?.role,
+      type_compte: userProfile?.type_compte,
+      type_marchand: userProfile?.type_marchand,
       isSigningIn, 
       currentPath: window.location.pathname 
     });
@@ -100,45 +223,81 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       return;
     }
 
+    // Vérifier si l'email est confirmé - utiliser userRef au lieu de user direct
+    if (userRef.current && !userRef.current.email_confirmed_at) {
+      console.log('⚠️ Email not confirmed, redirecting to confirmation page');
+      window.location.href = '/signup-confirmation';
+      return;
+    }
+
     const currentPath = window.location.pathname;
     console.log('📍 Current path:', currentPath);
     console.log('👤 User role:', userProfile.role);
     
-    // ✅ MAPPING ULTRA-COMPLET DE TOUS LES RÔLES POSSIBLES
-    const roleToDashboard: Record<string, string> = {
-      // Rôles principaux (nouveaux)
-      'client': '/dashboard/client',
-      'merchant': '/dashboard/marchand',
-      'driver': '/dashboard/livreur',
-      'admin': '/dashboard/admin',
-      
-      // Rôles anciens (compatibilité)
-      'livreur': '/dashboard/livreur',
-      'store_manager': '/dashboard/marchand',
-      
-      // Rôles avec majuscules (au cas où)
-      'Client': '/dashboard/client',
-      'Merchant': '/dashboard/marchand',
-      'Marchand': '/dashboard/marchand',
-      'Driver': '/dashboard/livreur',
-      'Livreur': '/dashboard/livreur',
-      'Admin': '/dashboard/admin',
-      'ADMIN': '/dashboard/admin',
-      'CLIENT': '/dashboard/client',
-      'MERCHANT': '/dashboard/marchand',
-      'DRIVER': '/dashboard/livreur'
-    };
+    // ✅ LOGIQUE SPÉCIALISÉE POUR LES MARCHANDS
+    let targetDashboard = '';
+    
+      console.log('🔍 Checking merchant logic:', {
+        role: userProfile.role,
+        type_compte: userProfile.type_compte,
+        isStoreManager: userProfile.role === 'store_manager',
+        isMerchant: userProfile.role === 'store_manager',
+        isMarchand: userProfile.type_compte === 'Marchand'
+      });
+    
+    if (userProfile.role === 'store_manager' || userProfile.type_compte === 'Marchand') {
+      // Redirection selon le type de marchand
+      console.log('🏪 Merchant type:', userProfile.type_marchand);
+      switch (userProfile.type_marchand) {
+        case 'Pharmacie':
+          targetDashboard = '/interface-pharmacie';
+          break;
+        case 'Restaurant':
+          targetDashboard = '/interface-restaurant';
+          break;
+        case 'Épicerie':
+          targetDashboard = '/interface-epicerie';
+          break;
+        case 'Supermarché':
+        default:
+          targetDashboard = '/dashboard/marchand';
+          break;
+      }
+      console.log('🎯 Target dashboard for merchant:', targetDashboard);
+    } else {
+      // ✅ MAPPING POUR LES AUTRES RÔLES
+      const roleToDashboard: Record<string, string> = {
+        // Rôles principaux (nouveaux)
+        'client': '/dashboard/client',
+        'driver': '/dashboard/livreur',
+        'admin': '/dashboard/admin',
+        
+        // Rôles anciens (compatibilité)
+        'livreur': '/dashboard/livreur',
+        'store_manager': '/dashboard/marchand',
+        
+        // Rôles avec majuscules (au cas où)
+        'Client': '/dashboard/client',
+        'Driver': '/dashboard/livreur',
+        'Livreur': '/dashboard/livreur',
+        'Admin': '/dashboard/admin',
+        'ADMIN': '/dashboard/admin',
+        'CLIENT': '/dashboard/client',
+        'DRIVER': '/dashboard/livreur'
+      };
 
-    const targetDashboard = roleToDashboard[userProfile.role];
+      targetDashboard = roleToDashboard[userProfile.role] || '/dashboard/client';
+      console.log('🎯 Target dashboard for other role:', targetDashboard);
+    }
     
     if (!targetDashboard) {
       console.log('❌ Unknown role:', userProfile.role);
-      console.log('Available roles:', Object.keys(roleToDashboard));
       window.location.href = '/auth/unauthorized';
       return;
     }
 
     // ✅ Ne pas rediriger si déjà sur le bon dashboard
+    console.log('🔍 Checking if already on correct dashboard:', { currentPath, targetDashboard });
     if (currentPath === targetDashboard) {
       console.log('✅ Already on correct dashboard, skipping redirect');
       return;
@@ -151,6 +310,20 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       currentPath === '/login' || 
       currentPath === '/register' ||
       currentPath.startsWith('/dashboard'); // ✅ Rediriger même si sur mauvais dashboard
+
+    console.log('🔍 Should redirect check:', { 
+      isSigningIn, 
+      currentPath, 
+      shouldRedirect,
+      conditions: {
+        isSigningIn,
+        isHome: currentPath === '/',
+        isHomePage: currentPath === '/home',
+        isLogin: currentPath === '/login',
+        isRegister: currentPath === '/register',
+        isDashboard: currentPath.startsWith('/dashboard')
+      }
+    });
 
     if (!shouldRedirect) {
       console.log('❌ Not redirecting from this page:', currentPath);
@@ -213,8 +386,17 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         if (session?.user) {
           try {
             const userProfile = await fetchProfile(session.user.id);
+            console.log('📋 Profile fetched:', userProfile);
             if (userProfile && mounted) {
+              console.log('🔄 Calling redirectBasedOnRole with:', { 
+                role: userProfile.role, 
+                type_compte: userProfile.type_compte, 
+                type_marchand: userProfile.type_marchand,
+                isSigningIn: event === 'SIGNED_IN'
+              });
               redirectBasedOnRole(userProfile, event === 'SIGNED_IN');
+            } else {
+              console.log('❌ No profile or component unmounted');
             }
           } catch (error) {
             console.error('❌ Error handling auth state change:', error);

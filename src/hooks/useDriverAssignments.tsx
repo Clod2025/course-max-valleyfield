@@ -43,12 +43,12 @@ export const useDriverAssignments = () => {
     setError(null);
 
     try {
+      // ✅ CORRECTION : Ne joindre que stores qui a une relation FK valide
       let query = supabase
         .from('driver_assignments')
         .select(`
           *,
-          stores!inner(name, address, city),
-          orders!inner(id, order_number, delivery_address, delivery_city, total_amount)
+          stores(name, address, city)
         `)
         .order('created_at', { ascending: false });
 
@@ -65,10 +65,29 @@ export const useDriverAssignments = () => {
 
       if (fetchError) throw fetchError;
 
-      setAssignments(data || []);
+      // ✅ CORRECTION : Si on a des données, récupérer les commandes séparément
+      if (data && data.length > 0) {
+        const enrichedData = await Promise.all(data.map(async (assignment: any) => {
+          // Récupérer les commandes pour chaque assignation
+          if (assignment.order_ids && assignment.order_ids.length > 0) {
+            const { data: ordersData } = await supabase
+              .from('orders')
+              .select('id, order_number, delivery_address, delivery_city, total_amount')
+              .in('id', assignment.order_ids);
+            
+            assignment.orders = ordersData || [];
+          }
+          return assignment;
+        }));
+
+        setAssignments(enrichedData);
+      } else {
+        setAssignments([]);
+      }
     } catch (err: any) {
       const errorMessage = err.message || 'Erreur lors du chargement des assignations';
       setError(errorMessage);
+      console.error('Erreur useDriverAssignments:', err);
       toast({
         title: "Erreur",
         description: errorMessage,
