@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface InteracSettingsData {
   interac_email: string;
@@ -57,7 +57,7 @@ export const InteracSettings: React.FC = () => {
       const { data, error } = await supabase
         .from('merchants')
         .select('interac_email, interac_phone, interac_enabled')
-        .eq('owner_id', user.id)
+        .eq('user_id', user.id)
         .single();
 
       if (error && error.code !== 'PGRST116') {
@@ -198,7 +198,7 @@ export const InteracSettings: React.FC = () => {
           interac_phone: settings.interac_phone,
           interac_enabled: settings.interac_enabled
         })
-        .eq('owner_id', user.id);
+        .eq('user_id', user.id);
 
       if (error) throw error;
 

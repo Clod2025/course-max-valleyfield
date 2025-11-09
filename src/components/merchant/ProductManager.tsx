@@ -111,44 +111,6 @@ export function ProductManager() {
         .order('created_at', { ascending: false });
 
       if (error) {
-        // Si la table n'existe pas ou erreur, utiliser des données de démonstration
-        if (error.code === 'PGRST116' || error.message?.includes('relation "products" does not exist')) {
-          console.log('Table products non trouvée, utilisation de données de démonstration');
-          const demoProducts: Product[] = [
-            {
-              id: 'demo-product-1',
-              name: 'Pommes Golden',
-              description: 'Pommes fraîches et croquantes',
-              category: 'Fruits',
-              price: 3.99,
-              stock: 50,
-              is_available: true,
-              created_at: new Date().toISOString()
-            },
-            {
-              id: 'demo-product-2',
-              name: 'Pain de mie',
-              description: 'Pain de mie frais',
-              category: 'Boulangerie',
-              price: 2.50,
-              stock: 25,
-              is_available: true,
-              created_at: new Date(Date.now() - 86400000).toISOString()
-            },
-            {
-              id: 'demo-product-3',
-              name: 'Lait 2%',
-              description: 'Lait frais 2% de matières grasses',
-              category: 'Produits laitiers',
-              price: 4.25,
-              stock: 0,
-              is_available: false,
-              created_at: new Date(Date.now() - 172800000).toISOString()
-            }
-          ];
-          setProducts(demoProducts);
-          return;
-        }
         throw error;
       }
       
@@ -169,24 +131,11 @@ export function ProductManager() {
       setProducts(mappedProducts);
     } catch (error) {
       console.error('Erreur lors du chargement des produits:', error);
-      // En cas d'erreur, utiliser des données de démonstration
-      const demoProducts: Product[] = [
-        {
-          id: 'demo-product-error',
-          name: 'Produit Démo',
-          description: 'Produit de démonstration',
-          category: 'Test',
-          price: 10.00,
-          stock: 5,
-          is_available: true,
-          created_at: new Date().toISOString()
-        }
-      ];
-      setProducts(demoProducts);
-      
+      setProducts([]);
       toast({
-        title: "Mode démonstration",
-        description: "Utilisation de données de démonstration pour les produits",
+        title: "Erreur",
+        description: "Impossible de charger les produits du magasin.",
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
@@ -205,43 +154,6 @@ export function ProductManager() {
 
     setLoading(true);
     try {
-      // Vérifier si on est en mode démonstration
-      const isDemoMode = products.some(p => p.id.startsWith('demo-'));
-      
-      if (isDemoMode) {
-        // Mode démonstration - ajouter localement
-        const newProduct: Product = {
-          id: 'demo-product-' + Date.now(),
-          name: formData.name,
-          description: formData.description,
-          price: parseFloat(formData.price),
-          category: formData.category,
-          stock: parseInt(formData.stock) || 0,
-          unit: formData.unit,
-          image_url: '',
-          is_available: false,
-          created_at: new Date().toISOString()
-        };
-
-        setProducts(prev => [newProduct, ...prev]);
-        setFormData({ 
-          name: '', 
-          description: '', 
-          price: '', 
-          category: '', 
-          stock: '', 
-          unit: 'unité' 
-        });
-        setShowAddForm(false);
-
-        toast({
-          title: "Produit ajouté (Démo)",
-          description: `Produit "${formData.name}" ajouté en mode démonstration`,
-        });
-        return;
-      }
-
-      // Mode production - utiliser Supabase
       // Générer automatiquement l'image
       const imageUrl = await generateProductImage(formData.name);
 

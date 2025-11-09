@@ -17,7 +17,7 @@ import {
   Scale
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 
 interface ImageResult {
@@ -135,40 +135,6 @@ export function NewProductForm({ onProductAdded, onCancel }: NewProductFormProps
 
     setAddingProduct(true);
     try {
-      // Vérifier si on est en mode démonstration
-      const isDemoMode = !profile?.id;
-      
-      if (isDemoMode) {
-        // Mode démonstration - créer le produit localement
-        const newProduct = {
-          id: 'demo-product-' + Date.now(),
-          name: productName.trim(),
-          description: description.trim(),
-          category,
-          price: parseFloat(price),
-          stock: parseInt(stock) || 0,
-          unit,
-          image_url: selectedImage.url,
-          is_active: true,
-          created_at: new Date().toISOString()
-        };
-
-        toast({
-          title: "Produit ajouté (Démo)",
-          description: `"${newProduct.name}" a été ajouté en mode démonstration`,
-        });
-
-        // Appeler le callback si fourni
-        if (onProductAdded) {
-          onProductAdded(newProduct);
-        }
-
-        // Réinitialiser le formulaire
-        resetForm();
-        return;
-      }
-
-      // Mode production - utiliser Supabase
       const { data, error } = await supabase.rpc('create_product_with_image', {
         p_nom: productName.trim(),
         p_categorie: category,

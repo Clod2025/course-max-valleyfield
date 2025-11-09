@@ -18,7 +18,7 @@ import {
   Shield
 } from 'lucide-react';
 
-export const UserDataDebugger: React.FC = () => {
+const UserDataDebugger: React.FC = () => {
   const [debugInfo, setDebugInfo] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -313,3 +313,5 @@ export const UserDataDebugger: React.FC = () => {
     </Card>
   );
 };
+
+export default UserDataDebugger;

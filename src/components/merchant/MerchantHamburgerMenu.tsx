@@ -22,7 +22,8 @@ import {
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
+import { useMerchantStore } from '@/hooks/useMerchantStore';
 import { NotificationBar } from './NotificationBar';
 
 interface MerchantHamburgerMenuProps {
@@ -35,6 +36,7 @@ interface MerchantHamburgerMenuProps {
 export function MerchantHamburgerMenu({ onMenuItemClick, activeItem, onSidebarToggle, isCollapsed = false }: MerchantHamburgerMenuProps) {
   const { profile, signOut } = useAuth();
   const [internalCollapsed, setInternalCollapsed] = useState(false);
+  const { store: merchantStore } = useMerchantStore({ ownerId: profile?.user_id });
   
   // Utiliser la prop externe si fournie, sinon l'état interne
   const collapsed = isCollapsed !== undefined ? isCollapsed : internalCollapsed;
@@ -142,20 +144,47 @@ export function MerchantHamburgerMenu({ onMenuItemClick, activeItem, onSidebarTo
                       <div className="space-y-2 text-sm">
                         <div className="flex items-center gap-2 text-muted-foreground">
                           <Mail className="w-4 h-4" />
-                          <span className="truncate">engligoclervil9@gmail.com</span>
+                          <span className="truncate">{profile?.email || 'Email non renseigné'}</span>
                         </div>
                         <div className="flex items-center gap-2 text-muted-foreground">
                           <Phone className="w-4 h-4" />
-                          <span>Non renseigné</span>
+                          <span>{profile?.phone || 'Téléphone non renseigné'}</span>
                         </div>
                         <div className="flex items-center gap-2 text-muted-foreground">
                           <MapPin className="w-4 h-4" />
-                          <span>Adresse non renseignée</span>
+                          <span>{profile?.address || 'Adresse non renseignée'}</span>
                         </div>
                       </div>
                     </CardContent>
                   </Card>
                 </div>
+
+                {merchantStore && (
+                  <div className="px-4">
+                    <Card className="bg-primary/5 border-primary/10">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="flex items-center gap-2 text-sm font-semibold text-primary">
+                          <Store className="w-4 h-4" />
+                          <span className="truncate">{merchantStore.name}</span>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-2 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-2">
+                          <MapPin className="w-3 h-3" />
+                          <span className="truncate">{merchantStore.address}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Phone className="w-3 h-3" />
+                          <span className="truncate">{merchantStore.phone || 'Téléphone non renseigné'}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Mail className="w-3 h-3" />
+                          <span className="truncate">{merchantStore.email || 'Email non renseigné'}</span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
 
                 <Separator className="mx-4" />
 

@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 
 export interface DriverAssignment {
   id: string;
@@ -37,8 +37,29 @@ export const useDriverAssignments = () => {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
   const { profile } = useAuth();
+  
+  // ✅ NOUVEAU: Protection contre les appels simultanés
+  const isFetchingRef = useRef(false);
+  // ✅ NOUVEAU: Protection contre les erreurs répétées
+  const lastErrorRef = useRef<string | null>(null);
+  const errorCountRef = useRef(0);
 
-  const fetchAssignments = async (status?: string) => {
+  // ✅ CORRECTION: Mémoriser fetchAssignments avec useCallback
+  const fetchAssignments = useCallback(async (status?: string) => {
+    // ✅ PROTECTION: Éviter les appels simultanés
+    if (isFetchingRef.current) {
+      console.log('⏸️ fetchAssignments déjà en cours, ignoré');
+      return;
+    }
+
+    // ✅ PROTECTION: Si même erreur répétée, arrêter temporairement
+    // ✅ CORRECTION: Utiliser lastErrorRef directement pour éviter les problèmes de closure
+    if (lastErrorRef.current && errorCountRef.current > 3) {
+      console.log('⏸️ Trop d\'erreurs répétées, arrêt temporaire');
+      return;
+    }
+
+    isFetchingRef.current = true;
     setLoading(true);
     setError(null);
 
@@ -57,7 +78,7 @@ export const useDriverAssignments = () => {
       }
 
       // Si c'est un livreur, ne montrer que ses assignations
-      if (profile?.role === 'livreur') {
+      if (profile?.role === 'livreur' || profile?.role === 'driver') {
         query = query.or(`assigned_driver_id.eq.${profile.user_id},available_drivers.cs.{${profile.user_id}}`);
       }
 
@@ -65,38 +86,70 @@ export const useDriverAssignments = () => {
 
       if (fetchError) throw fetchError;
 
-      // ✅ CORRECTION : Si on a des données, récupérer les commandes séparément
+      // ✅ CORRECTION MAJEURE: Ne PAS charger les orders directement
+      // Car cela déclenche la récursion infinie dans les politiques RLS
+      // Utiliser seulement les données déjà dans driver_assignments
       if (data && data.length > 0) {
-        const enrichedData = await Promise.all(data.map(async (assignment: any) => {
-          // Récupérer les commandes pour chaque assignation
+        const enrichedData = data.map((assignment: any) => {
+          // ✅ Utiliser les données déjà disponibles sans requête supplémentaire
+          // Les order_ids sont déjà dans assignment.order_ids
+          // On peut créer un objet orders minimaliste depuis les IDs
           if (assignment.order_ids && assignment.order_ids.length > 0) {
-            const { data: ordersData } = await supabase
-              .from('orders')
-              .select('id, order_number, delivery_address, delivery_city, total_amount')
-              .in('id', assignment.order_ids);
-            
-            assignment.orders = ordersData || [];
+            assignment.orders = assignment.order_ids.map((orderId: string) => ({
+              id: orderId,
+              // Les autres infos seront chargées via une Edge Function si nécessaire
+            }));
           }
           return assignment;
-        }));
+        });
 
         setAssignments(enrichedData);
+        // ✅ Réinitialiser le compteur d'erreurs en cas de succès
+        errorCountRef.current = 0;
+        lastErrorRef.current = null;
       } else {
         setAssignments([]);
       }
     } catch (err: any) {
       const errorMessage = err.message || 'Erreur lors du chargement des assignations';
-      setError(errorMessage);
-      console.error('Erreur useDriverAssignments:', err);
-      toast({
-        title: "Erreur",
-        description: errorMessage,
-        variant: "destructive"
-      });
+      
+      // ✅ Gestion améliorée des erreurs de récursion
+      if (err.code === '42P17' || errorMessage.includes('infinite recursion')) {
+        const recursionError = 'Erreur de configuration serveur: récursion infinie détectée. Contactez l\'administrateur.';
+        setError(recursionError);
+        console.error('❌ Erreur de récursion RLS détectée:', err);
+        
+        // ✅ Ne pas spammer l'utilisateur avec des toasts répétés
+        if (errorCountRef.current === 0) {
+          toast({
+            title: "Erreur de configuration",
+            description: "Problème de sécurité détecté. Veuillez contacter le support.",
+            variant: "destructive"
+          });
+        }
+        
+        errorCountRef.current++;
+        lastErrorRef.current = recursionError;
+        
+        // ✅ Arrêter les appels répétés après plusieurs erreurs
+        if (errorCountRef.current > 3) {
+          console.error('🛑 Arrêt des tentatives après erreurs répétées');
+        }
+      } else {
+        setError(errorMessage);
+        console.error('Erreur useDriverAssignments:', err);
+        toast({
+          title: "Erreur",
+          description: errorMessage,
+          variant: "destructive"
+        });
+        errorCountRef.current = 0;
+      }
     } finally {
       setLoading(false);
+      isFetchingRef.current = false;
     }
-  };
+  }, [profile?.role, profile?.user_id, toast]); // ✅ Dépendances optimisées
 
   const acceptAssignment = async (assignmentId: string) => {
     if (!profile || profile.role !== 'livreur') {

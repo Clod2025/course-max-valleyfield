@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CourseMax - Hors ligne</title>
+  <style>
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      text-align: center; 
+      padding: 50px;
+      background: #f5f5f5;
+    }
+    .container {
+      max-width: 400px;
+      margin: 0 auto;
+      background: white;
+      padding: 40px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .emoji { font-size: 48px; margin-bottom: 20px; }
+    h1 { color: #FF4F2E; margin-bottom: 16px; }
+    p { color: #666; line-height: 1.5; }
+    button {
+      background: #FF4F2E;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="emoji">📱</div>
+    <h1>CourseMax</h1>
+    <p>Vous êtes actuellement hors ligne. Vérifiez votre connexion Internet pour accéder à CourseMax.</p>
+    <button onclick="window.location.reload()">Réessayer</button>
+  </div>
+</body>
+</html>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +10,8 @@ import {
   DialogContent, 
   DialogHeader, 
   DialogTitle, 
-  DialogTrigger 
+  DialogTrigger,
+  DialogDescription 
 } from '@/components/ui/dialog';
 import { 
   Select, 
@@ -87,7 +88,7 @@ export const FooterManagement: React.FC = () => {
   });
 
   // Chargement des données du footer
-  const fetchFooterData = async () => {
+  const fetchFooterData = useCallback(async () => {
     try {
       setLoading(true);
       console.log('🔍 Fetching footer data...');
@@ -120,7 +121,7 @@ export const FooterManagement: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   // Sauvegarde d'un élément de footer
   const saveFooterItem = async (itemData: FooterFormData, isEdit = false) => {
@@ -243,7 +244,7 @@ export const FooterManagement: React.FC = () => {
   // Chargement initial
   useEffect(() => {
     fetchFooterData();
-  }, []);
+  }, [fetchFooterData]);
 
   // Icône selon le type d'élément
   const getItemIcon = (key: string) => {
@@ -306,6 +307,9 @@ export const FooterManagement: React.FC = () => {
             <DialogContent className="max-w-2xl">
               <DialogHeader>
                 <DialogTitle>Ajouter un élément de footer</DialogTitle>
+                <DialogDescription>
+                  Ajoutez un nouveau lien ou élément au pied de page
+                </DialogDescription>
               </DialogHeader>
               <form onSubmit={(e) => { e.preventDefault(); saveFooterItem(formData, false); }} className="space-y-4">
                 <div>
@@ -469,6 +473,9 @@ export const FooterManagement: React.FC = () => {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Modifier l'élément de footer</DialogTitle>
+            <DialogDescription>
+              Modifiez les informations de l'élément de footer sélectionné
+            </DialogDescription>
           </DialogHeader>
           <form onSubmit={(e) => { e.preventDefault(); saveFooterItem(formData, true); }} className="space-y-4">
             <div>

@@ -20,7 +20,7 @@ export const usePayments = (): UsePaymentsReturn => {
     setError(null);
 
     try {
-      const { data, error: functionError } = await supabase.functions.invoke('process-payment', {
+      const { data, error: functionError } = await supabase.functions.invoke('process-payment-connect', {
         body: paymentData,
       });
 

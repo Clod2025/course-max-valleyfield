@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { 
   CreditCard, 
   Plus, 
@@ -17,7 +17,7 @@ import {
   XCircle,
   AlertCircle
 } from 'lucide-react';
-import { usePaymentMethods, PaymentMethod } from '@/hooks/usePaymentMethods';
+import { useMerchantPaymentMethods, PaymentMethod } from '@/hooks/useMerchantPaymentMethods';
 import { useToast } from '@/hooks/use-toast';
 import { 
   Select,
@@ -37,7 +37,7 @@ export function PaymentSettings() {
     deletePaymentMethod, 
     togglePaymentMethod,
     setDefaultPaymentMethod 
-  } = usePaymentMethods();
+  } = useMerchantPaymentMethods();
   
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingMethod, setEditingMethod] = useState<string | null>(null);
@@ -310,6 +310,9 @@ export function PaymentSettings() {
             <DialogTitle>
               {editingMethod ? 'Modifier la méthode de paiement' : 'Nouvelle méthode de paiement'}
             </DialogTitle>
+            <DialogDescription>
+              {editingMethod ? 'Modifiez les informations de votre méthode de paiement' : 'Ajoutez une nouvelle méthode de paiement à votre compte'}
+            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">

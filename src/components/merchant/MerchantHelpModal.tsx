@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { 
   HelpCircle, 
@@ -25,7 +26,7 @@ import {
   Calendar
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 
 interface HelpMessage {
@@ -184,6 +185,9 @@ export function MerchantHelpModal() {
             <MessageSquare className="w-5 h-5" />
             Centre d'Aide - Contact Administrateur
           </DialogTitle>
+          <DialogDescription>
+            Contactez l'administrateur pour obtenir de l'aide ou signaler un problème
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">

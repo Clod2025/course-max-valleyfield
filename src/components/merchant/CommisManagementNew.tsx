@@ -22,12 +22,14 @@ import {
   UserPlus,
   Shield
 } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useMerchantStore } from '@/hooks/useMerchantStore';
 
 interface Commis {
   id: string;
+  user_id?: string;
   nom: string;
   prenom: string;
   email: string;
@@ -36,6 +38,8 @@ interface Commis {
   must_change_password: boolean;
   is_active: boolean;
   created_at: string;
+  store_id?: string | null;
+  merchant_id?: string;
 }
 
 interface CommisFormData {
@@ -60,6 +64,7 @@ export function CommisManagementNew() {
     password: '',
     role: 'commis'
   });
+  const { store } = useMerchantStore({ ownerId: profile?.user_id });
 
   useEffect(() => {
     loadCommis();
@@ -71,36 +76,36 @@ export function CommisManagementNew() {
         { 
           event: 'INSERT', 
           schema: 'public', 
-          table: 'commis',
-          filter: `merchant_id=eq.${profile?.id}`
+          table: 'commis'
         }, 
         (payload) => {
-          console.log('Nouveau commis ajouté:', payload.new);
-          loadCommis(); // Recharger la liste
+          if (!store?.id || payload.new.store_id === store.id) {
+            loadCommis();
+          }
         }
       )
       .on('postgres_changes', 
         { 
           event: 'UPDATE', 
           schema: 'public', 
-          table: 'commis',
-          filter: `merchant_id=eq.${profile?.id}`
+          table: 'commis'
         }, 
         (payload) => {
-          console.log('Commis mis à jour:', payload.new);
-          loadCommis(); // Recharger la liste
+          if (!store?.id || payload.new.store_id === store.id) {
+            loadCommis();
+          }
         }
       )
       .on('postgres_changes', 
         { 
           event: 'DELETE', 
           schema: 'public', 
-          table: 'commis',
-          filter: `merchant_id=eq.${profile?.id}`
+          table: 'commis'
         }, 
         (payload) => {
-          console.log('Commis supprimé:', payload.old);
-          loadCommis(); // Recharger la liste
+          if (!store?.id || payload.old.store_id === store.id) {
+            loadCommis();
+          }
         }
       )
       .subscribe();
@@ -108,71 +113,35 @@ export function CommisManagementNew() {
     return () => {
       subscription.unsubscribe();
     };
-  }, [profile?.id]);
+  }, [profile?.user_id, store?.id]);
 
   const loadCommis = async () => {
-    if (!profile?.id) return;
+    if (!profile?.user_id) return;
 
     setLoading(true);
     try {
-      // Utiliser la fonction sécurisée pour récupérer les commis
-      const { data, error } = await supabase.rpc('get_merchant_commis');
+      let query = supabase
+        .from('commis')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-      if (error) {
-        // Si la fonction n'existe pas, utiliser des données de démonstration
-        if (error.code === 'PGRST116' || error.message?.includes('function get_merchant_commis() does not exist')) {
-          console.log('Fonction get_merchant_commis non trouvée, utilisation de données de démonstration');
-          const demoCommis: Commis[] = [
-            {
-              id: 'demo-commis-1',
-              nom: 'Dupont',
-              prenom: 'Jean',
-              email: 'jean.dupont@demo.com',
-              code_unique: 'COM-ABC123',
-              role: 'commis',
-              must_change_password: true,
-              is_active: true,
-              created_at: new Date().toISOString()
-            },
-            {
-              id: 'demo-commis-2',
-              nom: 'Martin',
-              prenom: 'Marie',
-              email: 'marie.martin@demo.com',
-              code_unique: 'COM-DEF456',
-              role: 'supervisor',
-              must_change_password: false,
-              is_active: true,
-              created_at: new Date(Date.now() - 86400000).toISOString()
-            }
-          ];
-          setCommis(demoCommis);
-          return;
-        }
-        throw error;
+      if (store?.id) {
+        query = query.eq('store_id', store.id);
+      } else {
+        query = query.eq('merchant_id', profile.id);
       }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
       setCommis(data || []);
     } catch (error) {
       console.error('Erreur lors du chargement des commis:', error);
-      // En cas d'erreur, utiliser des données de démonstration
-      const demoCommis: Commis[] = [
-        {
-          id: 'demo-commis-error',
-          nom: 'Démo',
-          prenom: 'Employé',
-          email: 'demo@demo.com',
-          code_unique: 'COM-DEMO1',
-          role: 'commis',
-          must_change_password: true,
-          is_active: true,
-          created_at: new Date().toISOString()
-        }
-      ];
-      setCommis(demoCommis);
-      
+      setCommis([]);
       toast({
-        title: "Mode démonstration",
-        description: "Utilisation de données de démonstration pour les employés",
+        title: "Erreur",
+        description: "Impossible de charger les employés.",
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
@@ -200,65 +169,42 @@ export function CommisManagementNew() {
 
     setLoading(true);
     try {
-      // Vérifier si on est en mode démonstration
-      const isDemoMode = commis.some(c => c.id.startsWith('demo-'));
-      
-      if (isDemoMode) {
-        // Mode démonstration - ajouter localement
-        const newCommis: Commis = {
-          id: 'demo-commis-' + Date.now(),
-          nom: formData.nom,
-          prenom: formData.prenom,
-          email: formData.email,
-          code_unique: 'COM-' + Math.random().toString(36).substr(2, 8).toUpperCase(),
-          role: formData.role,
-          must_change_password: true,
-          is_active: true,
-          created_at: new Date().toISOString()
-        };
-
-        setCommis(prev => [newCommis, ...prev]);
-        setFormData({
-          nom: '',
-          prenom: '',
-          email: '',
-          password: '',
-          role: 'commis'
-        });
-        setShowForm(false);
-
-        toast({
-          title: "Commis ajouté (Démo)",
-          description: `${formData.nom} a été ajouté en mode démonstration`,
-        });
-        return;
+      // Mode production - utiliser le nouveau flux avec compte dédié
+      if (!profile?.store_id) {
+        throw new Error("Magasin introuvable. Veuillez configurer vos informations magasin.");
       }
 
-      // Mode production - utiliser la fonction sécurisée
-      const { data, error } = await supabase.rpc('create_commis', {
-        p_nom: formData.nom,
-        p_prenom: formData.prenom,
+      const { data, error } = await supabase.rpc('create_commis_account', {
         p_email: formData.email,
-        p_mot_de_passe: formData.password, // Le hashage doit être fait côté application
+        p_password: formData.password,
+        p_first_name: formData.prenom,
+        p_last_name: formData.nom,
+        p_store_id: profile.store_id,
         p_role: formData.role
       });
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
-      // Ajouter à la liste locale
-      const newCommis: Commis = {
-        id: data.id,
-        nom: data.nom,
-        prenom: data.prenom,
-        email: data.email,
-        code_unique: data.code_unique,
-        role: data.role,
-        must_change_password: data.must_change_password,
-        is_active: data.is_active || true, // Default to true if not provided
-        created_at: data.created_at
-      };
-      
-      setCommis(prev => [newCommis, ...prev]);
+      if (data) {
+        const newCommis: Commis = {
+          id: data.id,
+          user_id: data.user_id,
+          nom: formData.nom,
+          prenom: formData.prenom,
+          email: data.email,
+          code_unique: data.code_unique,
+          role: data.role,
+          must_change_password: true,
+          is_active: true,
+          created_at: new Date().toISOString(),
+          store_id: data.store_id,
+          merchant_id: data.merchant_id,
+        };
+
+        setCommis(prev => [newCommis, ...prev]);
+      }
 
       // Réinitialiser le formulaire
       setFormData({
@@ -289,30 +235,14 @@ export function CommisManagementNew() {
 
   const handleToggleActive = async (commisId: string, isActive: boolean) => {
     try {
-      // Vérifier si on est en mode démonstration
-      const isDemoMode = commis.some(c => c.id.startsWith('demo-'));
-      
-      if (isDemoMode) {
-        // Mode démonstration - mettre à jour localement
-        setCommis(prev => prev.map(c => 
-          c.id === commisId ? { ...c, is_active: !isActive } : c
-        ));
-
-        toast({
-          title: "Statut mis à jour (Démo)",
-          description: `Le commis a été ${!isActive ? 'activé' : 'désactivé'} en mode démonstration`,
-        });
-        return;
-      }
-
-      // Mode production - utiliser la fonction sécurisée
-      const { error } = await supabase.rpc('toggle_commis_status', {
-        p_commis_id: commisId
-      });
+      const { error } = await supabase
+        .from('commis')
+        .update({ is_active: !isActive })
+        .eq('id', commisId);
 
       if (error) throw error;
 
-      setCommis(prev => prev.map(c => 
+      setCommis(prev => prev.map(c =>
         c.id === commisId ? { ...c, is_active: !isActive } : c
       ));
 
@@ -336,24 +266,10 @@ export function CommisManagementNew() {
     }
 
     try {
-      // Vérifier si on est en mode démonstration
-      const isDemoMode = commis.some(c => c.id.startsWith('demo-'));
-      
-      if (isDemoMode) {
-        // Mode démonstration - supprimer localement
-        setCommis(prev => prev.filter(c => c.id !== commisId));
-
-        toast({
-          title: "Commis supprimé (Démo)",
-          description: "Le commis a été supprimé en mode démonstration",
-        });
-        return;
-      }
-
-      // Mode production - utiliser la fonction sécurisée
-      const { error } = await supabase.rpc('delete_commis', {
-        p_commis_id: commisId
-      });
+      const { error } = await supabase
+        .from('commis')
+        .delete()
+        .eq('id', commisId);
 
       if (error) throw error;
 

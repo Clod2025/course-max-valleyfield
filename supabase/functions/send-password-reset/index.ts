@@ -1,72 +1,48 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.0'
+import { handleCorsPreflight, requireUser, errorResponse, jsonResponse } from '../_shared/security.ts'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+interface PasswordResetRequest {
+  email: string
+  redirectUrl?: string
 }
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const preflight = handleCorsPreflight(req)
+  if (preflight) return preflight
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') || 'https://vexgjrrqbjurgiqfjxwk.supabase.co';
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const auth = await requireUser(req, { requireAdmin: true })
+    if ('errorResponse' in auth) return auth.errorResponse
 
-    if (!serviceRoleKey) {
-      throw new Error('Service role key not configured');
-    }
-
-    const supabase = createClient(supabaseUrl, serviceRoleKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
-
-    const { email, redirectUrl } = await req.json();
+    const { supabase } = auth
+    const { email, redirectUrl }: PasswordResetRequest = await req.json()
 
     if (!email) {
-      return new Response(
-        JSON.stringify({ success: false, status: 'error', message: 'Email is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return errorResponse('Email requis', 400)
     }
 
-    console.log(`Generating password reset link for: ${email}`);
+    console.log(`Generating password reset link for: ${email}`)
 
     const { data, error } = await supabase.auth.admin.generateLink({
       type: 'recovery',
       email,
       options: redirectUrl ? { redirectTo: redirectUrl } : undefined,
-    } as any);
+    } as any)
 
     if (error) {
-      console.error('Error generating reset link:', error);
-      return new Response(
-        JSON.stringify({ success: false, status: 'error', message: error.message }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      console.error('Error generating reset link:', error)
+      return errorResponse(error.message, 400)
     }
 
-    const response = {
+    return jsonResponse({
       success: true,
       status: 'success',
       message: 'Password reset link generated',
       user: { id: data?.user?.id, email: data?.user?.email },
       action_link: (data as any)?.action_link,
       email_otp: (data as any)?.email_otp,
-    };
-
-    console.log('Password reset result:', response);
-
-    return new Response(JSON.stringify(response), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  } catch (error) {
-    console.error('Function error (send-password-reset):', error);
-    return new Response(
-      JSON.stringify({ success: false, status: 'error', message: (error as any).message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    })
+  } catch (error: any) {
+    console.error('Function error (send-password-reset):', error)
+    return errorResponse(error?.message ?? 'Internal server error', 500)
   }
-});
+})

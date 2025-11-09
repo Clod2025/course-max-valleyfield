@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -16,6 +16,8 @@ import {
   XCircle,
   Clock
 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface Merchant {
   id: string;
@@ -38,6 +40,7 @@ const MerchantManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
+  const { toast } = useToast();
 
   useEffect(() => {
     fetchMerchants();
@@ -46,54 +49,63 @@ const MerchantManagement = () => {
   const fetchMerchants = async () => {
     setLoading(true);
     try {
-      // Simuler des données pour l'instant
-      const mockMerchants: Merchant[] = [
-        {
-          id: '1',
-          name: 'Restaurant Le Bistro',
-          type: 'restaurant',
-          address: '123 Rue Principale',
-          city: 'Valleyfield',
-          postal_code: 'J6T 1A1',
-          phone: '(450) 555-0123',
-          email: 'contact@lebistro.com',
-          status: 'active',
-          created_at: '2024-01-15',
-          total_orders: 156,
-          total_revenue: 4200
-        },
-        {
-          id: '2',
-          name: 'Pharmacie Centrale',
-          type: 'pharmacy',
-          address: '456 Boulevard des Érables',
-          city: 'Valleyfield',
-          postal_code: 'J6T 2B2',
-          phone: '(450) 555-0456',
-          email: 'info@pharmaciecentrale.com',
-          status: 'active',
-          created_at: '2024-01-10',
-          total_orders: 89,
-          total_revenue: 2100
-        },
-        {
-          id: '3',
-          name: 'Épicerie Martin',
-          type: 'grocery',
-          address: '789 Avenue du Parc',
-          city: 'Valleyfield',
-          postal_code: 'J6T 3C3',
-          phone: '(450) 555-0789',
-          email: 'martin@epicerie.com',
-          status: 'pending',
-          created_at: '2024-01-20',
-          total_orders: 0,
-          total_revenue: 0
+      const { data: stores, error: storesError } = await supabase
+        .from('stores')
+        .select('id, name, store_type, address, city, postal_code, phone, email, is_active, created_at');
+
+      if (storesError) {
+        throw storesError;
+      }
+
+      const storeIds = (stores || []).map(store => store.id).filter(Boolean);
+
+      const { data: orders, error: ordersError } = await supabase
+        .from('orders')
+        .select('store_id, total_amount')
+        .in('store_id', storeIds.length ? storeIds : ['']);
+
+      if (ordersError && ordersError.code !== 'PGRST116') {
+        throw ordersError;
+      }
+
+      const orderAggregates = new Map<string, { total_orders: number; total_revenue: number }>();
+      (orders || []).forEach(order => {
+        if (!order.store_id) return;
+        if (!orderAggregates.has(order.store_id)) {
+          orderAggregates.set(order.store_id, { total_orders: 0, total_revenue: 0 });
         }
-      ];
-      setMerchants(mockMerchants);
+        const aggregate = orderAggregates.get(order.store_id)!;
+        aggregate.total_orders += 1;
+        aggregate.total_revenue += order.total_amount || 0;
+      });
+
+      const mappedMerchants: Merchant[] = (stores || []).map(store => {
+        const aggregate = orderAggregates.get(store.id) || { total_orders: 0, total_revenue: 0 };
+        return {
+          id: store.id,
+          name: store.name || 'Sans nom',
+          type: (store.store_type as Merchant['type']) || 'other',
+          address: store.address || '',
+          city: store.city || '',
+          postal_code: store.postal_code || '',
+          phone: store.phone || '',
+          email: store.email || '',
+          status: store.is_active ? 'active' : 'suspended',
+          created_at: store.created_at || '',
+          total_orders: aggregate.total_orders,
+          total_revenue: aggregate.total_revenue,
+        };
+      });
+
+      setMerchants(mappedMerchants);
     } catch (error) {
       console.error('Erreur lors du chargement des marchands:', error);
+      setMerchants([]);
+      toast({
+        title: "Erreur",
+        description: "Impossible de charger la liste des marchands.",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }

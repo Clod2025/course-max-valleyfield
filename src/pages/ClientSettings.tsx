@@ -2,7 +2,7 @@ import React from 'react';
 import { ClientHeader } from '@/components/client/ClientHeader';
 import { AppFooter } from '@/components/AppFooter';
 import { ClientSettings as ClientSettingsComponent } from '@/components/client/ClientSettings';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 

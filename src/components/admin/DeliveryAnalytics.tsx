@@ -127,95 +127,181 @@ export const DeliveryAnalytics: React.FC = () => {
   const loadAnalytics = async () => {
     try {
       setLoading(true);
-      
-      // Simulation des données d'analytics
-      const mockAnalytics: DeliveryAnalytics = {
-        period: {
-          start: '2024-01-21',
-          end: '2024-01-28',
-          label: '7 derniers jours'
-        },
-        overview: {
-          totalDeliveries: 1247,
-          totalRevenue: 18650.50,
-          averageOrderValue: 14.97,
-          totalDistance: 3124.5,
-          averageDeliveryTime: 28.5,
-          customerSatisfaction: 4.2
-        },
-        multiMerchantStats: {
-          totalMultiMerchantOrders: 312,
-          averageSavings: 3.25,
-          averageDistanceSaved: 2.8,
-          customerSatisfaction: 4.4,
-          deliveryTimeIncrease: 15,
-          adoptionRate: 25.0
-        },
-        efficiency: {
-          averageRouteOptimization: 18.5,
-          fuelSavings: 245.30,
-          timeSavings: 156,
-          costReduction: 12.5
-        },
-        trends: {
-          deliveryVolume: [
-            { date: '2024-01-21', single: 45, multi: 12, total: 57 },
-            { date: '2024-01-22', single: 52, multi: 15, total: 67 },
-            { date: '2024-01-23', single: 48, multi: 18, total: 66 },
-            { date: '2024-01-24', single: 61, multi: 22, total: 83 },
-            { date: '2024-01-25', single: 55, multi: 19, total: 74 },
-            { date: '2024-01-26', single: 67, multi: 25, total: 92 },
-            { date: '2024-01-27', single: 58, multi: 21, total: 79 }
-          ],
-          revenue: [
-            { date: '2024-01-21', amount: 2450.50, type: 'single' },
-            { date: '2024-01-21', amount: 320.75, type: 'multi' },
-            { date: '2024-01-22', amount: 2680.25, type: 'single' },
-            { date: '2024-01-22', amount: 420.30, type: 'multi' }
-          ],
-          satisfaction: [
-            { date: '2024-01-21', score: 4.1 },
-            { date: '2024-01-22', score: 4.3 },
-            { date: '2024-01-23', score: 4.2 },
-            { date: '2024-01-24', score: 4.4 },
-            { date: '2024-01-25', score: 4.3 },
-            { date: '2024-01-26', score: 4.5 },
-            { date: '2024-01-27', score: 4.4 }
-          ]
-        },
-        optimizationOpportunities: {
-          suggestedMerchantPairs: [
-            { merchant1: 'Pharmaprix', merchant2: 'Metro', frequency: 45, potentialSavings: 4.20, confidence: 0.85 },
-            { merchant1: 'IGA', merchant2: 'Dollarama', frequency: 32, potentialSavings: 3.50, confidence: 0.78 },
-            { merchant1: 'Jean Coutu', merchant2: 'Provigo', frequency: 28, potentialSavings: 3.80, confidence: 0.72 }
-          ],
-          peakGroupingHours: ['11:00-14:00', '17:00-20:00'],
-          underservedZones: ['Downtown', 'Airport', 'Industrial'],
-          recommendedPricing: [
-            { zone: 'Downtown', currentFee: 2.99, suggestedFee: 3.50, expectedImpact: '+15% revenue' },
-            { zone: 'Airport', currentFee: 5.99, suggestedFee: 4.99, expectedImpact: '+25% volume' }
-          ]
-        },
-        performance: {
-          topPerformingZones: [
-            { zone: 'Centre-ville', deliveries: 245, revenue: 3675.50, efficiency: 92 },
-            { zone: 'Banlieue', deliveries: 189, revenue: 2835.25, efficiency: 88 },
-            { zone: 'Résidentiel', deliveries: 156, revenue: 2340.75, efficiency: 85 }
-          ],
-          driverPerformance: [
-            { driverId: 'd1', driverName: 'Jean Dubois', deliveries: 45, averageTime: 25, customerRating: 4.5, efficiency: 95 },
-            { driverId: 'd2', driverName: 'Marie Martin', deliveries: 42, averageTime: 28, customerRating: 4.3, efficiency: 88 },
-            { driverId: 'd3', driverName: 'Pierre Tremblay', deliveries: 38, averageTime: 32, customerRating: 4.1, efficiency: 82 }
-          ],
-          merchantParticipation: [
-            { merchantId: 'm1', merchantName: 'Pharmaprix', singleOrders: 125, multiOrders: 45, participationRate: 26.5 },
-            { merchantId: 'm2', merchantName: 'Metro', singleOrders: 98, multiOrders: 38, participationRate: 27.9 },
-            { merchantId: 'm3', merchantName: 'IGA', singleOrders: 87, multiOrders: 22, participationRate: 20.2 }
-          ]
+      const days = selectedPeriod === '7d' ? 7 : selectedPeriod === '30d' ? 30 : 90;
+      const endDate = new Date();
+      const startDate = new Date(endDate);
+      startDate.setDate(endDate.getDate() - days);
+
+      const [ordersResult, deliveriesResult, storesResult] = await Promise.all([
+        supabase
+          .from('orders')
+          .select('id, total_amount, status, created_at, store_id, items')
+          .gte('created_at', startDate.toISOString())
+          .lte('created_at', endDate.toISOString()),
+        supabase
+          .from('deliveries')
+          .select('order_id, pickup_time, actual_delivery, created_at, status')
+          .gte('created_at', startDate.toISOString())
+          .lte('created_at', endDate.toISOString()),
+        supabase
+          .from('stores')
+          .select('id, name'),
+      ]);
+
+      if (ordersResult.error) throw ordersResult.error;
+      if (deliveriesResult.error && deliveriesResult.error.code !== 'PGRST116') throw deliveriesResult.error;
+      if (storesResult.error && storesResult.error.code !== 'PGRST116') throw storesResult.error;
+
+      const orders = ordersResult.data || [];
+      const deliveries = deliveriesResult.data || [];
+      const stores = storesResult.data || [];
+
+      const deliveredOrders = orders.filter(order => order.status === 'delivered');
+      const totalDeliveries = deliveredOrders.length;
+      const totalRevenue = deliveredOrders.reduce((sum, order) => sum + (order.total_amount || 0), 0);
+      const averageOrderValue = deliveredOrders.length ? totalRevenue / deliveredOrders.length : 0;
+
+      const deliveryTimes = deliveries
+        .map(delivery => {
+          if (!delivery.pickup_time || !delivery.actual_delivery) return null;
+          const start = new Date(delivery.pickup_time).getTime();
+          const end = new Date(delivery.actual_delivery).getTime();
+          if (Number.isNaN(start) || Number.isNaN(end) || end <= start) return null;
+          const minutes = (end - start) / (1000 * 60);
+          return minutes;
+        })
+        .filter((value): value is number => value !== null);
+
+      const averageDeliveryTime = deliveryTimes.length
+        ? deliveryTimes.reduce((sum, minutes) => sum + minutes, 0) / deliveryTimes.length
+        : 0;
+
+      const storeNameMap = new Map<string, string>();
+      stores.forEach(store => {
+        if (store.id) {
+          storeNameMap.set(store.id, store.name || store.id);
         }
+      });
+
+      const volumeByDate = new Map<string, { single: number; multi: number }>();
+      orders.forEach(order => {
+        const dateKey = new Date(order.created_at).toISOString().slice(0, 10);
+        if (!volumeByDate.has(dateKey)) {
+          volumeByDate.set(dateKey, { single: 0, multi: 0 });
+        }
+        const entry = volumeByDate.get(dateKey)!;
+        const items = Array.isArray(order.items) ? order.items : [];
+        if (items.length > 1) {
+          entry.multi += 1;
+        } else {
+          entry.single += 1;
+        }
+      });
+
+      const revenueByDate = new Map<string, { single: number; multi: number }>();
+      orders.forEach(order => {
+        const dateKey = new Date(order.created_at).toISOString().slice(0, 10);
+        if (!revenueByDate.has(dateKey)) {
+          revenueByDate.set(dateKey, { single: 0, multi: 0 });
+        }
+        const entry = revenueByDate.get(dateKey)!;
+        const amount = order.total_amount || 0;
+        const items = Array.isArray(order.items) ? order.items : [];
+        if (items.length > 1) {
+          entry.multi += amount;
+        } else {
+          entry.single += amount;
+        }
+      });
+
+      const trends = {
+        deliveryVolume: Array.from(volumeByDate.entries())
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([date, values]) => ({
+            date,
+            single: values.single,
+            multi: values.multi,
+            total: values.single + values.multi,
+          })),
+        revenue: Array.from(revenueByDate.entries())
+          .sort(([a], [b]) => a.localeCompare(b))
+          .flatMap(([date, values]) => [
+            { date, amount: values.single, type: 'single' as const },
+            { date, amount: values.multi, type: 'multi' as const },
+          ]),
+        satisfaction: [],
       };
 
-      setAnalytics(mockAnalytics);
+      const storeAggregates = new Map<string, { deliveries: number; revenue: number }>();
+      deliveredOrders.forEach(order => {
+        const key = order.store_id || 'unknown';
+        if (!storeAggregates.has(key)) {
+          storeAggregates.set(key, { deliveries: 0, revenue: 0 });
+        }
+        const aggregate = storeAggregates.get(key)!;
+        aggregate.deliveries += 1;
+        aggregate.revenue += order.total_amount || 0;
+      });
+
+      const topPerformingZones = Array.from(storeAggregates.entries())
+        .map(([storeId, aggregate]) => ({
+          zone: storeNameMap.get(storeId) || storeId,
+          deliveries: aggregate.deliveries,
+          revenue: aggregate.revenue,
+          efficiency: 0,
+        }))
+        .sort((a, b) => b.revenue - a.revenue)
+        .slice(0, 5);
+
+      const analyticsPayload: DeliveryAnalytics = {
+        period: {
+          start: startDate.toISOString().slice(0, 10),
+          end: endDate.toISOString().slice(0, 10),
+          label: `${days} derniers jours`,
+        },
+        overview: {
+          totalDeliveries,
+          totalRevenue,
+          averageOrderValue,
+          totalDistance: 0,
+          averageDeliveryTime,
+          customerSatisfaction: 0,
+        },
+        multiMerchantStats: {
+          totalMultiMerchantOrders: volumeByDate.size
+            ? Array.from(volumeByDate.values()).reduce((sum, values) => sum + values.multi, 0)
+            : 0,
+          averageSavings: 0,
+          averageDistanceSaved: 0,
+          customerSatisfaction: 0,
+          deliveryTimeIncrease: 0,
+          adoptionRate: volumeByDate.size
+            ? (Array.from(volumeByDate.values()).reduce((sum, values) => sum + values.multi, 0) /
+                Math.max(1, orders.length)) *
+              100
+            : 0,
+        },
+        efficiency: {
+          averageRouteOptimization: 0,
+          fuelSavings: 0,
+          timeSavings: 0,
+          costReduction: 0,
+        },
+        trends,
+        optimizationOpportunities: {
+          suggestedMerchantPairs: [],
+          peakGroupingHours: [],
+          underservedZones: [],
+          recommendedPricing: [],
+        },
+        performance: {
+          topPerformingZones,
+          driverPerformance: [],
+          merchantParticipation: [],
+        },
+      };
+
+      setAnalytics(analyticsPayload);
     } catch (error) {
       console.error('Erreur lors du chargement des analytics:', error);
       toast({

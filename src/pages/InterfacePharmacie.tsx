@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { 
@@ -49,7 +49,7 @@ interface PharmacyOrder {
 }
 
 const InterfacePharmacie = () => {
-  const { user, profile } = useAuth();
+  const { user, profile, isRole } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   
@@ -76,7 +76,11 @@ const InterfacePharmacie = () => {
       return;
     }
 
-    if (profile?.role !== 'merchant' || profile?.type_marchand !== 'Pharmacie') {
+    const hasMerchantRole = isRole(['store_manager', 'merchant']);
+    const isMarchandAccount = profile?.type_compte === 'Marchand';
+    const hasPharmacyAccess = (hasMerchantRole || isMarchandAccount) && profile?.type_marchand === 'Pharmacie';
+
+    if (!hasPharmacyAccess) {
       toast({
         title: "Accès refusé",
         description: "Cette interface est réservée aux pharmacies.",
@@ -87,7 +91,7 @@ const InterfacePharmacie = () => {
     }
 
     loadPharmacyData();
-  }, [user, profile, loadPharmacyData]);
+  }, [user, profile, loadPharmacyData, isRole, toast, navigate]);
 
   const loadPharmacyData = useCallback(async () => {
     if (!user?.id) {

@@ -15,9 +15,10 @@ import {
   Heart,
   Clock,
   HelpCircle,
-  BarChart3
+  BarChart3,
+  Loader2
 } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/hooks/useCart';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -78,6 +79,21 @@ export function ClientHeader() {
             >
               <BarChart3 className="h-5 w-5" />
               <span className="hidden sm:inline text-sm font-medium">Comparer les prix</span>
+            </Button>
+
+            {/* ✅ NOUVEAU : Bouton Paramètres visible */}
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="flex items-center gap-2 px-3 py-2 hover:bg-primary/10 transition-colors" 
+              onClick={() => {
+                navigate('/dashboard/client/settings');
+                setShowMenu(false);
+              }}
+              title="Paramètres du compte"
+            >
+              <Settings className="h-5 w-5" />
+              <span className="hidden sm:inline text-sm font-medium">Paramètres</span>
             </Button>
 
             {/* ✅ CORRECTION : Notifications réelles */}

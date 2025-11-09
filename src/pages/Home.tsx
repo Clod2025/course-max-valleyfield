@@ -2,14 +2,14 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Header } from "@/components/header";
 import { AppFooter } from "@/components/AppFooter";
 import { Truck, Clock, Star, MapPin, CheckCircle, Shield, Users, Zap, Package, User, ShoppingCart, ArrowRight, Sparkles, ThumbsUp, MessageCircle, Award, TrendingUp, Heart, Phone, Mail, Edit, Send } from "lucide-react";
 import deliveryCarHero from "@/assets/delivery-car-hero.jpg";
 import deliveryHero from "@/assets/delivery-hero.jpg";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Home = () => {
   const { user } = useAuth();
@@ -278,6 +278,9 @@ const Home = () => {
                       <Star className="w-8 h-8 text-yellow-500" />
                       Partagez votre expérience CourseMax
                     </DialogTitle>
+                    <DialogDescription className="text-base">
+                      Votre témoignage nous aide à améliorer nos services
+                    </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-6 py-4">
                     {!user ? (

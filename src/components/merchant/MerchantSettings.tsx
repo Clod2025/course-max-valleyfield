@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,52 +17,171 @@ import {
   Camera
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
+import { useMerchantStore } from '@/hooks/useMerchantStore';
 import { MerchantHelpModal } from './MerchantHelpModal';
 import { CommisManagementNew } from './CommisManagementNew';
+
+type DayKey = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
+
+type OpeningHours = Record<DayKey, { open: string; close: string; closed: boolean }>;
+
+interface StoreSettings {
+  store_name: string;
+  description: string;
+  address: string;
+  city: string;
+  postal_code: string;
+  phone: string;
+  email: string;
+  opening_hours: OpeningHours;
+}
+
+const createDefaultOpeningHours = (): OpeningHours => ({
+  monday: { open: '08:00', close: '20:00', closed: false },
+  tuesday: { open: '08:00', close: '20:00', closed: false },
+  wednesday: { open: '08:00', close: '20:00', closed: false },
+  thursday: { open: '08:00', close: '20:00', closed: false },
+  friday: { open: '08:00', close: '20:00', closed: false },
+  saturday: { open: '09:00', close: '18:00', closed: false },
+  sunday: { open: '10:00', close: '17:00', closed: false },
+});
+
+const mergeOpeningHours = (rawValue: string | Record<string, any> | null | undefined): OpeningHours => {
+  const base = createDefaultOpeningHours();
+
+  if (!rawValue) {
+    return base;
+  }
+
+  let parsed: Record<string, any> | null = null;
+
+  if (typeof rawValue === 'string') {
+    try {
+      parsed = JSON.parse(rawValue);
+    } catch (error) {
+      console.warn('Impossible de parser les heures d\'ouverture, utilisation des valeurs par défaut.', error);
+    }
+  } else if (typeof rawValue === 'object') {
+    parsed = rawValue;
+  }
+
+  if (parsed) {
+    (Object.keys(parsed) as DayKey[]).forEach((day) => {
+      if (day in base && parsed) {
+        base[day] = {
+          ...base[day],
+          ...parsed[day],
+        };
+      }
+    });
+  }
+
+  return base;
+};
+
+const createInitialSettings = (overrides?: Partial<StoreSettings>): StoreSettings => ({
+  store_name: '',
+  description: '',
+  address: '',
+  city: 'Salaberry-de-Valleyfield',
+  postal_code: '',
+  phone: '',
+  email: '',
+  opening_hours: createDefaultOpeningHours(),
+  ...overrides,
+});
 
 export function MerchantSettings() {
   const { toast } = useToast();
   const { profile } = useAuth();
-  const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('store');
 
-  const [storeSettings, setStoreSettings] = useState({
-    store_name: '',
-    description: '',
-    address: '',
-    phone: '',
-    email: '',
-    opening_hours: {
-      monday: { open: '08:00', close: '20:00', closed: false },
-      tuesday: { open: '08:00', close: '20:00', closed: false },
-      wednesday: { open: '08:00', close: '20:00', closed: false },
-      thursday: { open: '08:00', close: '20:00', closed: false },
-      friday: { open: '08:00', close: '20:00', closed: false },
-      saturday: { open: '09:00', close: '18:00', closed: false },
-      sunday: { open: '10:00', close: '17:00', closed: false },
+  const {
+    store,
+    loading: storeLoading,
+    saving,
+    upsertStore,
+  } = useMerchantStore({ ownerId: profile?.user_id });
+
+  const [storeSettings, setStoreSettings] = useState<StoreSettings>(() =>
+    createInitialSettings({
+      email: profile?.email || '',
+    })
+  );
+
+  useEffect(() => {
+    if (!store) {
+      return;
     }
-  });
+
+    setStoreSettings(
+      createInitialSettings({
+        store_name: store.name ?? '',
+        description: store.description ?? '',
+        address: store.address ?? '',
+        city: store.city ?? 'Salaberry-de-Valleyfield',
+        postal_code: store.postal_code ?? '',
+        phone: store.phone ?? '',
+        email: store.email ?? profile?.email ?? '',
+        opening_hours: mergeOpeningHours(store.opening_hours),
+      })
+    );
+  }, [store, profile?.email]);
 
   const handleSaveSettings = async () => {
-    setLoading(true);
-    try {
-      // Simuler la sauvegarde
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+    if (!profile?.user_id) {
       toast({
-        title: "Paramètres sauvegardés",
-        description: "Vos paramètres ont été mis à jour avec succès",
+        title: 'Impossible de sauvegarder',
+        description: 'Identifiant du marchand introuvable',
+        variant: 'destructive',
       });
-    } catch (error) {
-      toast({
-        title: "Erreur",
-        description: "Impossible de sauvegarder les paramètres",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
+      return;
     }
+
+    if (!storeSettings.store_name.trim()) {
+      toast({
+        title: 'Nom du magasin requis',
+        description: 'Veuillez renseigner un nom de magasin.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!storeSettings.address.trim()) {
+      toast({
+        title: 'Adresse requise',
+        description: 'Veuillez indiquer l\'adresse du magasin.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const { error } = await upsertStore({
+      id: store?.id,
+      name: storeSettings.store_name.trim(),
+      description: storeSettings.description.trim() || null,
+      address: storeSettings.address.trim(),
+      city: storeSettings.city.trim() || 'Salaberry-de-Valleyfield',
+      postal_code: storeSettings.postal_code.trim() || '',
+      phone: storeSettings.phone.trim() || profile?.phone || '',
+      email: storeSettings.email.trim() || profile?.email || '',
+      opening_hours: storeSettings.opening_hours,
+    });
+
+    if (error) {
+      toast({
+        title: 'Erreur',
+        description: error,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    toast({
+      title: 'Paramètres sauvegardés',
+      description: 'Vos informations de magasin ont été mises à jour.',
+    });
   };
 
   const days = [
@@ -89,7 +208,7 @@ export function MerchantSettings() {
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           <MerchantHelpModal />
           {activeTab === 'store' && (
-            <Button onClick={handleSaveSettings} disabled={loading} className="w-full sm:w-auto">
+            <Button onClick={handleSaveSettings} disabled={saving || storeLoading} className="w-full sm:w-auto">
               <Save className="w-4 h-4 mr-2" />
               Sauvegarder
             </Button>
@@ -206,6 +325,32 @@ export function MerchantSettings() {
                   address: e.target.value 
                 }))}
                 placeholder="123 Rue Principale, Valleyfield, QC"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="city">Ville</Label>
+              <Input
+                id="city"
+                value={storeSettings.city}
+                onChange={(e) => setStoreSettings(prev => ({
+                  ...prev,
+                  city: e.target.value,
+                }))}
+                placeholder="Salaberry-de-Valleyfield"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="postal_code">Code postal</Label>
+              <Input
+                id="postal_code"
+                value={storeSettings.postal_code}
+                onChange={(e) => setStoreSettings(prev => ({
+                  ...prev,
+                  postal_code: e.target.value,
+                }))}
+                placeholder="J6T 1A1"
               />
             </div>
           </div>

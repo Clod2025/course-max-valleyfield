@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -19,6 +19,8 @@ import {
   FileText,
   User
 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface Driver {
   id: string;
@@ -43,6 +45,7 @@ const DriverManagement = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const { toast } = useToast();
 
   useEffect(() => {
     fetchDrivers();
@@ -51,63 +54,74 @@ const DriverManagement = () => {
   const fetchDrivers = async () => {
     setLoading(true);
     try {
-      // Simuler des données pour l'instant
-      const mockDrivers: Driver[] = [
-        {
-          id: '1',
-          first_name: 'Jean',
-          last_name: 'Dupuis',
-          email: 'jean.dupuis@email.com',
-          phone: '(450) 555-0123',
-          address: '123 Rue des Érables',
-          city: 'Valleyfield',
-          postal_code: 'J6T 1A1',
-          status: 'active',
-          rating: 4.8,
-          total_deliveries: 156,
-          total_earnings: 3120,
-          license_verified: true,
-          insurance_verified: true,
-          created_at: '2024-01-15'
-        },
-        {
-          id: '2',
-          first_name: 'Marie',
-          last_name: 'Tremblay',
-          email: 'marie.tremblay@email.com',
-          phone: '(450) 555-0456',
-          address: '456 Avenue du Parc',
-          city: 'Valleyfield',
-          postal_code: 'J6T 2B2',
-          status: 'active',
-          rating: 4.9,
-          total_deliveries: 134,
-          total_earnings: 2680,
-          license_verified: true,
-          insurance_verified: true,
-          created_at: '2024-01-10'
-        },
-        {
-          id: '3',
-          first_name: 'Pierre',
-          last_name: 'Gagnon',
-          email: 'pierre.gagnon@email.com',
-          phone: '(450) 555-0789',
-          address: '789 Boulevard Principal',
-          city: 'Valleyfield',
-          postal_code: 'J6T 3C3',
-          status: 'pending',
-          rating: 0,
-          total_deliveries: 0,
-          total_earnings: 0,
-          license_verified: false,
-          insurance_verified: false,
-          created_at: '2024-01-20'
-        }
-      ];
-      setDrivers(mockDrivers);
+      const { data: profiles, error: profileError } = await supabase
+        .from('profiles')
+        .select('user_id, first_name, last_name, email, phone, address, city, postal_code, role, created_at, is_active, driver_rating, license_verified, insurance_verified')
+        .in('role', ['livreur', 'driver']);
+
+      if (profileError) {
+        throw profileError;
+      }
+
+      const driverIds = (profiles || []).map(profile => profile.user_id).filter(Boolean);
+
+      const { data: deliveries, error: deliveriesError } = await supabase
+        .from('deliveries')
+        .select('driver_id')
+        .in('driver_id', driverIds.length ? driverIds : ['']);
+
+      if (deliveriesError && deliveriesError.code !== 'PGRST116') {
+        throw deliveriesError;
+      }
+
+      const { data: commissions, error: commissionsError } = await supabase
+        .from('delivery_commissions')
+        .select('driver_id, driver_amount')
+        .in('driver_id', driverIds.length ? driverIds : ['']);
+
+      if (commissionsError && commissionsError.code !== 'PGRST116') {
+        throw commissionsError;
+      }
+
+      const deliveriesAggregate = new Map<string, number>();
+      (deliveries || []).forEach(entry => {
+        if (!entry.driver_id) return;
+        deliveriesAggregate.set(entry.driver_id, (deliveriesAggregate.get(entry.driver_id) || 0) + 1);
+      });
+
+      const earningsAggregate = new Map<string, number>();
+      (commissions || []).forEach(entry => {
+        if (!entry.driver_id) return;
+        earningsAggregate.set(entry.driver_id, (earningsAggregate.get(entry.driver_id) || 0) + (entry.driver_amount || 0));
+      });
+
+      const mappedDrivers: Driver[] = (profiles || []).map(profile => ({
+        id: profile.user_id,
+        first_name: profile.first_name || '',
+        last_name: profile.last_name || '',
+        email: profile.email || '',
+        phone: profile.phone || '',
+        address: profile.address || '',
+        city: profile.city || '',
+        postal_code: profile.postal_code || '',
+        status: profile.is_active ? 'active' : 'suspended',
+        rating: profile.driver_rating || 0,
+        total_deliveries: deliveriesAggregate.get(profile.user_id) || 0,
+        total_earnings: earningsAggregate.get(profile.user_id) || 0,
+        license_verified: profile.license_verified || false,
+        insurance_verified: profile.insurance_verified || false,
+        created_at: profile.created_at || '',
+      }));
+
+      setDrivers(mappedDrivers);
     } catch (error) {
       console.error('Erreur lors du chargement des livreurs:', error);
+      setDrivers([]);
+      toast({
+        title: "Erreur",
+        description: "Impossible de charger les livreurs.",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }

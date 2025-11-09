@@ -214,7 +214,7 @@ function Autocomplete({ label, value, onChange, options, placeholder, required }
   );
 }
 
-export function DeliveryPricingManager() {
+export default function DeliveryPricingManager() {
   const { toast } = useToast();
   const [zones, setZones] = useState<PricingZone[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);

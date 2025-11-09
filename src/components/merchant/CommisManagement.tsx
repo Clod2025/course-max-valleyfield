@@ -20,7 +20,7 @@ import {
   Eye,
   EyeOff
 } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -68,54 +68,16 @@ export function CommisManagement() {
       const { data, error } = await supabase.rpc('get_merchant_commis');
 
       if (error) {
-        // Si la fonction n'existe pas, utiliser des données de démonstration
-        if (error.code === 'PGRST116' || error.message?.includes('function get_merchant_commis() does not exist')) {
-          console.log('Fonction get_merchant_commis non trouvée, utilisation de données de démonstration');
-          const demoCommis: Commis[] = [
-            {
-              id: 'demo-commis-1',
-              nom: 'Jean Dupont',
-              email: 'jean.dupont@demo.com',
-              code_unique: 'COM-ABC123',
-              role: 'commis',
-              is_active: true,
-              created_at: new Date().toISOString()
-            },
-            {
-              id: 'demo-commis-2',
-              nom: 'Marie Martin',
-              email: 'marie.martin@demo.com',
-              code_unique: 'COM-DEF456',
-              role: 'supervisor',
-              is_active: true,
-              created_at: new Date(Date.now() - 86400000).toISOString()
-            }
-          ];
-          setCommis(demoCommis);
-          return;
-        }
         throw error;
       }
       setCommis(data || []);
     } catch (error) {
       console.error('Erreur lors du chargement des commis:', error);
-      // En cas d'erreur, utiliser des données de démonstration
-      const demoCommis: Commis[] = [
-        {
-          id: 'demo-commis-error',
-          nom: 'Employé Démo',
-          email: 'demo@demo.com',
-          code_unique: 'COM-DEMO1',
-          role: 'commis',
-          is_active: true,
-          created_at: new Date().toISOString()
-        }
-      ];
-      setCommis(demoCommis);
-      
+      setCommis([]);
       toast({
-        title: "Mode démonstration",
-        description: "Utilisation de données de démonstration pour les employés",
+        title: "Erreur",
+        description: "Impossible de charger les employés.",
+        variant: "destructive",
       });
     } finally {
       setLoading(false);

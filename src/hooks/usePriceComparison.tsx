@@ -71,7 +71,7 @@ export const usePriceComparison = (options: UsePriceComparisonOptions = {}): Use
         .from('products')
         .select(`
           *,
-          store:stores(
+          stores(
             id,
             name,
             address,

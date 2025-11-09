@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { 
@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 
 const InterfaceEpicerie = () => {
-  const { user, profile } = useAuth();
+  const { user, profile, isRole } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   
@@ -52,7 +52,11 @@ const InterfaceEpicerie = () => {
       return;
     }
 
-    if (profile?.role !== 'merchant' || profile?.type_marchand !== 'Épicerie') {
+    const hasMerchantRole = isRole(['store_manager', 'merchant']);
+    const isMarchandAccount = profile?.type_compte === 'Marchand';
+    const hasEpicerieAccess = (hasMerchantRole || isMarchandAccount) && profile?.type_marchand === 'Épicerie';
+
+    if (!hasEpicerieAccess) {
       toast({
         title: "Accès refusé",
         description: "Cette interface est réservée aux épiceries.",
@@ -63,7 +67,7 @@ const InterfaceEpicerie = () => {
     }
 
     loadEpicerieData();
-  }, [user, profile]);
+  }, [user, profile, isRole, navigate, toast]);
 
   const loadEpicerieData = async () => {
     if (!user?.id) return;

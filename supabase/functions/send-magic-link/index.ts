@@ -1,72 +1,50 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.0'
+declare const Deno: any;
+import {
+  handleCorsPreflight,
+  requireUser,
+  errorResponse,
+  jsonResponse,
+} from '../_shared/security.ts'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+interface MagicLinkRequest {
+  email: string
+  redirectUrl?: string
 }
 
-Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+Deno.serve(async (req: Request) => {
+  const preflight = handleCorsPreflight(req)
+  if (preflight) return preflight
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') || 'https://vexgjrrqbjurgiqfjxwk.supabase.co';
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const auth = await requireUser(req, { requireAdmin: true })
+    if ('errorResponse' in auth) return auth.errorResponse
 
-    if (!serviceRoleKey) {
-      throw new Error('Service role key not configured');
+    const { supabase } = auth
+
+    // Lire la requête
+    const body: MagicLinkRequest = await req.json()
+    if (!body.email) {
+      return errorResponse('Email is required', 400)
     }
 
-    const supabase = createClient(supabaseUrl, serviceRoleKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
-
-    const { email, redirectUrl } = await req.json();
-
-    if (!email) {
-      return new Response(
-        JSON.stringify({ success: false, status: 'error', message: 'Email is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.log(`Generating magic link for: ${email}`);
-
+    // Générer le magic link
     const { data, error } = await supabase.auth.admin.generateLink({
       type: 'magiclink',
-      email,
-      options: redirectUrl ? { redirectTo: redirectUrl } : undefined,
-    } as any);
+      email: body.email,
+      options: body.redirectUrl ? { redirectTo: body.redirectUrl } : undefined,
+    } as any)
 
     if (error) {
-      console.error('Error generating magic link:', error);
-      return new Response(
-        JSON.stringify({ success: false, status: 'error', message: error.message }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return errorResponse(error.message, 400)
     }
 
-    const response = {
+    return jsonResponse({
       success: true,
-      status: 'success',
-      message: 'Magic link generated',
+      message: 'Magic link generated successfully',
       user: { id: data?.user?.id, email: data?.user?.email },
-      action_link: (data as any)?.action_link,
-      email_otp: (data as any)?.email_otp,
-    };
-
-    console.log('Magic link result:', response);
-
-    return new Response(JSON.stringify(response), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  } catch (error) {
-    console.error('Function error (send-magic-link):', error);
-    return new Response(
-      JSON.stringify({ success: false, status: 'error', message: (error as any).message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    })
+  } catch (err: any) {
+    console.error('send-magic-link error:', err)
+    return errorResponse(err?.message ?? 'Internal server error', 500)
   }
-});
+})

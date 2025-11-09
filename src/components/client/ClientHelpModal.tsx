@@ -32,7 +32,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRecentOrders } from '@/hooks/useRecentOrders';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ClientHelpModalProps {
   isOpen: boolean;

@@ -1,128 +1,125 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.0'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+import {
+  corsHeaders,
+  errorResponse,
+  handleCorsPreflight,
+  jsonResponse,
+  requireUser,
+} from '../_shared/security.ts';
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+  const cors = handleCorsPreflight(req);
+  if (cors) {
+    return cors;
   }
 
   try {
-    const supabaseUrl = "https://vexgjrrqbjurgiqfjxwk.supabase.co";
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-
-    if (!serviceRoleKey) {
-      throw new Error('Service role key not configured');
+    const auth = await requireUser(req, { requireAdmin: true });
+    if ('errorResponse' in auth) {
+      return auth.errorResponse;
     }
 
-    // Create admin client with service role key
-    const supabase = createClient(supabaseUrl, serviceRoleKey);
-
-    const { users } = await req.json();
+    const { supabase } = auth;
+    const body = await req.json();
+    const users = body?.users;
 
     if (!Array.isArray(users) || users.length === 0) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid users array' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return errorResponse('Invalid users array', 400);
     }
 
-    console.log(`Attempting to create ${users.length} users`);
+    const results: Array<Record<string, unknown>> = [];
 
-    const results = [];
-
-    // Create each user
     for (const userData of users) {
       try {
-        const { email, password, metadata = {} } = userData;
-        
+        const { email, password, metadata = {} } = userData ?? {};
+
         if (!email || !password) {
           results.push({
             id: `temp-${email || 'unknown'}`,
             email: email || 'unknown',
             status: 'error',
-            message: 'Email and password are required'
+            message: 'Email and password are required',
           });
           continue;
         }
 
-        console.log(`Creating user: ${email}`);
-        
         const { data, error } = await supabase.auth.admin.createUser({
           email,
           password,
           user_metadata: metadata,
-          email_confirm: true // Auto-confirm email
+          email_confirm: true,
         });
-        
+
         if (error) {
-          console.error(`Error creating user ${email}:`, error);
-          const msg = (error as any)?.message || '';
-          let status: 'error' | 'exists' = 'error'
-          let resolvedId: string = data?.user?.id || `temp-${email}`
-          let friendly = msg
+          const msg = (error as { message?: string })?.message ?? '';
+          let status: 'error' | 'exists' = 'error';
+          let resolvedId: string = data?.user?.id ?? `temp-${email}`;
+          let friendly = msg || 'Unknown error';
 
           if (/duplicate key|already registered|exists/i.test(msg)) {
-            status = 'exists'
-            friendly = 'User already exists'
+            status = 'exists';
+            friendly = 'User already exists';
             try {
-              const { data: list, error: listErr } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 })
-              if (!listErr) {
-                const found = list.users?.find((u: any) => (u.email || '').toLowerCase() === String(email).toLowerCase())
-                if (found?.id) resolvedId = found.id
+              const { data: list } = await supabase.auth.admin.listUsers({
+                page: 1,
+                perPage: 1000,
+              });
+              const found = list?.users?.find(
+                (u: { email?: string; id?: string }) =>
+                  (u.email ?? '').toLowerCase() === String(email).toLowerCase(),
+              );
+              if (found?.id) {
+                resolvedId = found.id;
               }
-            } catch (e) {
-              console.error('Lookup existing user failed:', e)
+            } catch {
+              // Ignorer les erreurs de lookup
             }
           }
 
-          results.push({ id: resolvedId, email, status, message: friendly })
-        } else {
-          console.log(`Successfully created user: ${email} with ID: ${data.user.id}`);
+          results.push({ id: resolvedId, email, status, message: friendly });
+        } else if (data?.user?.id) {
           results.push({
             id: data.user.id,
             email,
             status: 'success',
-            message: 'User created successfully'
+            message: 'User created successfully',
+          });
+        } else {
+          results.push({
+            id: `temp-${email}`,
+            email,
+            status: 'error',
+            message: 'User creation returned no data',
           });
         }
       } catch (err) {
-        console.error(`Exception creating user ${userData.email}:`, err);
+        const message =
+          err instanceof Error ? err.message : 'Unexpected error';
         results.push({
-          id: `temp-${userData.email || 'unknown'}`,
-          email: userData.email || 'unknown',
+          id: `temp-${userData?.email || 'unknown'}`,
+          email: userData?.email || 'unknown',
           status: 'error',
-          message: err.message
+          message,
         });
       }
     }
 
-    const createdCount = results.filter(r => r.status === 'success').length;
-    const errorCount = results.filter(r => r.status === 'error').length;
+    const createdCount = results.filter(
+      (r) => r.status === 'success',
+    ).length;
+    const errorCount = results.filter(
+      (r) => r.status === 'error',
+    ).length;
 
-    const response = {
+    return jsonResponse({
       success: true,
       createdCount,
       errorCount,
-      results
-    };
-
-    console.log('Creation operation completed:', response);
-
-    return new Response(
-      JSON.stringify(response),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-
+      results,
+    });
   } catch (error) {
-    console.error('Function error:', error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    const message =
+      error instanceof Error ? error.message : 'Erreur inattendue';
+    console.error('Erreur fonction create-users:', error);
+    return errorResponse(message, 500);
   }
 });

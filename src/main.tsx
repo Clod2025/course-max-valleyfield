@@ -1,28 +1,40 @@
-import React from 'react'
-import { createRoot } from 'react-dom/client'
-import App from './App.tsx'
-import './index.css'
-import * as serviceWorker from './utils/serviceWorker'
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import App from './App';
+import './index.css';
+import { updateSW } from './registerServiceWorker';
 
+// Création du root React
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <App />
   </React.StrictMode>
 );
 
-// Enregistrer le service worker pour PWA
+// Activer le service worker uniquement en production
 if (process.env.NODE_ENV === 'production') {
-  serviceWorker.register({
-    onSuccess: () => {
-      console.log('✅ CourseMax installé avec succès!');
-    },
-    onUpdate: () => {
-      console.log('🔄 Nouvelle version disponible - mise à jour silencieuse activée!');
-      // La mise à jour silencieuse est gérée automatiquement par le Service Worker
-    },
-  });
+  updateSW(); // enregistre et met à jour le SW automatiquement
+  console.log('✅ Service Worker PWA activé');
+
+  if ('serviceWorker' in navigator && navigator.serviceWorker) {
+    navigator.serviceWorker.addEventListener('message', (event) => {
+      if (!event.data) return;
+
+      switch (event.data.type) {
+        case 'RELOAD_PAGE':
+          console.log('🔄 Nouvelle version détectée, rechargement...');
+          window.location.reload();
+          break;
+        case 'OFFLINE_READY':
+          console.log('📶 App prête à fonctionner hors ligne');
+          break;
+        default:
+          console.log('📬 Message Service Worker:', event.data);
+      }
+    });
+  } else {
+    console.warn('Service workers non disponibles dans ce navigateur.');
+  }
 } else {
-  // En développement, désactiver le Service Worker pour éviter les conflits
-  serviceWorker.unregister();
   console.log('🔧 Mode développement - Service Worker désactivé');
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, memo, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +10,8 @@ import {
   DialogContent, 
   DialogHeader, 
   DialogTitle, 
-  DialogTrigger 
+  DialogTrigger,
+  DialogDescription 
 } from '@/components/ui/dialog';
 import { 
   Select, 
@@ -43,7 +44,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface UserData {
   id: string;
@@ -176,9 +177,9 @@ const UserTable: React.FC<{ users: UserData[]; title: string; icon: React.ReactN
 
 UserTable.displayName = 'UserTable';
 
-export const UserManagement: React.FC = () => {
+const UserManagement: React.FC = () => {
   const { toast } = useToast();
-  const { profile, user, loading: authLoading } = useAuth();
+  const { user, profile, authLoading, isRole } = useAuth();
   const [users, setUsers] = useState<UserData[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -198,78 +199,36 @@ export const UserManagement: React.FC = () => {
     city: ''
   });
 
-  // Debug des permissions
-  console.log('🔍 UserManagement Debug:');
-  console.log('  - User:', user?.email);
-  console.log('  - Profile:', profile);
-  console.log('  - Profile role:', profile?.role);
-  console.log('  - Auth loading:', authLoading);
-  console.log('  - Is admin?', profile?.role === 'admin');
+  // Lignes 202-211 - CORRECTION : Utiliser useRef pour éviter les re-renders
+  // ✅ CORRECTION : Utiliser useRef pour éviter les re-renders inutiles
+  const profileRoleRef = useRef(profile?.role);
+  const userEmailRef = useRef(user?.email);
+
+  useEffect(() => {
+    // ✅ Ne logger que si les valeurs ont vraiment changé
+    if (profileRoleRef.current !== profile?.role || userEmailRef.current !== user?.email) {
+      profileRoleRef.current = profile?.role;
+      userEmailRef.current = user?.email;
+      
+      console.log('🔍 UserManagement Debug:');
+      console.log('  - User:', user?.email);
+      console.log('  - Profile role:', profile?.role);
+      console.log('  - Auth loading:', authLoading);
+      console.log('  - Is admin?', isRole(['admin', 'Admin', 'ADMIN']));
+    }
+  }, [profile?.role, user?.email, authLoading, isRole]);
 
   // Vérification des permissions admin avec debug détaillé
-  if (authLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">Chargement des informations d'authentification...</p>
-        </div>
-      </div>
-    );
-  }
+  if (authLoading) return null;
+  if (!user || !profile || !isRole(['admin', 'Admin', 'ADMIN'])) return null;
 
-  if (!user) {
-    return (
-      <Card>
-        <CardContent className="p-8 text-center">
-          <AlertTriangle className="w-16 h-16 mx-auto mb-4 text-orange-500" />
-          <h2 className="text-2xl font-bold mb-2">Non connecté</h2>
-          <p className="text-muted-foreground">
-            Vous devez être connecté pour accéder à cette page.
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
+  // Lignes 279-353 - CORRECTION : Utiliser useRef pour toast
+  const toastRef = useRef(toast);
 
-  if (!profile) {
-    return (
-      <Card>
-        <CardContent className="p-8 text-center">
-          <AlertTriangle className="w-16 h-16 mx-auto mb-4 text-orange-500" />
-          <h2 className="text-2xl font-bold mb-2">Profil non trouvé</h2>
-          <p className="text-muted-foreground">
-            Votre profil utilisateur n'a pas pu être chargé. Veuillez vous reconnecter.
-          </p>
-          <Button 
-            className="mt-4" 
-            onClick={() => window.location.reload()}
-          >
-            Recharger la page
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (profile.role !== 'admin') {
-    return (
-      <Card>
-        <CardContent className="p-8 text-center">
-          <Shield className="w-16 h-16 mx-auto mb-4 text-red-500" />
-          <h2 className="text-2xl font-bold mb-2">Accès non autorisé</h2>
-          <p className="text-muted-foreground mb-4">
-            Seuls les administrateurs peuvent accéder à la gestion des utilisateurs.
-          </p>
-          <div className="bg-muted p-4 rounded-lg text-left">
-            <p className="text-sm"><strong>Utilisateur actuel:</strong> {user.email}</p>
-            <p className="text-sm"><strong>Rôle détecté:</strong> {profile.role}</p>
-            <p className="text-sm"><strong>Rôle requis:</strong> admin</p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  // ✅ Mettre à jour la référence quand toast change
+  useEffect(() => {
+    toastRef.current = toast;
+  }, [toast]);
 
   // ✅ OPTIMISATION : fetchUsers mémorisé avec useCallback
   const fetchUsers = useCallback(async (showLoader = true) => {
@@ -292,46 +251,32 @@ export const UserManagement: React.FC = () => {
       }
 
       console.log('✅ Users fetched:', data?.length || 0, 'users');
-      // ✅ DEBUG : Log détaillé des rôles pour diagnostiquer le problème
+      
       if (data && data.length > 0) {
-        console.log('📊 Detailed users data:');
-        const roleCounts: Record<string, number> = {};
-        data.forEach((user, index) => {
-          const roleKey = user.role || 'NULL';
-          roleCounts[roleKey] = (roleCounts[roleKey] || 0) + 1;
-          console.log(`  User ${index + 1}:`, {
-            email: user.email,
-            role: user.role,
-            'role type': typeof user.role,
-            'is admin?': user.role === 'admin',
-            'is client?': user.role === 'client',
-            'is livreur?': user.role === 'livreur',
-            'is store_manager?': user.role === 'store_manager',
-            'first_name': user.first_name,
-            'last_name': user.last_name
-          });
-        });
-        console.log('📊 Role distribution:', roleCounts);
-        
         setUsers(data);
         
-        toast({
-          title: "Données chargées",
-          description: `${data.length} utilisateur(s) trouvé(s)`,
-        });
+        // ✅ CORRECTION : Utiliser toastRef.current au lieu de toast directement
+        if (showLoader) {
+          toastRef.current({
+            title: "Données chargées",
+            description: `${data.length} utilisateur(s) trouvé(s)`,
+          });
+        }
       } else {
         setUsers([]);
         console.log('⚠️ No users found in database');
-        toast({
-          title: "Aucun utilisateur",
-          description: "Aucun utilisateur trouvé dans la base de données",
-          variant: "destructive",
-        });
+        if (showLoader) {
+          toastRef.current({
+            title: "Aucun utilisateur",
+            description: "Aucun utilisateur trouvé dans la base de données",
+            variant: "destructive",
+          });
+        }
       }
     } catch (error: any) {
       console.error('❌ Erreur lors du chargement des utilisateurs:', error);
       setError(`Impossible de charger les utilisateurs: ${error.message}`);
-      toast({
+      toastRef.current({
         title: "Erreur",
         description: `Impossible de charger les utilisateurs: ${error.message}`,
         variant: "destructive",
@@ -340,7 +285,7 @@ export const UserManagement: React.FC = () => {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [toast]);
+  }, []); // ✅ Dépendances vides car on utilise toastRef.current
 
   // ✅ OPTIMISATION : useEffect avec fetchUsers mémorisé + realtime optimisé
   useEffect(() => {
@@ -369,7 +314,8 @@ export const UserManagement: React.FC = () => {
             setUsers(prev => prev.filter(user => user.id !== payload.old.id));
           }
           
-          toast({
+          // ✅ CORRECTION : Utiliser toastRef.current
+          toastRef.current({
             title: "Mise à jour",
             description: "Liste des utilisateurs mise à jour",
           });
@@ -380,7 +326,7 @@ export const UserManagement: React.FC = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [fetchUsers, toast]);
+  }, [fetchUsers]); // ✅ Seulement fetchUsers comme dépendance
 
   // ✅ OPTIMISATION : Filtres mémorisés
   const filteredUsers = useMemo(() => {
@@ -464,7 +410,7 @@ export const UserManagement: React.FC = () => {
 
       console.log('✅ Profile created successfully');
 
-      toast({
+      toastRef.current({
         title: "Succès",
         description: "Utilisateur créé avec succès",
       });
@@ -483,7 +429,7 @@ export const UserManagement: React.FC = () => {
       
     } catch (error: any) {
       console.error('❌ Erreur lors de la création:', error);
-      toast({
+      toastRef.current({
         title: "Erreur",
         description: error.message || "Impossible de créer l'utilisateur",
         variant: "destructive",
@@ -560,6 +506,9 @@ export const UserManagement: React.FC = () => {
                 <DialogContent className="max-w-2xl">
                   <DialogHeader>
                     <DialogTitle>Ajouter un nouvel utilisateur</DialogTitle>
+                    <DialogDescription>
+                      Créez un nouveau compte utilisateur avec les informations suivantes
+                    </DialogDescription>
                   </DialogHeader>
                   <form onSubmit={handleAddUser} className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
@@ -756,3 +705,5 @@ export const UserManagement: React.FC = () => {
     </div>
   );
 };
+
+export default UserManagement;

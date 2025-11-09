@@ -10,7 +10,7 @@ import {
   Search,
   Menu
 } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
 
 export function AdminHeader() {

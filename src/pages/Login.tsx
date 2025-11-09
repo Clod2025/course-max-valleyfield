@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,7 +7,7 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Header } from "@/components/header";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { sanitizeInput, safeApiCall } from "@/utils/errorHandler";
 
@@ -20,12 +20,26 @@ const Login = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // ✅ SUPPRESSION DE LA LOGIQUE DE REDIRECTION - Laisser useAuth gérer complètement
+  const redirectHandledRef = useRef(false);
+
   useEffect(() => {
-    if (user && profile) {
+    if (user && profile && !redirectHandledRef.current) {
+      redirectHandledRef.current = true;
       console.log('👤 Already logged in, useAuth will handle redirect');
+
+      const role = profile.role?.toLowerCase();
+
+      if (role === 'merchant' || role === 'store_manager') {
+        navigate('/dashboard/marchand', { replace: true });
+      } else if (role === 'driver' || role === 'livreur') {
+        navigate('/dashboard/livreur', { replace: true });
+      } else if (role === 'admin') {
+        navigate('/dashboard/admin', { replace: true });
+      } else {
+        navigate('/', { replace: true });
+      }
     }
-  }, [user, profile]);
+  }, [user, profile, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

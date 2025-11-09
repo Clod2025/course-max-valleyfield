@@ -17,18 +17,14 @@ import {
   Calendar,
   UserCheck
 } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { EmployeeAuth } from './EmployeeAuth';
 
-interface Commis {
-  id: string;
-  nom: string;
+interface CommisLogInfo {
   prenom: string;
-  email: string;
+  nom: string;
   code_unique: string;
-  is_active: boolean;
 }
 
 interface Commande {
@@ -41,6 +37,7 @@ interface Commande {
   notes: string;
   created_at: string;
   updated_at: string;
+  assignee_commis?: CommisLogInfo | null;
 }
 
 interface OrderLog {
@@ -48,11 +45,7 @@ interface OrderLog {
   action: string;
   details: string;
   timestamp: string;
-  commis: {
-    prenom: string;
-    nom: string;
-    code_unique: string;
-  } | null;
+  commis: CommisLogInfo | null;
 }
 
 export function EnhancedOrdersDisplay() {
@@ -61,7 +54,6 @@ export function EnhancedOrdersDisplay() {
   const [commandes, setCommandes] = useState<Commande[]>([]);
   const [orderLogs, setOrderLogs] = useState<Record<string, OrderLog[]>>({});
   const [loading, setLoading] = useState(true);
-  const [authenticatedCommis, setAuthenticatedCommis] = useState<Commis | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<Commande | null>(null);
 
   useEffect(() => {
@@ -78,56 +70,14 @@ export function EnhancedOrdersDisplay() {
       // Charger les commandes
       const { data: commandesData, error: commandesError } = await supabase
         .from('commandes')
-        .select('*')
+        .select(`*, assignee_commis:commis(prenom, nom, code_unique) `)
         .eq('merchant_id', profile.id)
         .order('created_at', { ascending: false });
 
       if (commandesError) {
-        // Si la table n'existe pas, créer des données de démonstration
-        if (commandesError.code === 'PGRST116' || commandesError.message?.includes('relation "commandes" does not exist')) {
-          console.log('Table commandes non trouvée, utilisation de données de démonstration');
-          const demoCommandes: Commande[] = [
-            {
-              id: 'demo-1',
-              client_nom: 'Marie Dubois',
-              client_phone: '450-123-4567',
-              client_email: 'marie.dubois@email.com',
-              status: 'en_attente',
-              total_amount: 25.50,
-              notes: 'Livraison urgente',
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            },
-            {
-              id: 'demo-2',
-              client_nom: 'Jean Martin',
-              client_phone: '450-987-6543',
-              client_email: 'jean.martin@email.com',
-              status: 'en_attente',
-              total_amount: 18.75,
-              notes: 'Pas de tomates',
-              created_at: new Date(Date.now() - 3600000).toISOString(),
-              updated_at: new Date(Date.now() - 3600000).toISOString()
-            },
-            {
-              id: 'demo-3',
-              client_nom: 'Sophie Tremblay',
-              client_phone: '450-555-1234',
-              client_email: 'sophie.tremblay@email.com',
-              status: 'acceptee',
-              total_amount: 32.00,
-              notes: 'Appeler avant livraison',
-              created_at: new Date(Date.now() - 7200000).toISOString(),
-              updated_at: new Date(Date.now() - 7200000).toISOString()
-            }
-          ];
-          setCommandes(demoCommandes);
-          setOrderLogs({});
-          return;
-        }
         throw commandesError;
       }
-      
+
       setCommandes(commandesData || []);
 
       // Charger les logs pour chaque commande
@@ -148,37 +98,25 @@ export function EnhancedOrdersDisplay() {
         } else {
           // Organiser les logs par commande
           const logsByOrder: Record<string, OrderLog[]> = {};
-          (logsData || []).forEach(log => {
-            if (!logsByOrder[log.order_id]) {
-              logsByOrder[log.order_id] = [];
-            }
-            logsByOrder[log.order_id].push(log);
-          });
+          if (logsData && Array.isArray(logsData)) {
+            logsData.forEach(log => {
+              if (!logsByOrder[log.order_id]) {
+                logsByOrder[log.order_id] = [];
+              }
+              logsByOrder[log.order_id].push(log);
+            });
+          }
           setOrderLogs(logsByOrder);
         }
       }
     } catch (error) {
       console.error('Erreur lors du chargement des commandes:', error);
-      // En cas d'erreur, utiliser des données de démonstration
-      const demoCommandes: Commande[] = [
-        {
-          id: 'demo-error-1',
-          client_nom: 'Client Démo',
-          client_phone: '450-000-0000',
-          client_email: 'demo@email.com',
-          status: 'en_attente',
-          total_amount: 15.00,
-          notes: 'Commande de démonstration',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }
-      ];
-      setCommandes(demoCommandes);
+      setCommandes([]);
       setOrderLogs({});
-      
       toast({
-        title: "Mode démonstration",
-        description: "Utilisation de données de démonstration",
+        title: "Erreur",
+        description: "Impossible de charger les commandes du marchand.",
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
@@ -186,49 +124,7 @@ export function EnhancedOrdersDisplay() {
   };
 
   const handleAcceptOrder = async (commandeId: string) => {
-    if (!authenticatedCommis) {
-      toast({
-        title: "Erreur",
-        description: "Vous devez être authentifié en tant qu'employé",
-        variant: "destructive"
-      });
-      return;
-    }
-
     try {
-      // Vérifier si c'est une commande de démonstration
-      if (commandeId.startsWith('demo-')) {
-        // Mode démonstration - mettre à jour localement
-        setCommandes(prev => prev.map(c => 
-          c.id === commandeId ? { ...c, status: 'acceptee' } : c
-        ));
-        
-        // Ajouter un log local
-        const newLog: OrderLog = {
-          id: `log-${Date.now()}`,
-          action: 'Commande acceptée',
-          details: `Commande acceptée par ${authenticatedCommis.prenom} ${authenticatedCommis.nom} (${authenticatedCommis.code_unique})`,
-          timestamp: new Date().toISOString(),
-          commis: {
-            prenom: authenticatedCommis.prenom,
-            nom: authenticatedCommis.nom,
-            code_unique: authenticatedCommis.code_unique
-          }
-        };
-        
-        setOrderLogs(prev => ({
-          ...prev,
-          [commandeId]: [newLog, ...(prev[commandeId] || [])]
-        }));
-
-        toast({
-          title: "Commande acceptée (Démo)",
-          description: `La commande a été acceptée par ${authenticatedCommis.prenom} ${authenticatedCommis.nom}`,
-        });
-        return;
-      }
-
-      // Mode production - utiliser Supabase
       const { error: updateError } = await supabase
         .from('commandes')
         .update({ 
@@ -244,9 +140,8 @@ export function EnhancedOrdersDisplay() {
         .from('order_logs')
         .insert({
           order_id: commandeId,
-          commis_id: authenticatedCommis.id,
           action: 'Commande acceptée',
-          details: `Commande acceptée par ${authenticatedCommis.prenom} ${authenticatedCommis.nom} (${authenticatedCommis.code_unique})`
+          details: 'Commande acceptée par le gestionnaire'
         });
 
       if (logError) {
@@ -259,7 +154,7 @@ export function EnhancedOrdersDisplay() {
 
       toast({
         title: "Commande acceptée",
-        description: `La commande a été acceptée par ${authenticatedCommis.prenom} ${authenticatedCommis.nom}`,
+        description: 'La commande a été acceptée',
       });
 
     } catch (error) {
@@ -321,21 +216,11 @@ export function EnhancedOrdersDisplay() {
 
   return (
     <div className="space-y-6">
-      {/* Header avec authentification employé */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Gestion des Commandes</h2>
-          <p className="text-muted-foreground">
-            Gérez vos commandes avec traçabilité des actions
-          </p>
-        </div>
-        
-        <div className="w-80">
-          <EmployeeAuth
-            onEmployeeAuthenticated={setAuthenticatedCommis}
-            onLogout={() => setAuthenticatedCommis(null)}
-          />
-        </div>
+      <div className="space-y-1">
+        <h2 className="text-2xl font-bold">Gestion des Commandes</h2>
+        <p className="text-muted-foreground">
+          Visualisez et pilotez toutes les commandes du magasin. Les actions sont tracées dans l'historique.
+        </p>
       </div>
 
       {/* Statistiques */}
@@ -422,16 +307,15 @@ export function EnhancedOrdersDisplay() {
                       Voir détails
                     </Button>
                     
-                    {authenticatedCommis && (
-                      <Button
-                        size="sm"
-                        onClick={() => handleAcceptOrder(commande.id)}
-                        className="bg-green-600 hover:bg-green-700"
-                      >
-                        <UserCheck className="w-4 h-4 mr-2" />
-                        Accepter commande
-                      </Button>
-                    )}
+                    {/* Removed authenticatedCommis guard */}
+                    <Button
+                      size="sm"
+                      onClick={() => handleAcceptOrder(commande.id)}
+                      className="bg-green-600 hover:bg-green-700"
+                    >
+                      <UserCheck className="w-4 h-4 mr-2" />
+                      Accepter commande
+                    </Button>
                   </div>
 
                   {/* Historique des actions */}
@@ -540,15 +424,12 @@ export function EnhancedOrdersDisplay() {
       )}
 
       {/* Instructions pour les employés */}
-      {!authenticatedCommis && (
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            <strong>Note :</strong> Les employés doivent s'authentifier avec leur code unique 
-            pour pouvoir accepter les commandes et tracer leurs actions.
-          </AlertDescription>
-        </Alert>
-      )}
+      <Alert>
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>
+          Toutes les commandes sont visibles. Consultez l'historique pour savoir qui a réalisé chaque étape.
+        </AlertDescription>
+      </Alert>
     </div>
   );
 }

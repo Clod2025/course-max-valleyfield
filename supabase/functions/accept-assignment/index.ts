@@ -1,9 +1,8 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.0'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+import {
+  corsHeaders,
+  handleCorsPreflight,
+  requireUser,
+} from '../_shared/security.ts';
 
 interface AcceptAssignmentRequest {
   assignment_id: string;
@@ -11,21 +10,18 @@ interface AcceptAssignmentRequest {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+  const cors = handleCorsPreflight(req);
+  if (cors) {
+    return cors;
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') || 'https://vexgjrrqbjurgiqfjxwk.supabase.co';
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-
-    if (!serviceRoleKey) {
-      throw new Error('Service role key not configured');
+    const auth = await requireUser(req);
+    if ('errorResponse' in auth) {
+      return auth.errorResponse;
     }
 
-    const supabase = createClient(supabaseUrl, serviceRoleKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
+    const { supabase } = auth;
 
     const { assignment_id, driver_id }: AcceptAssignmentRequest = await req.json();
 

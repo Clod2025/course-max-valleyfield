@@ -1,5 +1,5 @@
 import React from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { PriceComparisonWrapper } from '@/components/PriceComparison';
 
 interface ClientPriceComparisonModalProps {
@@ -30,6 +30,9 @@ export const ClientPriceComparisonModal: React.FC<ClientPriceComparisonModalProp
           <DialogTitle className="text-2xl font-bold text-center">
             Comparateur de Prix
           </DialogTitle>
+          <DialogDescription className="text-center">
+            Comparez les prix des produits entre différents magasins
+          </DialogDescription>
         </DialogHeader>
         
         <div className="mt-4">

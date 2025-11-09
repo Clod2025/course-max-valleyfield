@@ -1,13 +1,14 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider } from "@/hooks/useAuth";
+import { AuthProvider } from "@/contexts/AuthContext";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 import { useSilentUpdate } from "@/hooks/useSilentUpdate";
 import GlobalErrorHandler from "@/components/GlobalErrorHandler";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 
 // Pages légères
 import Home from "./pages/Home";
@@ -18,16 +19,15 @@ import ForgotPassword from "./pages/ForgotPassword";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import OrderSuccess from "./pages/OrderSuccess";
-import UnauthorizedPage from "./pages/UnauthorizedPage";
+import Unauthorized from "./pages/Unauthorized";
+import CommisLogin from "./pages/CommisLogin";
+import CommisOrders from "./pages/CommisOrders";
 import CommisChangePassword from "./pages/CommisChangePassword";
 import InterfacePharmacie from "./pages/InterfacePharmacie";
 import InterfaceRestaurant from "./pages/InterfaceRestaurant";
 import InterfaceEpicerie from "./pages/InterfaceEpicerie";
-import EmployeeLogin from "./pages/EmployeeLogin";
-import EmployeeDashboard from "./pages/dashboards/EmployeeDashboard";
 
 // Pages supplémentaires
-import PaymentPage from "./pages/PaymentPage";
 import StoreProducts from "./pages/StoreProducts";
 import ClientSettings from "./pages/ClientSettings";
 import Privacy from "./pages/Privacy";
@@ -58,7 +58,8 @@ const queryClient = new QueryClient({
     queries: {
       staleTime: 5 * 60 * 1000,
       gcTime: 10 * 60 * 1000,
-      retry: (failureCount, error: any) => (error?.status === 401 || error?.status === 403 ? false : failureCount < 3),
+      retry: (failureCount, error: any) =>
+        error?.status === 401 || error?.status === 403 ? false : failureCount < 3,
       refetchOnWindowFocus: false,
       refetchOnMount: true,
       refetchOnReconnect: true,
@@ -75,6 +76,14 @@ const queryClient = new QueryClient({
 const App = () => {
   const { isUpdating } = useSilentUpdate();
 
+  useEffect(() => {
+    const isInitialized = sessionStorage.getItem("app_initialized");
+    if (!isInitialized) {
+      console.log("🧹 Nettoyage des anciennes données de session");
+      sessionStorage.setItem("app_initialized", "true");
+    }
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
@@ -88,7 +97,7 @@ const App = () => {
             }}
           >
             <Routes>
-              {/* Routes légères */}
+              {/* Routes publiques */}
               <Route path="/" element={<Navigate to="/home" replace />} />
               <Route path="/home" element={<Home />} />
               <Route path="/login" element={<Login />} />
@@ -96,37 +105,145 @@ const App = () => {
               <Route path="/signup-confirmation" element={<SignupConfirmation />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/old-index" element={<Index />} />
-              <Route path="/auth/unauthorized" element={<UnauthorizedPage />} />
+              <Route path="/unauthorized" element={<Unauthorized />} />
+              <Route path="/auth/unauthorized" element={<Navigate to="/unauthorized" replace />} />
               <Route path="/order-success/:orderId" element={<OrderSuccess />} />
-              <Route path="/commis-change-password" element={<CommisChangePassword />} />
-              
-              {/* Routes Employés */}
-              <Route path="/employe" element={<EmployeeLogin />} />
-              <Route path="/dashboard/employee/orders" element={<EmployeeDashboard />} />
-
-              {/* Pages supplémentaires */}
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/terms" element={<Terms />} />
               <Route path="/help" element={<Help />} />
-              <Route path="/payment" element={<PaymentPage />} />
               <Route path="/store/:storeId/products" element={<StoreProducts />} />
 
-              {/* Routes lourdes */}
-              <Route path="/stores" element={<Stores />} />
-              <Route path="/order-checkout" element={<OrderCheckout />} />
+              {/* Commis */}
+              <Route path="/commis/login" element={<CommisLogin />} />
+              <Route
+                path="/commis/orders"
+                element={
+                  <ProtectedRoute requiredRole="commis">
+                    <CommisOrders />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/commis/change-password"
+                element={
+                  <ProtectedRoute requiredRole="commis">
+                    <CommisChangePassword />
+                  </ProtectedRoute>
+                }
+              />
 
               {/* Dashboards */}
-              <Route path="/dashboard/admin" element={<AdminDashboard />} />
-              <Route path="/dashboard/marchand" element={<MarchandDashboard />} />
-              <Route path="/dashboard/livreur" element={<LivreurDashboard />} />
-              <Route path="/dashboard/livreur/finance" element={<LivreurDashboard />} />
-              <Route path="/dashboard/livreur/pourboires" element={<LivreurDashboard />} />
-              <Route path="/dashboard/livreur/aide" element={<LivreurDashboard />} />
-              <Route path="/dashboard/livreur/parametres" element={<LivreurDashboard />} />
-              <Route path="/dashboard/client" element={<ClientDashboard />} />
-              <Route path="/dashboard/client/settings" element={<ClientSettings />} />
+              <Route
+                path="/dashboard/admin"
+                element={
+                  <ProtectedRoute requiredRole="admin">
+                    <AdminDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/dashboard/client"
+                element={
+                  <ProtectedRoute requiredRole="client">
+                    <ClientDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/dashboard/client/settings"
+                element={
+                  <ProtectedRoute requiredRole="client">
+                    <ClientSettings />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/dashboard/livreur"
+                element={
+                  <ProtectedRoute allowedRoles={['livreur', 'driver']}>
+                    <LivreurDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/dashboard/livreur/finance"
+                element={
+                  <ProtectedRoute allowedRoles={['livreur', 'driver']}>
+                    <LivreurDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/dashboard/livreur/pourboires"
+                element={
+                  <ProtectedRoute allowedRoles={['livreur', 'driver']}>
+                    <LivreurDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/dashboard/livreur/aide"
+                element={
+                  <ProtectedRoute allowedRoles={['livreur', 'driver']}>
+                    <LivreurDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/dashboard/livreur/parametres"
+                element={
+                  <ProtectedRoute allowedRoles={['livreur', 'driver']}>
+                    <LivreurDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/dashboard/marchand"
+                element={
+                  <ProtectedRoute allowedRoles={['marchand', 'store_manager']}>
+                    <MarchandDashboard />
+                  </ProtectedRoute>
+                }
+              />
 
-              {/* Redirections */}
+              {/* Interfaces spécifiques aux types de marchands */}
+              <Route
+                path="/interface-pharmacie"
+                element={
+                  <ProtectedRoute allowedRoles={['marchand', 'store_manager']}>
+                    <InterfacePharmacie />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/interface-restaurant"
+                element={
+                  <ProtectedRoute allowedRoles={['marchand', 'store_manager']}>
+                    <InterfaceRestaurant />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/interface-epicerie"
+                element={
+                  <ProtectedRoute allowedRoles={['marchand', 'store_manager']}>
+                    <InterfaceEpicerie />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Routes supplémentaires */}
+              <Route path="/stores" element={<Stores />} />
+              <Route
+                path="/order-checkout"
+                element={
+                  <ProtectedRoute allowedRoles={['client', 'marchand', 'store_manager']}>
+                    <OrderCheckout />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Redirections legacy */}
               <Route path="/merchant-dashboard" element={<Navigate to="/dashboard/marchand" replace />} />
               <Route path="/driver-dashboard" element={<Navigate to="/dashboard/livreur" replace />} />
               <Route path="/client-dashboard" element={<Navigate to="/dashboard/client" replace />} />

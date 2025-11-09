@@ -14,16 +14,8 @@ import {
   User,
   Truck
 } from 'lucide-react';
-// Toast hook implementation
-const useToast = () => {
-  return {
-    toast: ({ title, description, variant }: { title: string; description: string; variant?: string }) => {
-      // Simple toast notification using browser alert for demo
-      alert(`${title}\n${description}`);
-    }
-  };
-};
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useToast } from '@/hooks/use-toast';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 interface Document {
   id: string;
@@ -38,7 +30,7 @@ interface Document {
   notes?: string;
 }
 
-export function DocumentManager() {
+export default function DocumentManager() {
   const { toast } = useToast();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
@@ -366,6 +358,9 @@ export function DocumentManager() {
                 </>
               )}
             </DialogTitle>
+            <DialogDescription>
+              Visualisez le document sélectionné
+            </DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-hidden">
             {viewingDocument && (

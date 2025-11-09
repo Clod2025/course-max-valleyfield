@@ -29,11 +29,11 @@ import {
   Layout
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { FooterManagement } from './FooterManagement';
 import { SocialMediaManager } from './SocialMediaManager';
 
-export const AdminSettings: React.FC = () => {
+const AdminSettings: React.FC = () => {
   const { toast } = useToast();
   const { profile, user } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -68,6 +68,9 @@ export const AdminSettings: React.FC = () => {
     maintenanceMode: false,
     debugMode: process.env.NODE_ENV === 'development'
   });
+
+  // Ligne 36 - AJOUT : État pour l'onglet actif
+  const [activeSettingsTab, setActiveSettingsTab] = useState('profile');
 
   const handleSave = async (section: string) => {
     setSaving(true);
@@ -140,7 +143,7 @@ export const AdminSettings: React.FC = () => {
       </div>
 
       {/* Navigation par onglets */}
-      <Tabs defaultValue="profile" className="space-y-6">
+      <Tabs value={activeSettingsTab} onValueChange={setActiveSettingsTab} className="space-y-6">
         <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="profile">Profil</TabsTrigger>
           <TabsTrigger value="security">Sécurité</TabsTrigger>
@@ -516,3 +519,5 @@ export const AdminSettings: React.FC = () => {
     </div>
   );
 };
+
+export default AdminSettings;

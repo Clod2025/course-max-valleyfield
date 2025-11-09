@@ -4,10 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { RefreshCw, Database, Users, AlertCircle, CheckCircle, User, Shield } from 'lucide-react';
 
-export const UserManagementDebug: React.FC = () => {
+const UserManagementDebug: React.FC = () => {
   const [debugInfo, setDebugInfo] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -330,3 +330,5 @@ export const UserManagementDebug: React.FC = () => {
     </Card>
   );
 };
+
+export default UserManagementDebug;

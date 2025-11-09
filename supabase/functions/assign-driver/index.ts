@@ -1,9 +1,9 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.0'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.57.0';
+import {
+  handleCorsPreflight,
+  jsonResponse,
+  requireUser,
+} from '../_shared/security.ts';
 
 interface DriverAssignmentRequest {
   order_id: string;
@@ -36,20 +36,20 @@ interface DriverAssignmentResult {
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+  const cors = handleCorsPreflight(req);
+  if (cors) {
+    return cors;
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') || 'https://vexgjrrqbjurgiqfjxwk.supabase.co';
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const auth = await requireUser(req);
+    if ('errorResponse' in auth) {
+      return auth.errorResponse;
+    }
+
+    const { supabase } = auth;
     const fcmServerKey = Deno.env.get('FCM_SERVER_KEY');
     const mapboxToken = Deno.env.get('MAPBOX_ACCESS_TOKEN');
-
-    if (!serviceRoleKey) {
-      throw new Error('Service role key not configured');
-    }
 
     if (!fcmServerKey) {
       throw new Error('FCM server key not configured');
@@ -58,10 +58,6 @@ Deno.serve(async (req) => {
     if (!mapboxToken) {
       throw new Error('Mapbox access token not configured');
     }
-
-    const supabase = createClient(supabaseUrl, serviceRoleKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
 
     const { 
       order_id, 
@@ -73,12 +69,13 @@ Deno.serve(async (req) => {
     }: DriverAssignmentRequest = await req.json();
 
     if (!order_id || !store_id || !delivery_address || !delivery_city) {
-      return new Response(
-        JSON.stringify({ 
+      return jsonResponse(
+        {
           success: false,
-          error: 'order_id, store_id, delivery_address, and delivery_city are required' 
-        }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          error:
+            'order_id, store_id, delivery_address, and delivery_city are required',
+        },
+        400,
       );
     }
 
@@ -120,15 +117,12 @@ Deno.serve(async (req) => {
 
     if (availableDrivers.length === 0) {
       console.log('No available drivers found');
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          message: 'Aucun livreur disponible trouvé dans la zone',
-          available_drivers: [],
-          notifications_sent: 0
-        }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return jsonResponse({
+        success: false,
+        message: 'Aucun livreur disponible trouvé dans la zone',
+        available_drivers: [],
+        notifications_sent: 0,
+      });
     }
 
     console.log(`Found ${availableDrivers.length} available drivers`);
@@ -150,35 +144,31 @@ Deno.serve(async (req) => {
       supabase
     );
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: 'Notifications envoyées aux livreurs disponibles',
-        order_id: order.id,
-        order_number: order.order_number,
-        store_name: store.name,
-        available_drivers: availableDrivers.length,
-        notifications_sent: notificationResults.successful,
-        notifications_failed: notificationResults.failed,
-        assignment_id: assignmentId,
-        drivers_notified: topDrivers.map(d => ({
-          user_id: d.user_id,
-          name: `${d.first_name} ${d.last_name}`,
-          distance_km: d.distance_km,
-          rating: d.rating
-        }))
-      }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-
+    return jsonResponse({
+      success: true,
+      message: 'Notifications envoyées aux livreurs disponibles',
+      order_id: order.id,
+      order_number: order.order_number,
+      store_name: store.name,
+      available_drivers: availableDrivers.length,
+      notifications_sent: notificationResults.successful,
+      notifications_failed: notificationResults.failed,
+      assignment_id: assignmentId,
+      drivers_notified: topDrivers.map((d) => ({
+        user_id: d.user_id,
+        name: `${d.first_name} ${d.last_name}`,
+        distance_km: d.distance_km,
+        rating: d.rating,
+      })),
+    });
   } catch (error) {
     console.error('Function error:', error);
-    return new Response(
-      JSON.stringify({ 
+    return jsonResponse(
+      {
         success: false,
-        error: error.message 
-      }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        error: error instanceof Error ? error.message : 'Unknown error',
+      },
+      500,
     );
   }
 });
@@ -190,7 +180,7 @@ async function findAvailableDrivers(
   deliveryAddress: string, 
   deliveryCity: string, 
   maxDistance: number, 
-  supabase: any, 
+  supabase: SupabaseClient, 
   mapboxToken: string
 ): Promise<AvailableDriver[]> {
   try {
@@ -360,7 +350,7 @@ async function createDriverAssignment(
   order: any,
   store: any,
   drivers: AvailableDriver[],
-  supabase: any
+  supabase: SupabaseClient
 ): Promise<string> {
   try {
     const { data, error } = await supabase

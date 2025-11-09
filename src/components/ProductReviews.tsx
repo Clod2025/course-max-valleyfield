@@ -6,9 +6,9 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useProductReviews, useUserProductReview, useDeleteReview } from '@/hooks/useReviews';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { ReviewForm } from './ReviewForm';
 import LoadingSkeleton from './LoadingSkeleton';
 
@@ -104,6 +104,12 @@ export const ProductReviews: React.FC<ProductReviewsProps> = ({
               <Button>Laisser un avis</Button>
             </DialogTrigger>
             <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Laisser un avis</DialogTitle>
+                <DialogDescription>
+                  Partagez votre expérience avec ce produit
+                </DialogDescription>
+              </DialogHeader>
               <ReviewForm
                 productId={productId}
                 onSuccess={() => setShowReviewForm(false)}
@@ -255,6 +261,12 @@ export const ProductReviews: React.FC<ProductReviewsProps> = ({
       {/* Dialog pour modifier un avis */}
       <Dialog open={!!editingReview} onOpenChange={() => setEditingReview(null)}>
         <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Modifier votre avis</DialogTitle>
+            <DialogDescription>
+              Modifiez votre avis précédent sur ce produit
+            </DialogDescription>
+          </DialogHeader>
           {editingReview && (
             <ReviewForm
               productId={productId}

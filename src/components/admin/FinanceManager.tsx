@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +10,8 @@ import {
   DialogContent, 
   DialogHeader, 
   DialogTitle, 
-  DialogTrigger 
+  DialogTrigger,
+  DialogDescription 
 } from '@/components/ui/dialog';
 import { 
   Select,
@@ -83,14 +84,31 @@ interface DriverPayment {
   completed_at?: string;
 }
 
-export const FinanceManager: React.FC = () => {
+const FinanceManager: React.FC = () => {
   const { toast } = useToast();
+  const toastRef = useRef(toast);
+
+  // ✅ Mettre à jour la référence quand toast change
+  useEffect(() => {
+    toastRef.current = toast;
+  }, [toast]);
+
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [commissionTransfers, setCommissionTransfers] = useState<CommissionTransfer[]>([]);
   const [driverPayments, setDriverPayments] = useState<DriverPayment[]>([]);
   const [drivers, setDrivers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [paymentMethodsError, setPaymentMethodsError] = useState<string | null>(null);
+  const [commissionTransfersError, setCommissionTransfersError] = useState<string | null>(null);
+  const [driverPaymentsError, setDriverPaymentsError] = useState<string | null>(null);
+  const pendingCommissionTotal = useMemo(
+    () =>
+      commissionTransfers
+        .filter((transfer) => transfer.status !== 'completed')
+        .reduce((total, transfer) => total + (transfer.amount || 0), 0),
+    [commissionTransfers]
+  );
 
   // États des formulaires
   const [isAddPaymentMethodOpen, setIsAddPaymentMethodOpen] = useState(false);
@@ -145,37 +163,24 @@ export const FinanceManager: React.FC = () => {
   ];
 
   // Chargement des données
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       console.log('🔍 Fetching finance data...');
 
-      // Mock data pour les moyens de paiement (table n'existe pas encore)
-      console.log('⚠️ Payment methods table not found, using mock data');
-      setPaymentMethods([
-        {
-          id: '1',
-          type: 'bank_account',
-          name: 'Compte Principal',
-          holder_name: 'CourseMax Inc.',
-          account_number: '****1234',
-          bank_name: 'Banque Royale du Canada (RBC)',
-          transit: '12345',
-          institution: '001',
-          is_default: true,
-          created_at: new Date().toISOString()
-        },
-        {
-          id: '2',
-          type: 'debit_card',
-          name: 'Carte Débit',
-          holder_name: 'CourseMax Inc.',
-          account_number: '****5678',
-          bank_name: 'Banque Royale du Canada (RBC)',
-          is_default: false,
-          created_at: new Date().toISOString()
-        }
-      ]);
+      const { data: paymentData, error: paymentError } = await supabase
+        .from('payment_methods')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (paymentError) {
+        console.warn('⚠️ Payment methods not available:', paymentError);
+        setPaymentMethods([]);
+        setPaymentMethodsError('Aucun moyen de paiement enregistré. Configurez-en un pour commencer.');
+      } else {
+        setPaymentMethods(paymentData || []);
+        setPaymentMethodsError(null);
+      }
 
       // Charger les livreurs
       const { data: driversData, error: driversError } = await supabase
@@ -190,56 +195,37 @@ export const FinanceManager: React.FC = () => {
         setDrivers(driversData || []);
       }
 
-      // Mock data pour les transferts de commission
-      setCommissionTransfers([
-        {
-          id: '1',
-          amount: 2500.00,
-          bank_account: '****1234 - RBC',
-          status: 'completed',
-          created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-          completed_at: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString()
-        },
-        {
-          id: '2',
-          amount: 1800.50,
-          bank_account: '****1234 - RBC',
-          status: 'pending',
-          created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
-        }
-      ]);
+      const { data: transfersData, error: transfersError } = await supabase
+        .from('commission_transfers')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-      // Mock data pour les paiements des livreurs
-      setDriverPayments([
-        {
-          id: '1',
-          driver_id: 'driver1',
-          driver_name: 'Jean Dupont',
-          amount: 450.00,
-          status: 'completed',
-          payment_method: 'Interac',
-          created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-          completed_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
-        },
-        {
-          id: '2',
-          driver_id: 'driver2',
-          driver_name: 'Marie Tremblay',
-          amount: 320.75,
-          status: 'pending',
-          payment_method: 'Compte bancaire',
-          created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString()
-        }
-      ]);
+      if (transfersError) {
+        console.warn('⚠️ Commission transfers not available:', transfersError);
+        setCommissionTransfers([]);
+        setCommissionTransfersError('Aucun transfert de commission enregistré.');
+      } else {
+        setCommissionTransfers(transfersData || []);
+        setCommissionTransfersError(null);
+      }
 
-      toast({
-        title: "Données chargées",
-        description: "Données financières récupérées avec succès",
-      });
+      const { data: driverPaymentsData, error: driverPaymentsError } = await supabase
+        .from('driver_payments')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (driverPaymentsError) {
+        console.warn('⚠️ Driver payments not available:', driverPaymentsError);
+        setDriverPayments([]);
+        setDriverPaymentsError('Aucun paiement livreur enregistré.');
+      } else {
+        setDriverPayments(driverPaymentsData || []);
+        setDriverPaymentsError(null);
+      }
 
     } catch (error: any) {
       console.error('❌ Error loading finance data:', error);
-      toast({
+      toastRef.current({
         title: "Erreur",
         description: `Impossible de charger les données: ${error.message}`,
         variant: "destructive",
@@ -247,7 +233,7 @@ export const FinanceManager: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []); // ✅ Dépendances vides
 
   // Ajouter un moyen de paiement
   const addPaymentMethod = async () => {
@@ -288,17 +274,18 @@ export const FinanceManager: React.FC = () => {
         }
       }
 
-      // Simulation de sauvegarde
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const { error } = await supabase
+        .from('payment_methods')
+        .insert({
+          ...paymentMethodForm,
+          created_at: new Date().toISOString()
+        });
 
-      const newPaymentMethod: PaymentMethod = {
-        id: Date.now().toString(),
-        ...paymentMethodForm,
-        account_number: `****${paymentMethodForm.account_number.slice(-4)}`,
-        created_at: new Date().toISOString()
-      };
+      if (error) {
+        throw error;
+      }
 
-      setPaymentMethods(prev => [newPaymentMethod, ...prev]);
+      await fetchData();
 
       toast({
         title: "Succès",
@@ -335,18 +322,39 @@ export const FinanceManager: React.FC = () => {
       setSaving(true);
       console.log('🔄 Transferring commission:', transferForm);
 
-      // Simulation de transfert
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const amountValue = parseFloat(transferForm.amount);
+      if (Number.isNaN(amountValue) || amountValue <= 0) {
+        toast({
+          title: "Montant invalide",
+          description: "Veuillez saisir un montant supérieur à 0.",
+          variant: "destructive",
+        });
+        return;
+      }
 
-      const newTransfer: CommissionTransfer = {
-        id: Date.now().toString(),
-        amount: parseFloat(transferForm.amount),
-        bank_account: transferForm.bank_account,
-        status: 'pending',
-        created_at: new Date().toISOString()
-      };
+      if (!transferForm.bank_account) {
+        toast({
+          title: "Compte requis",
+          description: "Veuillez sélectionner un compte bancaire pour le transfert.",
+          variant: "destructive",
+        });
+        return;
+      }
 
-      setCommissionTransfers(prev => [newTransfer, ...prev]);
+      const { error } = await supabase
+        .from('commission_transfers')
+        .insert({
+          amount: amountValue,
+          bank_account: transferForm.bank_account,
+          status: 'pending',
+          created_at: new Date().toISOString()
+        });
+
+      if (error) {
+        throw error;
+      }
+
+      await fetchData();
 
       toast({
         title: "Transfert initié",
@@ -374,25 +382,56 @@ export const FinanceManager: React.FC = () => {
       setSaving(true);
       console.log('🔄 Paying driver:', driverPaymentForm);
 
-      // Simulation de paiement
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const amountValue = parseFloat(driverPaymentForm.amount);
+      if (Number.isNaN(amountValue) || amountValue <= 0) {
+        toast({
+          title: "Montant invalide",
+          description: "Veuillez saisir un montant supérieur à 0.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!driverPaymentForm.driver_id) {
+        toast({
+          title: "Livreur requis",
+          description: "Veuillez sélectionner un livreur à payer.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!driverPaymentForm.payment_method) {
+        toast({
+          title: "Moyen de paiement requis",
+          description: "Veuillez choisir un moyen de paiement.",
+          variant: "destructive",
+        });
+        return;
+      }
 
       const selectedDriver = drivers.find(d => d.id === driverPaymentForm.driver_id);
-      const newPayment: DriverPayment = {
-        id: Date.now().toString(),
-        driver_id: driverPaymentForm.driver_id,
-        driver_name: selectedDriver ? `${selectedDriver.first_name} ${selectedDriver.last_name}` : 'Livreur inconnu',
-        amount: parseFloat(driverPaymentForm.amount),
-        status: 'pending',
-        payment_method: driverPaymentForm.payment_method,
-        created_at: new Date().toISOString()
-      };
 
-      setDriverPayments(prev => [newPayment, ...prev]);
+      const { error } = await supabase
+        .from('driver_payments')
+        .insert({
+          driver_id: driverPaymentForm.driver_id,
+          driver_name: selectedDriver ? `${selectedDriver.first_name} ${selectedDriver.last_name}` : null,
+          amount: amountValue,
+          status: 'pending',
+          payment_method: driverPaymentForm.payment_method,
+          created_at: new Date().toISOString()
+        });
+
+      if (error) {
+        throw error;
+      }
+
+      await fetchData();
 
       toast({
         title: "Paiement initié",
-        description: `Paiement de $${driverPaymentForm.amount} vers ${newPayment.driver_name}`,
+        description: `Paiement de $${driverPaymentForm.amount} vers ${selectedDriver ? `${selectedDriver.first_name} ${selectedDriver.last_name}` : 'le livreur'}`,
       });
 
       setIsPayDriverOpen(false);
@@ -413,7 +452,7 @@ export const FinanceManager: React.FC = () => {
   // Chargement initial
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]); // ✅ fetchData est maintenant stable grâce à useCallback
 
   // Icônes selon le type de moyen de paiement
   const getPaymentMethodIcon = (type: string) => {
@@ -485,9 +524,11 @@ export const FinanceManager: React.FC = () => {
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">$4,250.75</div>
+                <div className="text-2xl font-bold">
+                  {pendingCommissionTotal > 0 ? `$${pendingCommissionTotal.toFixed(2)}` : '--'}
+                </div>
                 <p className="text-xs text-muted-foreground">
-                  Montant disponible pour transfert
+                  Montant en attente de transfert
                 </p>
               </CardContent>
             </Card>
@@ -581,6 +622,9 @@ export const FinanceManager: React.FC = () => {
                   <DialogContent>
                     <DialogHeader>
                       <DialogTitle>Transférer des commissions</DialogTitle>
+                      <DialogDescription>
+                        Effectuez un transfert de commissions vers un compte marchand
+                      </DialogDescription>
                     </DialogHeader>
                     <form onSubmit={(e) => { e.preventDefault(); transferCommission(); }} className="space-y-4">
                       <div>
@@ -643,19 +687,27 @@ export const FinanceManager: React.FC = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {commissionTransfers.map((transfer) => (
-                    <TableRow key={transfer.id}>
-                      <TableCell className="font-medium">${transfer.amount.toFixed(2)}</TableCell>
-                      <TableCell>{transfer.bank_account}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {getStatusIcon(transfer.status)}
-                          <span className="capitalize">{transfer.status}</span>
-                        </div>
+                  {commissionTransfers.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center text-sm text-muted-foreground">
+                        {commissionTransfersError ?? 'Aucun transfert de commission enregistré.'}
                       </TableCell>
-                      <TableCell>{new Date(transfer.created_at).toLocaleDateString()}</TableCell>
                     </TableRow>
-                  ))}
+                  ) : (
+                    commissionTransfers.map((transfer) => (
+                      <TableRow key={transfer.id}>
+                        <TableCell className="font-medium">${transfer.amount.toFixed(2)}</TableCell>
+                        <TableCell>{transfer.bank_account}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {getStatusIcon(transfer.status)}
+                            <span className="capitalize">{transfer.status}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>{new Date(transfer.created_at).toLocaleDateString()}</TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -681,6 +733,9 @@ export const FinanceManager: React.FC = () => {
                   <DialogContent>
                     <DialogHeader>
                       <DialogTitle>Ajouter un moyen de paiement</DialogTitle>
+                      <DialogDescription>
+                        Configurez un nouveau moyen de paiement pour recevoir vos paiements
+                      </DialogDescription>
                     </DialogHeader>
                     <form onSubmit={(e) => { e.preventDefault(); addPaymentMethod(); }} className="space-y-4">
                       <div>
@@ -828,48 +883,56 @@ export const FinanceManager: React.FC = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {paymentMethods.map((method) => (
-                    <TableRow key={method.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {getPaymentMethodIcon(method.type)}
-                          <span className="capitalize">
-                            {method.type === 'debit_card' ? 'Carte de débit' : 
-                             method.type === 'bank_account' ? 'Compte bancaire' : 'Interac'}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>{method.name}</TableCell>
-                      <TableCell>{method.holder_name}</TableCell>
-                      <TableCell>
-                        {method.type === 'bank_account' && method.transit && method.institution ? (
-                          <div className="text-sm">
-                            <div>{method.account_number}</div>
-                            <div className="text-muted-foreground">
-                              Transit: {method.transit} | Institution: {method.institution}
-                            </div>
-                          </div>
-                        ) : (
-                          method.account_number
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {method.bank_name || 'N/A'}
-                        {method.type === 'bank_account' && method.transit && method.institution && (
-                          <div className="text-xs text-muted-foreground mt-1">
-                            {method.transit}-{method.institution}
-                          </div>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {method.is_default ? (
-                          <Badge variant="default">Par défaut</Badge>
-                        ) : (
-                          <Badge variant="secondary">Actif</Badge>
-                        )}
+                  {paymentMethods.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center text-sm text-muted-foreground">
+                        {paymentMethodsError ?? 'Aucun moyen de paiement configuré pour le moment.'}
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ) : (
+                    paymentMethods.map((method) => (
+                      <TableRow key={method.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {getPaymentMethodIcon(method.type)}
+                            <span className="capitalize">
+                              {method.type === 'debit_card' ? 'Carte de débit' : 
+                               method.type === 'bank_account' ? 'Compte bancaire' : 'Interac'}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>{method.name}</TableCell>
+                        <TableCell>{method.holder_name}</TableCell>
+                        <TableCell>
+                          {method.type === 'bank_account' && method.transit && method.institution ? (
+                            <div className="text-sm">
+                              <div>{method.account_number}</div>
+                              <div className="text-muted-foreground">
+                                Transit: {method.transit} | Institution: {method.institution}
+                              </div>
+                            </div>
+                          ) : (
+                            method.account_number
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {method.bank_name || 'N/A'}
+                          {method.type === 'bank_account' && method.transit && method.institution && (
+                            <div className="text-xs text-muted-foreground mt-1">
+                              {method.transit}-{method.institution}
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {method.is_default ? (
+                            <Badge variant="default">Par défaut</Badge>
+                          ) : (
+                            <Badge variant="secondary">Actif</Badge>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -895,6 +958,9 @@ export const FinanceManager: React.FC = () => {
                   <DialogContent>
                     <DialogHeader>
                       <DialogTitle>Payer un livreur</DialogTitle>
+                      <DialogDescription>
+                        Effectuez un paiement à un livreur pour ses services de livraison
+                      </DialogDescription>
                     </DialogHeader>
                     <form onSubmit={(e) => { e.preventDefault(); payDriver(); }} className="space-y-4">
                       <div>
@@ -972,20 +1038,28 @@ export const FinanceManager: React.FC = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {driverPayments.map((payment) => (
-                    <TableRow key={payment.id}>
-                      <TableCell className="font-medium">{payment.driver_name}</TableCell>
-                      <TableCell>${payment.amount.toFixed(2)}</TableCell>
-                      <TableCell>{payment.payment_method}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {getStatusIcon(payment.status)}
-                          <span className="capitalize">{payment.status}</span>
-                        </div>
+                  {driverPayments.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center text-sm text-muted-foreground">
+                        {driverPaymentsError ?? 'Aucun paiement livreur enregistré.'}
                       </TableCell>
-                      <TableCell>{new Date(payment.created_at).toLocaleDateString()}</TableCell>
                     </TableRow>
-                  ))}
+                  ) : (
+                    driverPayments.map((payment) => (
+                      <TableRow key={payment.id}>
+                        <TableCell className="font-medium">{payment.driver_name}</TableCell>
+                        <TableCell>${payment.amount.toFixed(2)}</TableCell>
+                        <TableCell>{payment.payment_method}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {getStatusIcon(payment.status)}
+                            <span className="capitalize">{payment.status}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>{new Date(payment.created_at).toLocaleDateString()}</TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -995,3 +1069,5 @@ export const FinanceManager: React.FC = () => {
     </div>
   );
 };
+
+export default FinanceManager;

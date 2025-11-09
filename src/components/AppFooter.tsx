@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { useSettings } from '@/hooks/useSettings';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/hooks/useCart';
 import { useLoyaltyAccount } from '@/hooks/useLoyalty';
 import { useRecentOrders } from '@/hooks/useRecentOrders';
@@ -38,7 +38,11 @@ import {
   ExternalLink,
   Heart,
   Star,
-  TrendingUp
+  TrendingUp,
+  CreditCard,
+  Plus,
+  Edit,
+  Trash2
 } from 'lucide-react';
 
 // Composant Mini Panier Flottant - SEULEMENT POUR UTILISATEURS CONNECTÉS
@@ -143,6 +147,7 @@ const SmartSuggestions: React.FC = () => {
   const { user, profile } = useAuth();
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const loadTrendingProducts = async () => {
@@ -152,6 +157,7 @@ const SmartSuggestions: React.FC = () => {
       }
 
       try {
+        setError(null);
         // Charger les produits les plus vendus
         const { data: products, error } = await supabase
           .from('products')
@@ -159,14 +165,14 @@ const SmartSuggestions: React.FC = () => {
             id,
             name,
             price,
-            image,
-            store:stores(
+            image_url,
+            stores(
               name
             )
           `)
           .eq('is_active', true)
           .gt('stock', 0)
-          .order('total_reviews', { ascending: false, nullsLast: false })
+          .order('created_at', { ascending: false }) // ✅ Retirer total_reviews
           .limit(3);
 
         if (error) throw error;
@@ -175,7 +181,7 @@ const SmartSuggestions: React.FC = () => {
         const transformed = (products || []).map((product: any) => ({
           id: product.id,
           name: product.name,
-          store: product.store?.name || 'Magasin',
+          store: (product.stores && Array.isArray(product.stores) ? product.stores[0]?.name : product.stores?.name) || 'Magasin',
           price: product.price,
           trending: true
         }));
@@ -183,12 +189,8 @@ const SmartSuggestions: React.FC = () => {
         setSuggestions(transformed);
       } catch (error) {
         console.error('Erreur lors du chargement des suggestions:', error);
-        // Fallback vers données mock si erreur
-        setSuggestions([
-          { id: 1, name: 'Bananes bio', store: 'IGA', price: 3.99, trending: true },
-          { id: 2, name: 'Pain complet', store: 'Boulangerie', price: 4.49, trending: false },
-          { id: 3, name: 'Lait 2%', store: 'Metro', price: 5.99, trending: true }
-        ]);
+        setSuggestions([]);
+        setError('Impossible de charger les tendances pour le moment.');
       } finally {
         setLoading(false);
       }
@@ -218,7 +220,7 @@ const SmartSuggestions: React.FC = () => {
             </Card>
           ))}
         </div>
-      ) : (
+      ) : suggestions.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {suggestions.map((item) => (
             <Card key={item.id} className="hover:shadow-md transition-shadow cursor-pointer">
@@ -233,6 +235,10 @@ const SmartSuggestions: React.FC = () => {
             </Card>
           ))}
         </div>
+      ) : (
+        <div className="rounded-md border border-dashed border-muted p-4 text-sm text-muted-foreground bg-muted/10">
+          {error ?? "Aucun produit disponible pour le moment."}
+        </div>
       )}
     </div>
   );
@@ -243,29 +249,22 @@ const DeliveryCalculator: React.FC = () => {
   const [address, setAddress] = useState('');
   const [isCalculating, setIsCalculating] = useState(false);
   const [result, setResult] = useState<{cost: number, distance: number, available: boolean} | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
 
   const calculateDelivery = async () => {
     if (!address.trim()) return;
     
     setIsCalculating(true);
     try {
-      // Simulation du calcul (à remplacer par vraie API)
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Mock result basé sur l'adresse
-      const mockDistance = Math.random() * 15 + 2; // 2-17 km
-      const available = mockDistance <= 15;
-      const cost = available ? Math.max(3.99, mockDistance * 0.5) : 0;
-      
-      setResult({
-        cost: parseFloat(cost.toFixed(2)),
-        distance: parseFloat(mockDistance.toFixed(1)),
-        available
-      });
+      console.warn('Calculateur de livraison indisponible : aucun moteur de calcul configuré.');
+      setResult(null);
+      setMessage("Le calculateur de livraison sera bientôt disponible. Contactez-nous pour une estimation personnalisée.");
     } catch (error) {
       console.error('Erreur calcul livraison:', error);
+      setMessage("Erreur lors du calcul de la livraison.");
+    } finally {
+      setIsCalculating(false);
     }
-    setIsCalculating(false);
   };
 
   return (
@@ -290,7 +289,15 @@ const DeliveryCalculator: React.FC = () => {
         </Button>
       </div>
       
-      {result && (
+      {message && (
+        <Card className="border-blue-200 bg-blue-50">
+          <CardContent className="p-3 text-sm text-blue-800">
+            {message}
+          </CardContent>
+        </Card>
+      )}
+
+      {result && !message && (
         <Card className={`${result.available ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
           <CardContent className="p-3">
             {result.available ? (
@@ -401,28 +408,10 @@ const PartnersSection: React.FC = () => {
         verified: true
       }));
 
-      // Remplir avec des données par défaut si moins de 4 magasins
-      const defaultPartners = [
-        { name: 'IGA Valleyfield', category: 'Épicerie', verified: true },
-        { name: 'Pharmaprix', category: 'Pharmacie', verified: true },
-        { name: 'Metro Plus', category: 'Épicerie', verified: true },
-        { name: 'SAQ', category: 'Alcool', verified: false },
-      ];
-
-      setPartners(
-        transformedPartners.length >= 4 
-          ? transformedPartners 
-          : transformedPartners.concat(defaultPartners.slice(transformedPartners.length))
-      );
+      setPartners(transformedPartners);
     } catch (error) {
       console.error('Erreur lors du chargement des partenaires:', error);
-      // Données par défaut en cas d'erreur
-      setPartners([
-        { name: 'IGA Valleyfield', category: 'Épicerie', verified: true },
-        { name: 'Pharmaprix', category: 'Pharmacie', verified: true },
-        { name: 'Metro Plus', category: 'Épicerie', verified: true },
-        { name: 'SAQ', category: 'Alcool', verified: false },
-      ]);
+      setPartners([]);
     } finally {
       setLoading(false);
     }
@@ -455,7 +444,7 @@ const PartnersSection: React.FC = () => {
             </div>
           ))}
         </div>
-      ) : (
+      ) : partners.length > 0 ? (
         <div className="grid grid-cols-2 gap-2">
           {partners.map((partner, index) => (
             <div key={index} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50">
@@ -466,6 +455,10 @@ const PartnersSection: React.FC = () => {
               </div>
             </div>
           ))}
+        </div>
+      ) : (
+        <div className="rounded-md border border-dashed border-muted p-4 text-sm text-muted-foreground bg-muted/10">
+          Aucun partenaire actif n'est disponible pour le moment.
         </div>
       )}
     </div>
@@ -707,10 +700,18 @@ export const AppFooter: React.FC = () => {
           
           <Separator className="my-8" />
           
-          {/* Bas de page - COPYRIGHT DYNAMIQUE */}
           <div className="flex flex-col md:flex-row justify-between items-center text-sm text-muted-foreground">
-            <div className="mb-4 md:mb-0">
-              {footerData.copyright}
+            <div className="mb-4 md:mb-0 flex flex-col md:flex-row md:items-center md:space-x-4 text-center md:text-left gap-2">
+              <span>{footerData.copyright}</span>
+              <span className="flex items-center justify-center md:justify-start gap-2 text-xs text-muted-foreground/80">
+                Propulsé par <span className="font-semibold text-primary">Konekte Group</span>
+                <img
+                  src="/lovable-uploads/konekte-group.png"
+                  alt="Konekte Group"
+                  className="h-5 w-auto opacity-80"
+                  loading="lazy"
+                />
+              </span>
             </div>
             <div className="flex space-x-4">
               {footerData.navigationLinks.map((link, index) => (

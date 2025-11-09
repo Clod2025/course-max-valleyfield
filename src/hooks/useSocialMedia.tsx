@@ -31,34 +31,10 @@ export const useSocialMedia = () => {
         .order('created_at', { ascending: true });
 
       if (error) {
-        console.log('⚠️ Social media table not found, using mock data');
-        // Mock data pour les réseaux sociaux
-        setSocialMedias([
-          {
-            id: '1',
-            platform: 'facebook',
-            url: 'https://facebook.com/coursemax',
-            is_active: true,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          },
-          {
-            id: '2',
-            platform: 'instagram',
-            url: 'https://instagram.com/coursemax',
-            is_active: true,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          },
-          {
-            id: '3',
-            platform: 'twitter',
-            url: 'https://twitter.com/coursemax',
-            is_active: true,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          }
-        ]);
+        console.error('❌ Erreur chargement réseaux sociaux:', error);
+        setSocialMedias([]);
+        setError('Impossible de charger les réseaux sociaux');
+        return;
       } else {
         setSocialMedias(data || []);
       }

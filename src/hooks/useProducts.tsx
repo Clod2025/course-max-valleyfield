@@ -39,7 +39,7 @@ export const useProducts = (options: UseProductsOptions = {}): UseProductsReturn
           stores (
             id,
             name,
-            owner_id
+            manager_id
           )
         `)
         .eq('is_active', true)

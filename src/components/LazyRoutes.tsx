@@ -39,20 +39,8 @@ export const OrderCheckoutLazy = lazy(() =>
 );
 
 // Composants merchants lourds
-export const ProductManagementLazy = lazy(() => 
-  import('../components/merchant/ProductManagement').then(module => ({
-    default: module.default
-  }))
-);
-
 export const MerchantAnalyticsLazy = lazy(() => 
   import('../components/merchant/MerchantAnalytics').then(module => ({
-    default: module.default
-  }))
-);
-
-export const OrderManagementLazy = lazy(() => 
-  import('../components/merchant/OrderManagement').then(module => ({
     default: module.default
   }))
 );
@@ -124,20 +112,8 @@ export const OrderCheckout = () => (
 );
 
 // Wrapper pour les composants merchant
-export const ProductManagement = () => (
-  <Suspense fallback={<ProductCardSkeleton />}>
-    <ProductManagementLazy />
-  </Suspense>
-);
-
 export const MerchantAnalytics = () => (
   <Suspense fallback={<DashboardSkeleton />}>
     <MerchantAnalyticsLazy />
-  </Suspense>
-);
-
-export const OrderManagement = () => (
-  <Suspense fallback={<DashboardSkeleton />}>
-    <OrderManagementLazy />
   </Suspense>
 );

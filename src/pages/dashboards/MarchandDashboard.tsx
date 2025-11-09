@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { useAuth } from '@/hooks/useAuth';
 import { AlertCircle } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 import { MerchantHamburgerMenu } from '@/components/merchant/MerchantHamburgerMenu';
 import { ProductManager } from '@/components/merchant/ProductManager';
 import { MerchantFinance } from '@/components/merchant/MerchantFinance';
@@ -14,19 +12,20 @@ import { MerchantSettings } from '@/components/merchant/MerchantSettings';
 import { EnhancedOrdersDisplay } from '@/components/merchant/EnhancedOrdersDisplay';
 import { EmployeesManager } from '@/components/merchant/EmployeesManager';
 import { PaymentSettings } from '@/components/merchant/PaymentSettings';
+import { MerchantOrderNotifications } from '@/components/merchant/MerchantOrderNotifications';
 
-const MarchandDashboard = () => {
+const MarchandDashboard: React.FC = () => {
   const { profile, loading: authLoading, isRole } = useAuth();
   const navigate = useNavigate();
-  const [activeMenuItem, setActiveMenuItem] = useState('orders'); // Par défaut sur les commandes
+  const [activeMenuItem, setActiveMenuItem] = useState('orders');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  // ✅ Vérification pour supermarché uniquement
+  // ✅ Vérification côté front : supermarché uniquement
   const isSupermarche =
     isRole(['store_manager', 'Store Manager']) &&
-    (profile?.type_marchand === 'Supermarché' || !profile?.type_marchand);
+    profile?.type_marchand === 'Supermarché';
 
-  // Protection de route
+  // Protection de route côté front
   useEffect(() => {
     if (!authLoading && profile) {
       if (!isSupermarche) {
@@ -49,9 +48,9 @@ const MarchandDashboard = () => {
         }
       }
     }
-  }, [profile, authLoading, navigate, isSupermarche]);
+  }, [profile, authLoading, navigate, isSupermarche, isRole]);
 
-  // Afficher loading pendant vérification
+  // Loading pendant vérification
   if (authLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -60,6 +59,7 @@ const MarchandDashboard = () => {
     );
   }
 
+  // Accès non autorisé
   if (!profile || !isSupermarche) {
     return (
       <div className="min-h-screen bg-background">
@@ -71,15 +71,6 @@ const MarchandDashboard = () => {
               <p className="text-muted-foreground mb-4">
                 Cette interface est réservée aux supermarchés.
               </p>
-              <div className="text-sm text-gray-500">
-                <p>
-                  Type de compte: <strong>{profile?.type_compte || 'Non défini'}</strong>
-                </p>
-                <p>
-                  Type de marchand: <strong>{profile?.type_marchand || 'Non défini'}</strong>
-                </p>
-                <p>Interface autorisée: Supermarché</p>
-              </div>
             </CardContent>
           </Card>
         </div>
@@ -117,6 +108,9 @@ const MarchandDashboard = () => {
         onSidebarToggle={setSidebarCollapsed}
         isCollapsed={sidebarCollapsed}
       />
+
+      {/* Notifications de nouvelles commandes */}
+      <MerchantOrderNotifications />
 
       {/* Contenu principal */}
       <div className={`${sidebarCollapsed ? 'ml-20' : 'ml-80'} pt-16 transition-all duration-300`}>

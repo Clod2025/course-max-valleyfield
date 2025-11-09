@@ -82,48 +82,203 @@ const AdminAnalytics = ({ dateRange, merchantFilter, showDetailed = false }: Adm
   const fetchAnalyticsData = async () => {
     setLoading(true);
     try {
-      // Simuler des données pour l'instant - remplacer par de vraies requêtes Supabase
-      const mockData: AnalyticsData = {
-        totalOrders: 1247,
-        totalRevenue: 45230,
-        totalCommissions: 2156,
-        activeDrivers: 23,
-        activeMerchants: 45,
-        ordersGrowth: 15.2,
-        revenueGrowth: 8.7,
-        commissionGrowth: 12.3,
-        ordersByDay: [
-          { date: '2024-01-01', orders: 45, revenue: 1200, commissions: 60 },
-          { date: '2024-01-02', orders: 52, revenue: 1350, commissions: 68 },
-          { date: '2024-01-03', orders: 38, revenue: 980, commissions: 49 },
-          { date: '2024-01-04', orders: 61, revenue: 1580, commissions: 79 },
-          { date: '2024-01-05', orders: 48, revenue: 1250, commissions: 63 },
-          { date: '2024-01-06', orders: 55, revenue: 1420, commissions: 71 },
-          { date: '2024-01-07', orders: 67, revenue: 1730, commissions: 87 },
-        ],
-        ordersByMerchant: [
-          { merchant: 'Restaurant Le Bistro', orders: 156, revenue: 4200, type: 'restaurant' },
-          { merchant: 'Pharmacie Centrale', orders: 89, revenue: 2100, type: 'pharmacy' },
-          { merchant: 'Épicerie Martin', orders: 234, revenue: 3800, type: 'grocery' },
-          { merchant: 'Boulangerie Dupont', orders: 67, revenue: 1200, type: 'restaurant' },
-          { merchant: 'Super C', orders: 189, revenue: 3200, type: 'grocery' },
-        ],
-        driverPerformance: [
-          { driver: 'Jean Dupuis', deliveries: 45, rating: 4.8, earnings: 890 },
-          { driver: 'Marie Tremblay', deliveries: 38, rating: 4.9, earnings: 760 },
-          { driver: 'Pierre Gagnon', deliveries: 42, rating: 4.7, earnings: 840 },
-          { driver: 'Sophie Leblanc', deliveries: 35, rating: 4.6, earnings: 700 },
-          { driver: 'Marc Roy', deliveries: 29, rating: 4.5, earnings: 580 },
-        ],
-        commissionBreakdown: [
-          { name: 'Commissions Livraison', value: 2156, color: '#8884d8' },
-          { name: 'Frais de Service', value: 1200, color: '#82ca9d' },
-          { name: 'Abonnements', value: 800, color: '#ffc658' },
-          { name: 'Publicité', value: 400, color: '#ff7300' },
-        ]
+      const days =
+        dateRange === '30d' ? 30 :
+        dateRange === '90d' ? 90 : 7;
+
+      const now = new Date();
+      const periodStart = new Date(now);
+      periodStart.setDate(now.getDate() - days);
+
+      const previousPeriodStart = new Date(periodStart);
+      previousPeriodStart.setDate(periodStart.getDate() - days);
+
+      const previousPeriodEnd = new Date(periodStart);
+
+      let ordersQuery = supabase
+        .from('orders')
+        .select('id, total_amount, created_at, store_id, status')
+        .gte('created_at', periodStart.toISOString())
+        .lte('created_at', now.toISOString());
+
+      let ordersPrevQuery = supabase
+        .from('orders')
+        .select('id, total_amount')
+        .gte('created_at', previousPeriodStart.toISOString())
+        .lte('created_at', previousPeriodEnd.toISOString());
+
+      if (merchantFilter && merchantFilter !== 'all') {
+        ordersQuery = ordersQuery.eq('store_id', merchantFilter);
+        ordersPrevQuery = ordersPrevQuery.eq('store_id', merchantFilter);
+      }
+
+      const [
+        ordersResult,
+        ordersPrevResult,
+        deliveriesResult,
+        commissionsResult,
+        storesResult,
+        driversResult,
+      ] = await Promise.all([
+        ordersQuery,
+        ordersPrevQuery,
+        supabase
+          .from('deliveries')
+          .select('driver_id')
+          .gte('created_at', periodStart.toISOString())
+          .lte('created_at', now.toISOString()),
+        supabase
+          .from('delivery_commissions')
+          .select('driver_id, platform_amount, driver_amount')
+          .gte('created_at', periodStart.toISOString())
+          .lte('created_at', now.toISOString()),
+        supabase.from('stores').select('id, name, store_type'),
+        supabase
+          .from('profiles')
+          .select('user_id, first_name, last_name, driver_rating')
+          .in('role', ['livreur', 'driver']),
+      ]);
+
+      if (ordersResult.error) throw ordersResult.error;
+      if (ordersPrevResult.error) throw ordersPrevResult.error;
+      if (deliveriesResult.error && deliveriesResult.error.code !== 'PGRST116') throw deliveriesResult.error;
+      if (commissionsResult.error && commissionsResult.error.code !== 'PGRST116') throw commissionsResult.error;
+      if (storesResult.error && storesResult.error.code !== 'PGRST116') throw storesResult.error;
+      if (driversResult.error && driversResult.error.code !== 'PGRST116') throw driversResult.error;
+
+      const orders = ordersResult.data || [];
+      const prevOrders = ordersPrevResult.data || [];
+      const deliveries = deliveriesResult.data || [];
+      const commissions = commissionsResult.data || [];
+      const stores = storesResult.data || [];
+      const drivers = driversResult.data || [];
+
+      const totalOrders = orders.length;
+      const totalRevenue = orders.reduce((sum, order) => sum + (order.total_amount || 0), 0);
+      const totalCommissions = commissions.reduce((sum, entry) => sum + (entry.platform_amount || 0), 0);
+
+      const ordersByDate = new Map<string, { orders: number; revenue: number; commissions: number }>();
+      orders.forEach(order => {
+        const dateKey = new Date(order.created_at).toISOString().slice(0, 10);
+        if (!ordersByDate.has(dateKey)) {
+          ordersByDate.set(dateKey, { orders: 0, revenue: 0, commissions: 0 });
+        }
+        const aggregate = ordersByDate.get(dateKey)!;
+        aggregate.orders += 1;
+        aggregate.revenue += order.total_amount || 0;
+      });
+
+      const commissionsByDate = new Map<string, number>();
+      commissions.forEach(entry => {
+        const dateKey = new Date(entry.created_at).toISOString().slice(0, 10);
+        commissionsByDate.set(dateKey, (commissionsByDate.get(dateKey) || 0) + (entry.platform_amount || 0));
+      });
+
+      commissionsByDate.forEach((value, date) => {
+        if (!ordersByDate.has(date)) {
+          ordersByDate.set(date, { orders: 0, revenue: 0, commissions: 0 });
+        }
+        const aggregate = ordersByDate.get(date)!;
+        aggregate.commissions += value;
+      });
+
+      const ordersByMerchantMap = new Map<string, { orders: number; revenue: number }>();
+      orders.forEach(order => {
+        const key = order.store_id || 'unknown';
+        if (!ordersByMerchantMap.has(key)) {
+          ordersByMerchantMap.set(key, { orders: 0, revenue: 0 });
+        }
+        const aggregate = ordersByMerchantMap.get(key)!;
+        aggregate.orders += 1;
+        aggregate.revenue += order.total_amount || 0;
+      });
+
+      const storeNameMap = new Map<string, { name: string; type: string }>();
+      stores.forEach(store => {
+        storeNameMap.set(store.id, { name: store.name || store.id, type: store.store_type || 'other' });
+      });
+
+      const driverNameMap = new Map<string, { name: string; rating: number }>();
+      drivers.forEach(driver => {
+        driverNameMap.set(driver.user_id, {
+          name: `${driver.first_name || ''} ${driver.last_name || ''}`.trim() || driver.user_id,
+          rating: driver.driver_rating || 0,
+        });
+      });
+
+      const driverDeliveriesAggregate = new Map<string, number>();
+      deliveries.forEach(entry => {
+        if (!entry.driver_id) return;
+        driverDeliveriesAggregate.set(entry.driver_id, (driverDeliveriesAggregate.get(entry.driver_id) || 0) + 1);
+      });
+
+      const driverEarningsAggregate = new Map<string, number>();
+      commissions.forEach(entry => {
+        if (!entry.driver_id) return;
+        driverEarningsAggregate.set(entry.driver_id, (driverEarningsAggregate.get(entry.driver_id) || 0) + (entry.driver_amount || 0));
+      });
+
+      const driverPerformance = Array.from(driverDeliveriesAggregate.entries())
+        .map(([driverId, deliveriesCount]) => ({
+          driver: driverNameMap.get(driverId)?.name || driverId,
+          deliveries: deliveriesCount,
+          rating: driverNameMap.get(driverId)?.rating || 0,
+          earnings: driverEarningsAggregate.get(driverId) || 0,
+        }))
+        .sort((a, b) => b.deliveries - a.deliveries)
+        .slice(0, 5);
+
+      const commissionBreakdown = [
+        {
+          name: 'Commissions Livraison',
+          value: commissions.reduce((sum, entry) => sum + (entry.platform_amount || 0), 0),
+          color: '#8884d8',
+        },
+        {
+          name: 'Versements Livreurs',
+          value: commissions.reduce((sum, entry) => sum + (entry.driver_amount || 0), 0),
+          color: '#82ca9d',
+        },
+      ];
+
+      const currentOrders = orders.length;
+      const previousOrders = prevOrders.length;
+      const currentRevenue = totalRevenue;
+      const previousRevenue = prevOrders.reduce((sum, order) => sum + (order.total_amount || 0), 0);
+      const currentCommissions = totalCommissions;
+      const previousCommissions = 0;
+
+      const analyticsData: AnalyticsData = {
+        totalOrders,
+        totalRevenue,
+        totalCommissions,
+        activeDrivers: new Set(deliveries.map(entry => entry.driver_id).filter(Boolean)).size,
+        activeMerchants: new Set(orders.map(order => order.store_id).filter(Boolean)).size,
+        ordersGrowth: previousOrders ? ((currentOrders - previousOrders) / previousOrders) * 100 : 0,
+        revenueGrowth: previousRevenue ? ((currentRevenue - previousRevenue) / previousRevenue) * 100 : 0,
+        commissionGrowth: previousCommissions ? ((currentCommissions - previousCommissions) / previousCommissions) * 100 : 0,
+        ordersByDay: Array.from(ordersByDate.entries())
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([date, values]) => ({
+            date,
+            orders: values.orders,
+            revenue: values.revenue,
+            commissions: values.commissions,
+          })),
+        ordersByMerchant: Array.from(ordersByMerchantMap.entries())
+          .map(([storeId, values]) => ({
+            merchant: storeNameMap.get(storeId)?.name || storeId,
+            orders: values.orders,
+            revenue: values.revenue,
+            type: storeNameMap.get(storeId)?.type || 'other',
+          }))
+          .sort((a, b) => b.revenue - a.revenue)
+          .slice(0, 10),
+        driverPerformance,
+        commissionBreakdown,
       };
 
-      setData(mockData);
+      setData(analyticsData);
     } catch (error) {
       console.error('Erreur lors du chargement des analytics:', error);
     } finally {

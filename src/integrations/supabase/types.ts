@@ -446,73 +446,76 @@ export type Database = {
         Row: {
           id: string
           name: string
-          description: string | null
           address: string
           city: string
-          postal_code: string
-          phone: string
-          email: string
-          opening_hours: string | null
-          delivery_radius: number
-          delivery_fee: number
+          postal_code: string | null
+          phone: string | null
+          email: string | null
+          latitude: number | null
+          longitude: number | null
           minimum_order: number
+          delivery_fee: number
+          operating_hours: Json | null
           is_active: boolean
-          accepts_orders: boolean
+          store_type: string
+          manager_id: string | null
+          description: string | null
           logo_url: string | null
           banner_url: string | null
-          owner_id: string
           created_at: string
           updated_at: string
         }
         Insert: {
           id?: string
           name: string
-          description?: string | null
           address: string
           city: string
-          postal_code: string
-          phone: string
-          email: string
-          opening_hours?: string | null
-          delivery_radius?: number
-          delivery_fee?: number
+          postal_code?: string | null
+          phone?: string | null
+          email?: string | null
+          latitude?: number | null
+          longitude?: number | null
           minimum_order?: number
+          delivery_fee?: number
+          operating_hours?: Json | null
           is_active?: boolean
-          accepts_orders?: boolean
+          store_type?: string
+          manager_id: string
+          description?: string | null
           logo_url?: string | null
           banner_url?: string | null
-          owner_id: string
           created_at?: string
           updated_at?: string
         }
         Update: {
           id?: string
           name?: string
-          description?: string | null
           address?: string
           city?: string
-          postal_code?: string
-          phone?: string
-          email?: string
-          opening_hours?: string | null
-          delivery_radius?: number
-          delivery_fee?: number
+          postal_code?: string | null
+          phone?: string | null
+          email?: string | null
+          latitude?: number | null
+          longitude?: number | null
           minimum_order?: number
+          delivery_fee?: number
+          operating_hours?: Json | null
           is_active?: boolean
-          accepts_orders?: boolean
+          store_type?: string
+          manager_id?: string | null
+          description?: string | null
           logo_url?: string | null
           banner_url?: string | null
-          owner_id?: string
           created_at?: string
           updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "stores_owner_id_fkey"
-            columns: ["owner_id"]
+            foreignKeyName: "stores_manager_id_fkey"
+            columns: ["manager_id"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
+            referencedColumns: ["user_id"]
           }
         ]
       }

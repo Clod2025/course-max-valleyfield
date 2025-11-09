@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Bell, X, CheckCircle, AlertCircle, Package, Clock, CheckCircle2 } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -41,7 +41,16 @@ export function ClientNotificationsDropdown({ onCountChange }: ClientNotificatio
         .order('created_at', { ascending: false })
         .limit(20);
 
-      if (error) throw error;
+      if (error) {
+        // Si la table n'existe pas, simplement ignorer
+        if (error.code === 'PGRST205' || error.message.includes('not found')) {
+          console.warn('Table notifications non trouvée, notifications désactivées');
+          setNotifications([]);
+          setUnreadCount(0);
+          return;
+        }
+        throw error;
+      }
 
       setNotifications(data || []);
       const unread = (data || []).filter(n => !n.read).length;
@@ -49,34 +58,17 @@ export function ClientNotificationsDropdown({ onCountChange }: ClientNotificatio
       onCountChange?.(unread);
     } catch (error) {
       console.error('Erreur lors du chargement des notifications:', error);
+      // Désactiver les notifications en cas d'erreur
+      setNotifications([]);
+      setUnreadCount(0);
     }
   }, [user, onCountChange]);
 
   useEffect(() => {
     loadNotifications();
-
-    // Subscription temps réel
-    if (!user) return;
-
-    const channel = supabase
-      .channel('client-notifications')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${user.id}`
-        },
-        () => {
-          loadNotifications();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    // ✅ Ne pas souscrire à Realtime si la table n'existe pas
+    // if (!user) return;
+    // const channel = supabase...
   }, [user, loadNotifications]);
 
   const markAsRead = async (notificationId: string) => {
@@ -86,7 +78,14 @@ export function ClientNotificationsDropdown({ onCountChange }: ClientNotificatio
         .update({ read: true })
         .eq('id', notificationId);
 
-      if (error) throw error;
+      if (error) {
+        // Si la table n'existe pas, simplement ignorer
+        if (error.code === 'PGRST205' || error.message.includes('not found')) {
+          console.warn('Table notifications non trouvée');
+          return;
+        }
+        throw error;
+      }
       loadNotifications();
     } catch (error) {
       console.error('Erreur lors de la mise à jour:', error);
@@ -103,7 +102,14 @@ export function ClientNotificationsDropdown({ onCountChange }: ClientNotificatio
         .eq('user_id', user.id)
         .eq('read', false);
 
-      if (error) throw error;
+      if (error) {
+        // Si la table n'existe pas, simplement ignorer
+        if (error.code === 'PGRST205' || error.message.includes('not found')) {
+          console.warn('Table notifications non trouvée');
+          return;
+        }
+        throw error;
+      }
       loadNotifications();
     } catch (error) {
       console.error('Erreur lors de la mise à jour:', error);

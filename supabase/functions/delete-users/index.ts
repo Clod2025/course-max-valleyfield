@@ -1,96 +1,89 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.0'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+import {
+  corsHeaders,
+  errorResponse,
+  handleCorsPreflight,
+  jsonResponse,
+  requireUser,
+} from '../_shared/security.ts';
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+  const cors = handleCorsPreflight(req);
+  if (cors) {
+    return cors;
   }
 
   try {
-    const supabaseUrl = "https://vexgjrrqbjurgiqfjxwk.supabase.co";
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-
-    if (!serviceRoleKey) {
-      throw new Error('Service role key not configured');
+    const auth = await requireUser(req, { requireAdmin: true });
+    if ('errorResponse' in auth) {
+      return auth.errorResponse;
     }
 
-    // Create admin client with service role key
-    const supabase = createClient(supabaseUrl, serviceRoleKey);
-
-    const { userIds } = await req.json();
+    const { supabase } = auth;
+    const body = await req.json();
+    const userIds = body?.userIds;
 
     if (!Array.isArray(userIds) || userIds.length === 0) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid userIds array' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return errorResponse('Invalid userIds array', 400);
     }
 
-    console.log(`Attempting to delete ${userIds.length} users:`, userIds);
+    const results: Array<Record<string, unknown>> = [];
 
-    const results = [];
+    for (const rawUserId of userIds) {
+      const userId = String(rawUserId ?? '').trim();
 
-    // Delete each user
-    for (const userId of userIds) {
+      if (!userId) {
+        results.push({
+          id: rawUserId,
+          status: 'error',
+          message: 'User ID manquant',
+        });
+        continue;
+      }
+
       try {
-        console.log(`Deleting user: ${userId}`);
         const { error } = await supabase.auth.admin.deleteUser(userId);
-        
+
         if (error) {
-          console.error(`Error deleting user ${userId}:`, error);
           results.push({
             id: userId,
-            email: `user-${userId.substring(0, 8)}@test.com`,
             status: 'error',
-            message: error.message
+            message: error.message,
           });
         } else {
-          console.log(`Successfully deleted user: ${userId}`);
           results.push({
             id: userId,
-            email: `user-${userId.substring(0, 8)}@test.com`,
             status: 'success',
-            message: 'User deleted successfully'
+            message: 'User deleted successfully',
           });
         }
       } catch (err) {
-        console.error(`Exception deleting user ${userId}:`, err);
+        const message =
+          err instanceof Error ? err.message : 'Unexpected error';
         results.push({
           id: userId,
-          email: `user-${userId.substring(0, 8)}@test.com`,
           status: 'error',
-          message: err.message
+          message,
         });
       }
     }
 
-    const deletedCount = results.filter(r => r.status === 'success').length;
-    const errorCount = results.filter(r => r.status === 'error').length;
+    const deletedCount = results.filter(
+      (r) => r.status === 'success',
+    ).length;
+    const errorCount = results.filter(
+      (r) => r.status === 'error',
+    ).length;
 
-    const response = {
+    return jsonResponse({
       success: true,
       deletedCount,
       errorCount,
-      results
-    };
-
-    console.log('Deletion operation completed:', response);
-
-    return new Response(
-      JSON.stringify(response),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-
+      results,
+    });
   } catch (error) {
-    console.error('Function error:', error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    const message =
+      error instanceof Error ? error.message : 'Erreur inattendue';
+    console.error('Erreur fonction delete-users:', error);
+    return errorResponse(message, 500);
   }
 });

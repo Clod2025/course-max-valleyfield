@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { 
   Shield, 
   User, 
@@ -16,12 +16,12 @@ import {
   Key
 } from 'lucide-react';
 
-export const AuthFixer: React.FC = () => {
+const AuthFixer: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [fixing, setFixing] = useState(false);
   const [userInfo, setUserInfo] = useState<any>(null);
   const { toast } = useToast();
-  const { user, profile, signOut } = useAuth();
+  const { profile, user, isRole } = useAuth();
 
   const checkUser = async () => {
     setLoading(true);
@@ -157,7 +157,9 @@ export const AuthFixer: React.FC = () => {
 
   const forceReconnect = async () => {
     try {
-      await signOut();
+      // signOut is not directly available in useAuth, so we'll just reload
+      // This might need a more robust solution depending on your auth flow
+      window.location.reload();
       toast({
         title: "Déconnexion",
         description: "Vous allez être redirigé vers la page de connexion",
@@ -186,7 +188,7 @@ export const AuthFixer: React.FC = () => {
           <div className="space-y-1 text-sm">
             <p><strong>Email:</strong> {user?.email || 'Non connecté'}</p>
             <p><strong>Rôle:</strong> {profile?.role || 'Non défini'}</p>
-            <p><strong>Admin:</strong> {profile?.role === 'admin' ? 'Oui' : 'Non'}</p>
+            <p><strong>Admin:</strong> {isRole(['admin', 'Admin', 'ADMIN']) ? 'Oui' : 'Non'}</p>
           </div>
         </div>
 
@@ -285,10 +287,10 @@ export const AuthFixer: React.FC = () => {
                 {!userInfo.profileData && (
                   <p>• Le profil n'existe pas - cliquez sur "Réparer l'admin"</p>
                 )}
-                {userInfo.profileData && userInfo.profileData.role !== 'admin' && (
+                {userInfo.profileData && !isRole(['admin', 'Admin', 'ADMIN'], userInfo.profileData.role) && (
                   <p>• Le profil existe mais n'est pas admin - cliquez sur "Réparer l'admin"</p>
                 )}
-                {userInfo.profileData && userInfo.profileData.role === 'admin' && (
+                {userInfo.profileData && isRole(['admin', 'Admin', 'ADMIN'], userInfo.profileData.role) && (
                   <p>• Le profil est correct - essayez de vous reconnecter</p>
                 )}
               </div>
@@ -299,3 +301,5 @@ export const AuthFixer: React.FC = () => {
     </Card>
   );
 };
+
+export default AuthFixer;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,7 +9,8 @@ import {
   DialogContent, 
   DialogHeader, 
   DialogTitle, 
-  DialogTrigger 
+  DialogTrigger,
+  DialogDescription 
 } from '@/components/ui/dialog';
 import { 
   Select,
@@ -87,7 +88,7 @@ export const SocialMediaManager: React.FC = () => {
   ];
 
   // Chargement des données
-  const fetchSocialMedias = async () => {
+  const fetchSocialMedias = useCallback(async () => {
     try {
       setLoading(true);
       console.log('🔍 Fetching social media data...');
@@ -98,29 +99,10 @@ export const SocialMediaManager: React.FC = () => {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.log('⚠️ Social media table not found, using mock data');
-        // Mock data pour les réseaux sociaux
-        setSocialMedias([
-          {
-            id: '1',
-            platform: 'facebook',
-            url: 'https://facebook.com/coursemax',
-            is_active: true,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          },
-          {
-            id: '2',
-            platform: 'instagram',
-            url: 'https://instagram.com/coursemax',
-            is_active: true,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          }
-        ]);
-      } else {
-        setSocialMedias(data || []);
+        throw error;
       }
+
+      setSocialMedias(data || []);
 
       toast({
         title: "Données chargées",
@@ -128,6 +110,7 @@ export const SocialMediaManager: React.FC = () => {
       });
     } catch (error: any) {
       console.error('❌ Error loading social media data:', error);
+      setSocialMedias([]);
       toast({
         title: "Erreur",
         description: `Impossible de charger les données: ${error.message}`,
@@ -136,7 +119,7 @@ export const SocialMediaManager: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   // Ajouter un réseau social
   const addSocialMedia = async () => {
@@ -154,17 +137,21 @@ export const SocialMediaManager: React.FC = () => {
         return;
       }
 
-      // Simulation de sauvegarde
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const { data, error } = await supabase
+        .from('social_media')
+        .insert({
+          platform: formData.platform,
+          url: formData.url.trim(),
+          is_active: formData.is_active,
+        })
+        .select()
+        .single();
 
-      const newSocialMedia: SocialMedia = {
-        id: Date.now().toString(),
-        ...formData,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
+      if (error) {
+        throw error;
+      }
 
-      setSocialMedias(prev => [newSocialMedia, ...prev]);
+      setSocialMedias(prev => [data, ...prev]);
 
       toast({
         title: "Succès",
@@ -206,13 +193,26 @@ export const SocialMediaManager: React.FC = () => {
         return;
       }
 
-      // Simulation de sauvegarde
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (!editingItem) return;
+
+      const { data, error } = await supabase
+        .from('social_media')
+        .update({
+          platform: formData.platform,
+          url: formData.url.trim(),
+          is_active: formData.is_active,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', editingItem.id)
+        .select()
+        .single();
+
+      if (error) {
+        throw error;
+      }
 
       setSocialMedias(prev => prev.map(item => 
-        item.id === editingItem?.id 
-          ? { ...item, ...formData, updated_at: new Date().toISOString() }
-          : item
+        item.id === editingItem.id ? data : item
       ));
 
       toast({
@@ -245,8 +245,14 @@ export const SocialMediaManager: React.FC = () => {
     try {
       console.log('🗑️ Deleting social media:', itemId);
       
-      // Simulation de suppression
-      await new Promise(resolve => setTimeout(resolve, 500));
+      const { error } = await supabase
+        .from('social_media')
+        .delete()
+        .eq('id', itemId);
+
+      if (error) {
+        throw error;
+      }
 
       setSocialMedias(prev => prev.filter(item => item.id !== itemId));
       
@@ -305,7 +311,7 @@ export const SocialMediaManager: React.FC = () => {
   // Chargement initial
   useEffect(() => {
     fetchSocialMedias();
-  }, []);
+  }, [fetchSocialMedias]);
 
   if (loading) {
     return (
@@ -346,6 +352,9 @@ export const SocialMediaManager: React.FC = () => {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Ajouter un réseau social</DialogTitle>
+                <DialogDescription>
+                  Configurez un nouveau réseau social pour votre entreprise
+                </DialogDescription>
               </DialogHeader>
               <form onSubmit={(e) => { e.preventDefault(); addSocialMedia(); }} className="space-y-4">
                 <div>
@@ -504,6 +513,9 @@ export const SocialMediaManager: React.FC = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Modifier le réseau social</DialogTitle>
+            <DialogDescription>
+              Modifiez les informations du réseau social sélectionné
+            </DialogDescription>
           </DialogHeader>
           <form onSubmit={(e) => { e.preventDefault(); updateSocialMedia(); }} className="space-y-4">
             <div>

@@ -13,7 +13,8 @@ CREATE TABLE IF NOT EXISTS commis (
   role TEXT DEFAULT 'commis',
   must_change_password BOOLEAN DEFAULT true,
   is_active BOOLEAN DEFAULT true,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Index pour optimiser les requêtes
@@ -36,13 +37,13 @@ CREATE POLICY "Admins can manage all commis" ON commis
   FOR ALL USING (
     EXISTS (
       SELECT 1 FROM public.profiles 
-      WHERE id = auth.uid() AND role = 'admin'
+      WHERE user_id = auth.uid() AND role = 'admin'
     )
   )
   WITH CHECK (
     EXISTS (
       SELECT 1 FROM public.profiles 
-      WHERE id = auth.uid() AND role = 'admin'
+      WHERE user_id = auth.uid() AND role = 'admin'
     )
   );
 
@@ -94,13 +95,14 @@ BEGIN
   END IF;
   
   -- Vérifier que l'utilisateur est un marchand
-  SELECT id INTO v_merchant_id
-  FROM public.profiles 
-  WHERE id = auth.uid() AND role IN ('merchant', 'store_manager', 'marchand');
-  
-  IF v_merchant_id IS NULL THEN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.profiles 
+    WHERE user_id = auth.uid() AND role IN ('merchant', 'store_manager', 'marchand')
+  ) THEN
     RAISE EXCEPTION 'Accès refusé : utilisateur non autorisé';
   END IF;
+
+  v_merchant_id := auth.uid();
   
   -- Générer un code unique
   v_code_unique := generate_commis_code();
@@ -166,7 +168,7 @@ BEGIN
   -- Vérifier que l'utilisateur est un marchand
   IF NOT EXISTS (
     SELECT 1 FROM public.profiles 
-    WHERE id = auth.uid() AND role IN ('merchant', 'store_manager', 'marchand')
+    WHERE user_id = auth.uid() AND role IN ('merchant', 'store_manager', 'marchand')
   ) THEN
     RAISE EXCEPTION 'Accès refusé : utilisateur non autorisé';
   END IF;

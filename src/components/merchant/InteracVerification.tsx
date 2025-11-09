@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface InteracOrder {
   id: string;
@@ -74,64 +74,60 @@ export const InteracVerification: React.FC<InteracVerificationProps> = ({
     
     try {
       setLoading(true);
-      // Simulation des données - dans un vrai projet, ceci viendrait de Supabase
-      const mockOrders: InteracOrder[] = [
-        {
-          id: '1',
-          order_number: 'CM12345',
-          customer_name: 'Marie Dubois',
-          customer_email: 'marie.dubois@email.com',
-          customer_phone: '(450) 123-4567',
-          amount: 45.50,
-          status: 'pending_interac_verification',
-          created_at: '2024-01-28T10:30:00Z',
-          interac_proofs: [
-            {
-              id: 'proof_1',
-              file_path: '/uploads/interac_proof_1.jpg',
-              original_filename: 'interac_screenshot.jpg',
-              file_size: 1024000,
-              mime_type: 'image/jpeg',
-              uploaded_at: '2024-01-28T10:35:00Z'
-            }
-          ],
-          merchant_interac_info: {
-            email: 'votre-email@exemple.com',
-            phone: '(450) 987-6543'
-          }
-        },
-        {
-          id: '2',
-          order_number: 'CM12346',
-          customer_name: 'Jean Martin',
-          customer_email: 'jean.martin@email.com',
-          customer_phone: '(450) 234-5678',
-          amount: 32.75,
-          status: 'pending_interac_verification',
-          created_at: '2024-01-28T09:15:00Z',
-          interac_proofs: [
-            {
-              id: 'proof_2',
-              file_path: '/uploads/interac_proof_2.pdf',
-              original_filename: 'interac_receipt.pdf',
-              file_size: 512000,
-              mime_type: 'application/pdf',
-              uploaded_at: '2024-01-28T09:20:00Z'
-            }
-          ],
-          merchant_interac_info: {
-            email: 'votre-email@exemple.com',
-            phone: '(450) 987-6543'
-          }
-        }
-      ];
-      
-      setOrders(mockOrders);
+
+      const { data: orderData, error } = await supabase
+        .from('orders')
+        .select(`
+          id,
+          order_number,
+          total_amount,
+          status,
+          created_at,
+          user:profiles!orders_user_id_fkey(first_name,last_name,email,phone),
+          interac_proofs:order_proofs(order_id,file_path,original_filename,file_size,mime_type,uploaded_at)
+        `)
+        .eq('status', 'pending_interac_verification')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        throw error;
+      }
+
+      const merchantInfo = {
+        email: user?.email ?? '',
+        phone: user?.user_metadata?.phone ?? ''
+      };
+
+      const formattedOrders: InteracOrder[] = (orderData || []).map((order: any) => {
+        const userInfo = order.user || {};
+        return {
+          id: order.id,
+          order_number: order.order_number,
+          customer_name: [userInfo.first_name, userInfo.last_name].filter(Boolean).join(' ') || 'Client',
+          customer_email: userInfo.email || 'Non fourni',
+          customer_phone: userInfo.phone || 'Non fourni',
+          amount: order.total_amount ?? 0,
+          status: order.status,
+          created_at: order.created_at,
+          interac_proofs: (order.interac_proofs || []).map((proof: any) => ({
+            id: proof.id || `${order.id}-${proof.file_path}`,
+            file_path: proof.file_path,
+            original_filename: proof.original_filename || proof.file_path?.split('/').pop() || 'preuve',
+            file_size: proof.file_size || 0,
+            mime_type: proof.mime_type || 'application/octet-stream',
+            uploaded_at: proof.uploaded_at || order.created_at
+          })),
+          merchant_interac_info: merchantInfo
+        };
+      });
+
+      setOrders(formattedOrders);
     } catch (error) {
       console.error('Erreur lors du chargement des commandes:', error);
+      setOrders([]);
       toast({
         title: "Erreur",
-        description: "Impossible de charger les commandes Interac",
+        description: "Impossible de charger les commandes Interac.",
         variant: "destructive"
       });
     } finally {
@@ -170,32 +166,34 @@ export const InteracVerification: React.FC<InteracVerificationProps> = ({
   const verifyPayment = async (orderId: string, verified: boolean) => {
     try {
       setIsProcessing(true);
-      
-      // Simulation de la vérification
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      setOrders(prev => 
-        prev.map(order => 
-          order.id === orderId 
-            ? { 
-                ...order, 
-                status: verified ? 'interac_verified' : 'interac_rejected' 
-              }
-            : order
-        )
-      );
-      
+
+      const { error } = await supabase
+        .from('orders')
+        .update({
+          status: verified ? 'interac_verified' : 'interac_rejected',
+          updated_at: new Date().toISOString(),
+          payment_notes: verificationComment || null
+        })
+        .eq('id', orderId);
+
+      if (error) {
+        throw error;
+      }
+
+      await loadInteracOrders();
+
       toast({
         title: verified ? "Paiement vérifié" : "Paiement rejeté",
-        description: `La commande ${selectedOrder?.order_number} a été ${verified ? 'vérifiée' : 'rejetée'}`,
+        description: `La commande ${selectedOrder?.order_number ?? ''} a été ${verified ? 'vérifiée' : 'rejetée'}`,
       });
-      
+
       setSelectedOrder(null);
       setVerificationComment('');
     } catch (error) {
+      console.error('Erreur vérification Interac:', error);
       toast({
         title: "Erreur",
-        description: "Impossible de traiter la vérification",
+        description: "Impossible de traiter la vérification.",
         variant: "destructive"
       });
     } finally {

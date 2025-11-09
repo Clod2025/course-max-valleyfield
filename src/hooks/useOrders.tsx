@@ -1,8 +1,17 @@
-import { useState, useEffect, useCallback } from 'react';
+// hooks/useOrders.ts
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
-import { useOrderStock } from './useOrderStock';
+
+export type OrderStatus =
+  | 'pending'
+  | 'confirmed'
+  | 'preparing'
+  | 'ready_for_pickup'
+  | 'in_delivery'
+  | 'delivered'
+  | 'cancelled';
 
 export interface OrderItem {
   product_id: string;
@@ -11,7 +20,7 @@ export interface OrderItem {
   total_price: number;
   product?: {
     name: string;
-    unit: string;
+    unit?: string;
   };
 }
 
@@ -20,224 +29,155 @@ export interface Order {
   order_number: string;
   user_id: string;
   store_id: string;
-  status: 'pending' | 'confirmed' | 'preparing' | 'ready_for_pickup' | 'in_delivery' | 'delivered' | 'cancelled';
-  items: any;
+  status: OrderStatus;
+  items: OrderItem[];
   subtotal: number;
   tax_amount: number;
   delivery_fee: number;
   total_amount: number;
-  delivery_address: string;
-  delivery_city: string;
+  delivery_address?: string;
+  delivery_city?: string;
   delivery_postal_code?: string;
-  phone: string;
+  phone?: string;
   notes?: string;
   delivery_instructions?: string;
-  created_at: string;
-  updated_at: string;
-  estimated_delivery?: string;
-  delivered_at?: string;
-  store?: {
-    name: string;
-    address: string;
-    phone?: string;
-  };
-  profiles?: {
-    first_name?: string;
-    last_name?: string;
-    email: string;
-  };
+  created_at?: string;
+  updated_at?: string;
+  delivered_at?: string | null;
+  store?: { name?: string; address?: string; phone?: string };
+  profiles?: { first_name?: string; last_name?: string; email?: string };
 }
 
 export const useOrders = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
-  const { updateStockForOrder } = useOrderStock();
+  const mounted = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   const fetchOrders = useCallback(async () => {
-    try {
-      setLoading(true);
-      let query = supabase
-        .from('orders')
-        .select(`
-          *,
-          store:stores(name, address, phone),
-          profiles(first_name, last_name, email)
-        `)
-        .order('created_at', { ascending: false });
-
-      const { data, error } = await query;
-
-      if (error) {
-        console.error('Error fetching orders:', error);
-        toast({
-          title: "Erreur",
-          description: "Impossible de charger les commandes",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      setOrders((data as any) || []);
-    } catch (error) {
-      console.error('Error:', error);
-    } finally {
+    if (!user) {
+      setOrders([]);
       setLoading(false);
+      return;
     }
-  }, [toast]);
 
-  const createOrder = async (orderData: {
-    store_id: string;
-    items: OrderItem[];
-    delivery_address: string;
-    delivery_city: string;
-    delivery_postal_code?: string;
-    phone: string;
-    notes?: string;
-    delivery_instructions?: string;
-  }) => {
-    if (!user) return { error: 'Utilisateur non connecté' };
-
+    setLoading(true);
     try {
-      const subtotal = orderData.items.reduce((sum, item) => sum + item.total_price, 0);
-      const tax_amount = subtotal * 0.15; // 15% tax
-      const delivery_fee = 5.99;
-      const total_amount = subtotal + tax_amount + delivery_fee;
+      const res = await fetch('/api/orders/list', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: user.id }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || 'Impossible de récupérer les commandes');
+      if (mounted.current) setOrders(body.orders || []);
+    } catch (err: any) {
+      toast({ title: 'Erreur', description: err.message, variant: 'destructive' });
+    } finally {
+      if (mounted.current) setLoading(false);
+    }
+  }, [user, toast]);
 
-      const { data: order, error: orderError } = await supabase
-        .from('orders')
-        .insert({
-          user_id: user.id,
-          store_id: orderData.store_id,
-          items: JSON.stringify(orderData.items),
-          subtotal,
-          tax_amount,
-          delivery_fee,
-          total_amount,
-          delivery_address: orderData.delivery_address,
-          delivery_city: orderData.delivery_city,
-          delivery_postal_code: orderData.delivery_postal_code,
-          phone: orderData.phone,
-          notes: orderData.notes,
-          delivery_instructions: orderData.delivery_instructions,
-          status: 'pending' as const,
-          order_number: `CM${Date.now()}`
-        })
-        .select()
-        .single();
+  const createOrder = useCallback(
+    async (payload: {
+      store_id: string;
+      items: OrderItem[];
+      delivery_address?: string;
+      delivery_city?: string;
+      delivery_postal_code?: string;
+      phone?: string;
+      notes?: string;
+      delivery_instructions?: string;
+    }) => {
+      if (!user) return { error: 'Utilisateur non connecté' };
+      if (isSubmitting) return { error: 'Déjà en cours' };
 
-      if (orderError) {
-        throw orderError;
+      setIsSubmitting(true);
+      try {
+        const res = await fetch('/api/orders/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: user.id, ...payload }),
+        });
+
+        const body = await res.json();
+        if (!res.ok) throw new Error(body.error || 'Erreur lors de la création de la commande');
+
+        fetchOrders();
+        toast({ title: 'Commande créée', description: 'Votre commande a été créée' });
+
+        return { data: body.order, error: null };
+      } catch (err: any) {
+        toast({ title: 'Erreur', description: err.message, variant: 'destructive' });
+        return { error: err.message || 'Erreur inconnue' };
+      } finally {
+        setIsSubmitting(false);
       }
+    },
+    [user, isSubmitting, toast, fetchOrders]
+  );
 
-      // Create order items
-      const orderItems = orderData.items.map(item => ({
-        order_id: order.id,
-        product_id: item.product_id,
-        quantity: item.quantity,
-        unit_price: item.unit_price,
-        total_price: item.total_price
-      }));
+  const updateOrderStatus = useCallback(
+    async (orderId: string, status: OrderStatus) => {
+      try {
+        const res = await fetch('/api/orders/update-status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ order_id: orderId, status }),
+        });
 
-      const { error: itemsError } = await supabase
-        .from('order_items')
-        .insert(orderItems);
+        const body = await res.json();
+        if (!res.ok) throw new Error(body.error || 'Impossible de mettre à jour la commande');
 
-      if (itemsError) {
-        throw itemsError;
+        setOrders((prev) =>
+          prev.map((o) => (o.id === orderId ? { ...o, status, delivered_at: status === 'delivered' ? new Date().toISOString() : o.delivered_at } : o))
+        );
+
+        toast({ title: 'Statut mis à jour', description: 'Le statut de la commande a été modifié' });
+        return { error: null };
+      } catch (err: any) {
+        toast({ title: 'Erreur', description: err.message, variant: 'destructive' });
+        return { error: err.message || 'Erreur' };
       }
+    },
+    [toast]
+  );
 
-      // Mettre à jour le stock des produits
-      await updateStockForOrder(orderData.items);
-
-      toast({
-        title: "Commande créée",
-        description: `Votre commande ${order.order_number} a été créée avec succès`,
-      });
-
-      return { data: order, error: null };
-    } catch (error: any) {
-      console.error('Error creating order:', error);
-      toast({
-        title: "Erreur",
-        description: error.message || "Erreur lors de la création de la commande",
-        variant: "destructive",
-      });
-      return { error: error.message };
-    }
-  };
-
-  const updateOrderStatus = async (orderId: string, status: 'pending' | 'confirmed' | 'preparing' | 'ready_for_pickup' | 'in_delivery' | 'delivered' | 'cancelled') => {
-    try {
-      const { error } = await supabase
-        .from('orders')
-        .update({ 
-          status,
-          ...(status === 'delivered' && { delivered_at: new Date().toISOString() })
-        })
-        .eq('id', orderId);
-
-      if (error) throw error;
-
-      // Update local state
-      setOrders(orders.map(order => 
-        order.id === orderId ? { ...order, status } : order
-      ));
-
-      toast({
-        title: "Statut mis à jour",
-        description: `La commande a été mise à jour`,
-      });
-
-      return { error: null };
-    } catch (error: any) {
-      console.error('Error updating order status:', error);
-      toast({
-        title: "Erreur",
-        description: error.message || "Erreur lors de la mise à jour",
-        variant: "destructive",
-      });
-      return { error: error.message };
-    }
-  };
-
-  useEffect(() => {
-    if (user) {
-      fetchOrders();
-    }
-  }, [user, fetchOrders]);
-
-  // Real-time subscription for orders
   useEffect(() => {
     if (!user) return;
-
     const channel = supabase
-      .channel('orders-changes')
+      .channel(`orders-user-${user.id}`)
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'orders'
-        },
+        { event: '*', schema: 'public', table: 'orders', filter: `user_id=eq.${user.id}` },
         (payload) => {
-          console.log('Order change received:', payload);
-          fetchOrders(); // Refresh orders when changes occur
+          const rec = payload.record as any;
+          setOrders((prev) => {
+            const idx = prev.findIndex((o) => o.id === rec.id);
+            if (payload.eventType === 'DELETE') return prev.filter((o) => o.id !== rec.id);
+            if (idx === -1) return [{ ...rec, items: Array.isArray(rec.items) ? rec.items : JSON.parse(rec.items) }, ...prev];
+            const next = [...prev];
+            next[idx] = { ...next[idx], ...rec, items: Array.isArray(rec.items) ? rec.items : JSON.parse(rec.items) };
+            return next;
+          });
         }
       )
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user, fetchOrders]);
+    return () => supabase.removeChannel(channel);
+  }, [user]);
 
-  return {
-    orders,
-    loading,
-    fetchOrders,
-    createOrder,
-    updateOrderStatus
-  };
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
+
+  return { orders, loading, createOrder, updateOrderStatus, isSubmitting, refetch: fetchOrders };
 };

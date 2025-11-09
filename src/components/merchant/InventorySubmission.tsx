@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Product {
   id: string;
@@ -52,30 +52,6 @@ export function InventorySubmission() {
         .order('created_at', { ascending: false });
 
       if (error) {
-        // Si la table n'existe pas, utiliser des données de démonstration
-        if (error.code === 'PGRST116' || error.message?.includes('relation "products" does not exist')) {
-          console.log('Table products non trouvée, utilisation de données de démonstration');
-          const demoProducts: Product[] = [
-            {
-              id: 'demo-inventory-1',
-              name: 'Nouveau Produit 1',
-              price: 12.99,
-              category: 'Test',
-              stock: 0,
-              is_available: false
-            },
-            {
-              id: 'demo-inventory-2',
-              name: 'Nouveau Produit 2',
-              price: 8.50,
-              category: 'Test',
-              stock: 0,
-              is_available: false
-            }
-          ];
-          setProducts(demoProducts);
-          return;
-        }
         throw error;
       }
       
@@ -88,22 +64,11 @@ export function InventorySubmission() {
       setProducts(mappedProducts);
     } catch (error) {
       console.error('Erreur lors du chargement des produits:', error);
-      // En cas d'erreur, utiliser des données de démonstration
-      const demoProducts: Product[] = [
-        {
-          id: 'demo-inventory-error',
-          name: 'Produit en attente',
-          price: 10.00,
-          category: 'Test',
-          stock: 0,
-          is_available: false
-        }
-      ];
-      setProducts(demoProducts);
-      
+      setProducts([]);
       toast({
-        title: "Mode démonstration",
-        description: "Utilisation de données de démonstration pour l'inventaire",
+        title: "Erreur",
+        description: "Impossible de charger l’inventaire.",
+        variant: "destructive",
       });
     } finally {
       setLoading(false);

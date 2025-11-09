@@ -14,6 +14,11 @@ type Config = {
 
 export function register(config?: Config) {
   if ('serviceWorker' in navigator) {
+    const swContainer = navigator.serviceWorker;
+    if (!swContainer) {
+      console.warn('Service worker API indisponible dans ce contexte.');
+      return;
+    }
     const publicUrl = new URL(
       process.env.PUBLIC_URL || '',
       window.location.href
@@ -27,18 +32,18 @@ export function register(config?: Config) {
 
       if (isLocalhost) {
         checkValidServiceWorker(swUrl, config);
-        navigator.serviceWorker.ready.then(() => {
+        swContainer.ready.then(() => {
           console.log('CourseMax PWA prêt pour fonctionnement hors ligne.');
         });
       } else {
-        registerValidSW(swUrl, config);
+        registerValidSW(swUrl, config, swContainer);
       }
     });
   }
 }
 
-function registerValidSW(swUrl: string, config?: Config) {
-  navigator.serviceWorker
+function registerValidSW(swUrl: string, config: Config | undefined, swContainer: ServiceWorkerContainer) {
+  swContainer
     .register(swUrl)
     .then((registration) => {
       registration.onupdatefound = () => {
@@ -48,7 +53,7 @@ function registerValidSW(swUrl: string, config?: Config) {
         }
         installingWorker.onstatechange = () => {
           if (installingWorker.state === 'installed') {
-            if (navigator.serviceWorker.controller) {
+            if (swContainer.controller) {
               console.log('🔄 Nouveau contenu disponible - mise à jour silencieuse en cours...');
               
               // Mise à jour silencieuse automatique
@@ -56,8 +61,8 @@ function registerValidSW(swUrl: string, config?: Config) {
                 console.log('🚀 Activation de la mise à jour silencieuse...');
                 
                 // Envoyer un message au Service Worker pour forcer la mise à jour
-                if (navigator.serviceWorker.controller) {
-                  navigator.serviceWorker.controller.postMessage({
+                if (swContainer.controller) {
+                  swContainer.controller.postMessage({
                     type: 'SILENT_UPDATE'
                   });
                 }
@@ -97,13 +102,15 @@ function checkValidServiceWorker(swUrl: string, config?: Config) {
         response.status === 404 ||
         (contentType != null && contentType.indexOf('javascript') === -1)
       ) {
-        navigator.serviceWorker.ready.then((registration) => {
+        navigator.serviceWorker?.ready.then((registration) => {
           registration.unregister().then(() => {
             window.location.reload();
           });
         });
       } else {
-        registerValidSW(swUrl, config);
+        if ('serviceWorker' in navigator && navigator.serviceWorker) {
+          registerValidSW(swUrl, config, navigator.serviceWorker);
+        }
       }
     })
     .catch(() => {
@@ -113,7 +120,7 @@ function checkValidServiceWorker(swUrl: string, config?: Config) {
 
 export function unregister() {
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.ready
+    navigator.serviceWorker?.ready
       .then((registration) => {
         registration.unregister();
       })

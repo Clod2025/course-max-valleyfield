@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -11,9 +11,10 @@ import {
   Clock,
   Download,
   Eye,
-  User,
   Calendar
 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface DriverDocument {
   id: string;
@@ -34,6 +35,7 @@ const DocumentVerification = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterType, setFilterType] = useState('all');
+  const { toast } = useToast();
 
   useEffect(() => {
     fetchDocuments();
@@ -42,58 +44,48 @@ const DocumentVerification = () => {
   const fetchDocuments = async () => {
     setLoading(true);
     try {
-      // Simuler des données pour l'instant
-      const mockDocuments: DriverDocument[] = [
-        {
-          id: '1',
-          driver_id: '1',
-          driver_name: 'Jean Dupuis',
-          document_type: 'license',
-          document_name: 'Permis de conduire - Jean Dupuis.pdf',
-          file_url: '/documents/license_jean_dupuis.pdf',
-          status: 'approved',
-          submitted_at: '2024-01-15T10:30:00Z',
-          reviewed_at: '2024-01-15T14:20:00Z',
-          reviewer_notes: 'Permis valide et en règle'
-        },
-        {
-          id: '2',
-          driver_id: '1',
-          driver_name: 'Jean Dupuis',
-          document_type: 'insurance',
-          document_name: 'Assurance automobile - Jean Dupuis.pdf',
-          file_url: '/documents/insurance_jean_dupuis.pdf',
-          status: 'approved',
-          submitted_at: '2024-01-15T10:35:00Z',
-          reviewed_at: '2024-01-15T14:25:00Z',
-          reviewer_notes: 'Assurance valide jusqu\'en décembre 2024'
-        },
-        {
-          id: '3',
-          driver_id: '2',
-          driver_name: 'Marie Tremblay',
-          document_type: 'license',
-          document_name: 'Permis de conduire - Marie Tremblay.pdf',
-          file_url: '/documents/license_marie_tremblay.pdf',
-          status: 'pending',
-          submitted_at: '2024-01-20T09:15:00Z'
-        },
-        {
-          id: '4',
-          driver_id: '3',
-          driver_name: 'Pierre Gagnon',
-          document_type: 'license',
-          document_name: 'Permis de conduire - Pierre Gagnon.pdf',
-          file_url: '/documents/license_pierre_gagnon.pdf',
-          status: 'rejected',
-          submitted_at: '2024-01-18T16:45:00Z',
-          reviewed_at: '2024-01-19T10:30:00Z',
-          reviewer_notes: 'Permis expiré, veuillez fournir un permis valide'
-        }
-      ];
-      setDocuments(mockDocuments);
+      const { data, error } = await supabase
+        .from('driver_documents')
+        .select(`
+          id,
+          driver_id,
+          document_type,
+          document_name,
+          file_url,
+          status,
+          submitted_at,
+          reviewed_at,
+          reviewer_notes,
+          driver:profiles!driver_documents_driver_id_fkey(first_name,last_name)
+        `)
+        .order('submitted_at', { ascending: false });
+
+      if (error) {
+        throw error;
+      }
+
+      const mapped: DriverDocument[] = (data || []).map((doc: any) => ({
+        id: doc.id,
+        driver_id: doc.driver_id,
+        driver_name: `${doc.driver?.first_name ?? ''} ${doc.driver?.last_name ?? ''}`.trim() || 'Livreur',
+        document_type: doc.document_type,
+        document_name: doc.document_name,
+        file_url: doc.file_url,
+        status: doc.status,
+        submitted_at: doc.submitted_at,
+        reviewed_at: doc.reviewed_at || undefined,
+        reviewer_notes: doc.reviewer_notes || undefined,
+      }));
+
+      setDocuments(mapped);
     } catch (error) {
       console.error('Erreur lors du chargement des documents:', error);
+      setDocuments([]);
+      toast({
+        title: "Erreur",
+        description: "Impossible de charger les documents des livreurs.",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -123,21 +115,44 @@ const DocumentVerification = () => {
     return <Badge className={typeInfo.color}>{typeInfo.label}</Badge>;
   };
 
-  const handleApprove = (id: string) => {
-    setDocuments(documents.map(doc => 
-      doc.id === id 
-        ? { ...doc, status: 'approved' as const, reviewed_at: new Date().toISOString() }
-        : doc
-    ));
+  const updateDocumentStatus = async (id: string, status: 'approved' | 'rejected') => {
+    try {
+      const { error } = await supabase
+        .from('driver_documents')
+        .update({
+          status,
+          reviewed_at: new Date().toISOString(),
+        })
+        .eq('id', id);
+
+      if (error) {
+        throw error;
+      }
+
+      setDocuments(prev =>
+        prev.map(doc =>
+          doc.id === id
+            ? { ...doc, status, reviewed_at: new Date().toISOString() }
+            : doc
+        )
+      );
+
+      toast({
+        title: "Statut mis à jour",
+        description: `Le document a été ${status === 'approved' ? 'approuvé' : 'rejeté'}.`,
+      });
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour du document:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de mettre à jour le statut du document.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleReject = (id: string) => {
-    setDocuments(documents.map(doc => 
-      doc.id === id 
-        ? { ...doc, status: 'rejected' as const, reviewed_at: new Date().toISOString() }
-        : doc
-    ));
-  };
+  const handleApprove = (id: string) => updateDocumentStatus(id, 'approved');
+  const handleReject = (id: string) => updateDocumentStatus(id, 'rejected');
 
   const filteredDocuments = documents.filter(doc => {
     const matchesSearch = doc.driver_name.toLowerCase().includes(searchTerm.toLowerCase()) ||

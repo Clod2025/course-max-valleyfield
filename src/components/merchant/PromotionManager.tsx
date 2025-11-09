@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { 
   Megaphone, 
   Plus, 
@@ -301,6 +301,9 @@ export function PromotionManager() {
             <DialogTitle>
               {editingPromotion ? 'Modifier la promotion' : 'Nouvelle Promotion'}
             </DialogTitle>
+            <DialogDescription>
+              {editingPromotion ? 'Modifiez les détails de votre promotion' : 'Créez une nouvelle promotion pour attirer plus de clients'}
+            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">

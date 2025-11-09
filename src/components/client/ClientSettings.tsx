@@ -20,11 +20,14 @@ import {
   Trash2,
   Plus,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Loader2
 } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useCustomerPaymentMethods } from '@/hooks/useCustomerPaymentMethods';
+import { AddPaymentMethodDialog } from './AddPaymentMethodDialog';
 
 export const ClientSettings: React.FC = () => {
   const { profile, updateProfile } = useAuth();
@@ -42,8 +45,7 @@ export const ClientSettings: React.FC = () => {
     phone: '',
     address: '',
     city: '',
-    postal_code: '',
-    province: ''
+    postal_code: ''
   });
 
   const [preferences, setPreferences] = useState({
@@ -95,6 +97,19 @@ export const ClientSettings: React.FC = () => {
     }
   ]);
 
+  const { 
+    paymentMethods: paymentMethodsFromHook, 
+    loading: paymentMethodsLoading,
+    addPaymentMethod: addPaymentMethodToDB,
+    updatePaymentMethod,
+    deletePaymentMethod,
+    setDefaultPaymentMethod,
+    fetchPaymentMethods
+  } = useCustomerPaymentMethods();
+
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [editingMethodId, setEditingMethodId] = useState<string | null>(null);
+
   useEffect(() => {
     if (profile) {
       setProfileData({
@@ -104,12 +119,26 @@ export const ClientSettings: React.FC = () => {
         phone: profile.phone || '',
         address: profile.address || '',
         city: profile.city || '',
-        postal_code: profile.postal_code || '',
-        province: profile.province || ''
+        postal_code: profile.postal_code || ''
       });
       setAddress(profile.address || '');
     }
   }, [profile]);
+
+  // ✅ AJOUT : Charger les préférences depuis localStorage au montage
+  useEffect(() => {
+    if (profile?.id) {
+      const userPreferencesKey = `user_preferences_${profile.id}`;
+      const savedPreferences = localStorage.getItem(userPreferencesKey);
+      if (savedPreferences) {
+        try {
+          setPreferences(JSON.parse(savedPreferences));
+        } catch (error) {
+          console.error('Erreur lors du chargement des préférences:', error);
+        }
+      }
+    }
+  }, [profile?.id]);
 
   const handleProfileUpdate = async () => {
     try {
@@ -150,15 +179,9 @@ export const ClientSettings: React.FC = () => {
       
       setPreferences(newPreferences);
 
-      // Sauvegarder en base de données
-      const { error } = await supabase
-        .from('user_preferences')
-        .upsert({
-          user_id: profile?.id,
-          preferences: newPreferences
-        });
-
-      if (error) throw error;
+      // ✅ CORRECTION : Stocker dans localStorage au lieu de user_preferences (table n'existe pas)
+      const userPreferencesKey = `user_preferences_${profile?.id}`;
+      localStorage.setItem(userPreferencesKey, JSON.stringify(newPreferences));
 
       toast({
         title: "Préférence mise à jour",
@@ -173,6 +196,21 @@ export const ClientSettings: React.FC = () => {
       });
     }
   };
+
+  // ✅ AJOUT : Charger les préférences depuis localStorage au montage
+  useEffect(() => {
+    if (profile?.id) {
+      const userPreferencesKey = `user_preferences_${profile.id}`;
+      const savedPreferences = localStorage.getItem(userPreferencesKey);
+      if (savedPreferences) {
+        try {
+          setPreferences(JSON.parse(savedPreferences));
+        } catch (error) {
+          console.error('Erreur lors du chargement des préférences:', error);
+        }
+      }
+    }
+  }, [profile?.id]);
 
   const handleSaveAddress = async () => {
     if (address.length < 5) {
@@ -196,8 +234,7 @@ export const ClientSettings: React.FC = () => {
 
       toast({
         title: "Adresse mise à jour",
-        description: "Votre adresse a été sauvegardée avec succès",
-        variant: "success"
+        description: "Votre adresse a été sauvegardée avec succès"
       });
       
       setIsEditingAddress(false);
@@ -234,6 +271,33 @@ export const ClientSettings: React.FC = () => {
       ...addr,
       is_default: addr.id === id
     })));
+  };
+
+  // ✅ AJOUT : Fonctions pour gérer les méthodes de paiement
+  const handleAddPaymentMethod = () => {
+    setShowAddDialog(true);
+  };
+
+  const handleEditPaymentMethod = (id: string) => {
+    setEditingMethodId(id);
+    // Pour l'édition, on pourrait ouvrir un dialog similaire
+    toast({
+      title: "Fonctionnalité à venir",
+      description: "La modification de cartes sera bientôt disponible. Supprimez et ajoutez une nouvelle carte pour l'instant.",
+    });
+  };
+
+  const handleRemovePaymentMethod = async (id: string) => {
+    await deletePaymentMethod(id);
+  };
+
+  const handleSetDefaultPaymentMethod = async (id: string) => {
+    await setDefaultPaymentMethod(id);
+  };
+
+  const handlePaymentMethodAdded = () => {
+    fetchPaymentMethods();
+    setShowAddDialog(false);
   };
 
   return (
@@ -608,49 +672,101 @@ export const ClientSettings: React.FC = () => {
         <TabsContent value="payment" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CreditCard className="w-5 h-5" />
-                Méthodes de paiement
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CreditCard className="w-5 h-5" />
+                  Méthodes de paiement
+                </div>
+                <Button onClick={handleAddPaymentMethod} size="sm">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Ajouter
+                </Button>
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {paymentMethods.map((method) => (
-                  <div key={method.id} className="p-4 border rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center">
-                          <CreditCard className="w-4 h-4 text-blue-600" />
+                {paymentMethodsLoading ? (
+                  <div className="text-center py-8">
+                    <Loader2 className="w-12 h-12 mx-auto mb-4 animate-spin text-muted-foreground" />
+                    <p className="text-muted-foreground mb-4">Chargement des méthodes de paiement...</p>
+                  </div>
+                ) : paymentMethodsFromHook.length === 0 ? (
+                  <div className="text-center py-8">
+                    <CreditCard className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                    <p className="text-muted-foreground mb-4">
+                      Aucune méthode de paiement enregistrée
+                    </p>
+                    <Button onClick={handleAddPaymentMethod}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Ajouter une méthode de paiement
+                    </Button>
+                  </div>
+                ) : (
+                  paymentMethodsFromHook.map((method) => (
+                    <div key={method.id} className="p-4 border rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center">
+                            <CreditCard className="w-4 h-4 text-blue-600" />
+                          </div>
+                          <div>
+                            <p className="font-medium">
+                              {method.brand ? `${method.brand.charAt(0).toUpperCase() + method.brand.slice(1)}` : 'Carte'} 
+                              {method.last4 ? ` •••• ${method.last4}` : ''}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {method.expiry_month && method.expiry_year 
+                                ? `Expire ${String(method.expiry_month).padStart(2, '0')}/${String(method.expiry_year).slice(-2)}`
+                                : 'Carte valide'}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium">{method.brand} •••• {method.last4}</p>
-                          <p className="text-sm text-muted-foreground">
-                            Expire {method.expiry}
-                          </p>
+                        <div className="flex items-center gap-2">
+                          {method.is_default && (
+                            <Badge variant="default" className="bg-green-600">
+                              Par défaut
+                            </Badge>
+                          )}
+                          {!method.is_default && (
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => handleSetDefaultPaymentMethod(method.id)}
+                            >
+                              Définir par défaut
+                            </Button>
+                          )}
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => handleEditPaymentMethod(method.id)}
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="text-red-600"
+                            onClick={() => handleRemovePaymentMethod(method.id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {method.is_default && (
-                          <Badge variant="default" className="bg-green-600">
-                            Par défaut
-                          </Badge>
-                        )}
-                        <Button size="sm" variant="outline">
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button size="sm" variant="outline" className="text-red-600">
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
       </Tabs>
+      <AddPaymentMethodDialog
+        isOpen={showAddDialog}
+        onClose={() => setShowAddDialog(false)}
+        onSuccess={handlePaymentMethodAdded}
+      />
     </div>
   );
 };

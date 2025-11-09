@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle, Package, Clock, MapPin, Phone, Home } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface OrderDetails {
   id: string;
@@ -40,7 +40,7 @@ const OrderSuccess = () => {
           .from('orders')
           .select(`
             *,
-            stores!inner(name, phone)
+            stores(name, phone)
           `)
           .eq('id', orderId)
           .eq('user_id', user.id)

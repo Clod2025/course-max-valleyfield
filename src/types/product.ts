@@ -16,7 +16,7 @@ export interface ProductWithStore extends Product {
   stores: {
     id: string;
     name: string;
-    owner_id: string;
+    manager_id: string;
   };
 }
 

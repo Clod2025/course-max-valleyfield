@@ -21,7 +21,7 @@ import {
   Bell,
   Shield
 } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
@@ -52,17 +52,17 @@ const StoreSettings = () => {
   
   const [storeData, setStoreData] = useState<StoreData>({
     id: '',
-    name: 'Mon Magasin',
-    description: 'Description de votre magasin',
-    address: '123 Rue Principale',
-    city: 'Valleyfield',
-    postal_code: 'J6T 1A1',
-    phone: '(450) 555-0123',
-    email: 'contact@monmagasin.com',
-    opening_hours: '9h00 - 18h00',
-    delivery_radius: 10,
-    delivery_fee: 5.00,
-    minimum_order: 25.00,
+    name: '',
+    description: '',
+    address: '',
+    city: '',
+    postal_code: '',
+    phone: '',
+    email: '',
+    opening_hours: '',
+    delivery_radius: 0,
+    delivery_fee: 0,
+    minimum_order: 0,
     is_active: true,
     accepts_orders: true
   });
@@ -74,33 +74,75 @@ const StoreSettings = () => {
   }, []);
 
   const fetchStoreData = async () => {
+    if (!profile) return;
+
     try {
       setLoading(true);
-      // Simuler des données pour l'instant - remplacer par une vraie requête
-      const mockStoreData: StoreData = {
-        id: '1',
-        name: 'Épicerie Martin',
-        description: 'Votre épicerie de quartier avec des produits frais et locaux',
-        address: '123 Rue Principale',
-        city: 'Valleyfield',
-        postal_code: 'J6T 1A1',
-        phone: '(450) 555-0123',
-        email: 'contact@epicieremartin.com',
-        opening_hours: '8h00 - 20h00',
-        delivery_radius: 15,
-        delivery_fee: 4.99,
-        minimum_order: 30.00,
-        is_active: true,
-        accepts_orders: true,
-        logo_url: '/images/store-logo.png',
-        banner_url: '/images/store-banner.jpg'
-      };
-      setStoreData(mockStoreData);
+
+      let storeRecord = null;
+
+      if (profile.store_id) {
+        const { data, error } = await supabase
+          .from('stores')
+          .select('*')
+          .eq('id', profile.store_id)
+          .maybeSingle();
+
+        if (error) throw error;
+        storeRecord = data;
+      }
+
+      if (!storeRecord) {
+        const { data, error } = await supabase
+          .from('stores')
+          .select('*')
+          .eq('manager_id', profile.user_id ?? profile.id)
+          .maybeSingle();
+
+        if (error) throw error;
+        storeRecord = data;
+      }
+
+      if (!storeRecord) {
+        setEditing(true);
+        setStoreData(prev => ({
+          ...prev,
+          email: profile.email || '',
+          phone: profile.phone || ''
+        }));
+        return;
+      }
+
+      const openingHoursValue = (() => {
+        const value = storeRecord.opening_hours;
+        if (typeof value === 'string') return value;
+        if (Array.isArray(value)) return value.join('\n');
+        return '';
+      })();
+
+      setStoreData({
+        id: storeRecord.id,
+        name: storeRecord.name || '',
+        description: storeRecord.description || '',
+        address: storeRecord.address || '',
+        city: storeRecord.city || '',
+        postal_code: storeRecord.postal_code || '',
+        phone: storeRecord.phone || '',
+        email: storeRecord.email || '',
+        opening_hours: openingHoursValue,
+        delivery_radius: storeRecord.delivery_radius ?? 0,
+        delivery_fee: storeRecord.delivery_fee ?? 0,
+        minimum_order: storeRecord.minimum_order ?? 0,
+        is_active: storeRecord.is_active ?? true,
+        accepts_orders: storeRecord.accepts_orders ?? true,
+        logo_url: storeRecord.logo_url || undefined,
+        banner_url: storeRecord.banner_url || undefined,
+      });
     } catch (error) {
       console.error('Erreur lors du chargement des données du magasin:', error);
       toast({
         title: "Erreur",
-        description: "Impossible de charger les données du magasin",
+        description: "Impossible de charger les données du magasin.",
         variant: "destructive"
       });
     } finally {
@@ -171,20 +213,73 @@ const StoreSettings = () => {
     try {
       setSaving(true);
       
-      // Simuler la sauvegarde - remplacer par une vraie requête Supabase
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      if (!profile) {
+        throw new Error("Profil marchand introuvable");
+      }
+
+      const payload: Record<string, any> = {
+        name: storeData.name.trim(),
+        description: storeData.description.trim(),
+        address: storeData.address.trim(),
+        city: storeData.city.trim(),
+        postal_code: storeData.postal_code.trim(),
+        phone: storeData.phone.trim(),
+        email: storeData.email.trim(),
+        opening_hours: storeData.opening_hours
+          .split('\n')
+          .map(line => line.trim())
+          .filter(Boolean),
+        delivery_radius: Number(storeData.delivery_radius),
+        delivery_fee: Number(storeData.delivery_fee),
+        minimum_order: Number(storeData.minimum_order),
+        is_active: storeData.is_active,
+        accepts_orders: storeData.accepts_orders,
+        updated_at: new Date().toISOString(),
+      };
+
+      let currentStoreId = storeData.id;
+
+      if (currentStoreId) {
+        const { error } = await supabase
+          .from('stores')
+          .update(payload)
+          .eq('id', currentStoreId);
+
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase
+          .from('stores')
+          .insert({
+            ...payload,
+            manager_id: profile.user_id ?? profile.id,
+            is_active: storeData.is_active,
+            accepts_orders: storeData.accepts_orders,
+          })
+          .select('id')
+          .single();
+
+        if (error) throw error;
+        currentStoreId = data.id;
+
+        await supabase
+          .from('profiles')
+          .update({ store_id: currentStoreId })
+          .eq('user_id', profile.user_id ?? profile.id);
+
+        setStoreData(prev => ({ ...prev, id: currentStoreId }));
+      }
+
       toast({
         title: "Paramètres sauvegardés",
         description: "Les paramètres de votre magasin ont été mis à jour",
       });
-      
+
       setEditing(false);
     } catch (error) {
       console.error('Erreur lors de la sauvegarde:', error);
       toast({
         title: "Erreur",
-        description: "Impossible de sauvegarder les paramètres",
+        description: "Impossible de sauvegarder les paramètres.",
         variant: "destructive"
       });
     } finally {

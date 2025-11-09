@@ -1,14 +1,16 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { User, Menu, Home, LogOut, X } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
+import { User, Menu, LogOut, X } from "lucide-react";
+import { useAuthContext } from "@/contexts/AuthContext";
 import { useState } from "react";
 
 export function Header() {
   const navigate = useNavigate();
-  const { user, profile, signOut } = useAuth();
+  const location = useLocation();
+  const { user, profile, loading, signOut } = useAuthContext();
   const [showMobileMenu, setShowMobileMenu] = useState(false);
-
+  
+  // Vérifier si on est sur la page d'accueil
   const getDashboardLink = () => {
     if (!profile) return '/home';
     
@@ -30,6 +32,27 @@ export function Header() {
     
     return roleToDashboard[profile.role] || '/auth/unauthorized';
   };
+
+  if (loading) {
+    return (
+      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="container mx-auto flex h-16 items-center justify-between px-4">
+          <Link to="/home" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+            <img 
+              src="/lovable-uploads/482dd564-f9a1-48f4-bef4-6569e9c64c0b.png" 
+              alt="CourseMax Logo" 
+              className="h-8 w-auto sm:h-10"
+            />
+            <span className="text-lg font-bold text-primary sm:text-xl">CourseMax</span>
+          </Link>
+          <div className="flex gap-2">
+            <div className="animate-pulse bg-gray-200 h-10 w-24 rounded"></div>
+            <div className="animate-pulse bg-gray-200 h-10 w-24 rounded"></div>
+          </div>
+        </div>
+      </header>
+    );
+  }
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -62,7 +85,10 @@ export function Header() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={signOut}
+                onClick={async () => {
+                  await signOut();
+                  navigate('/');
+                }}
                 className="flex items-center gap-2"
               >
                 <LogOut className="h-4 w-4" />
@@ -70,6 +96,7 @@ export function Header() {
               </Button>
             </div>
           ) : (
+            // ✅ Utilisateur NON connecté : TOUJOURS afficher Connexion/Inscription (même sur home)
             <div className="flex items-center gap-2">
               <Button
                 variant="ghost"
@@ -101,7 +128,7 @@ export function Header() {
         </div>
       </div>
 
-      {/* Mobile Menu */}
+          {/* Mobile Menu */}
       {showMobileMenu && (
         <div className="md:hidden border-t bg-background/95 backdrop-blur">
           <div className="container mx-auto px-4 py-4 space-y-3">
@@ -134,16 +161,17 @@ export function Header() {
                 <Button
                   variant="ghost"
                   className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
-                  onClick={() => {
-                    signOut();
+                  onClick={async () => {
+                    await signOut();
                     setShowMobileMenu(false);
+                    navigate('/');
                   }}
                 >
                   <LogOut className="h-4 w-4 mr-2" />
                   Déconnexion
                 </Button>
               </>
-            ) : (
+            ) : !user ? (
               <div className="space-y-2">
                 <Button
                   variant="ghost"
@@ -165,7 +193,7 @@ export function Header() {
                   Inscription
                 </Button>
               </div>
-            )}
+            ) : null}
           </div>
         </div>
       )}

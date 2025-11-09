@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { DriverHeader } from '@/components/driver/DriverHeader';
 import { DriverFinance } from '@/components/driver/DriverFinance';
@@ -17,15 +17,15 @@ import {
   Truck,
   DollarSign,
   User,
-  Timer,
   Clock,
   HelpCircle
 } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { useDriverAssignments } from '@/hooks/useDriverAssignments';
 import { DriverAssignmentCard } from '@/components/DriverAssignmentCard';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { DriverOrderNotification } from '@/components/driver/DriverOrderNotification';
 
 const LivreurDashboard = () => {
   const { profile, loading: authLoading, isRole } = useAuth();
@@ -41,14 +41,26 @@ const LivreurDashboard = () => {
 
   const [driverStatus, setDriverStatus] = useState<'online' | 'offline' | 'busy'>('online');
 
-  // ✅ VÉRIFICATION CORRIGÉE AVEC TOUS LES RÔLES LIVREUR POSSIBLES
+  // ✅ Vérification des rôles
   const isDriverRole = isRole(['livreur', 'driver', 'Driver', 'Livreur', 'DRIVER']);
+
+  // Debounce simple pour le bouton actualiser
+  const [refreshDisabled, setRefreshDisabled] = useState(false);
+  const handleRefresh = useCallback(() => {
+    if (refreshDisabled) return;
+    fetchAssignments().catch(err => {
+      console.error(err);
+      toast({ title: 'Erreur', description: 'Impossible de rafraîchir les assignations', variant: 'destructive' });
+    });
+    setRefreshDisabled(true);
+    setTimeout(() => setRefreshDisabled(false), 3000);
+  }, [refreshDisabled, fetchAssignments, toast]);
 
   useEffect(() => {
     if (isDriverRole && profile?.user_id) {
-      fetchAssignments();
-      
-      // ✅ NOUVEAU: Realtime pour driver_assignments
+      fetchAssignments().catch(err => console.error(err));
+
+      // Realtime pour driver_assignments
       const channel = supabase
         .channel('driver-assignments-changes')
         .on(
@@ -60,27 +72,28 @@ const LivreurDashboard = () => {
             filter: `available_drivers=cs.{${profile.user_id}}`
           },
           (payload) => {
-            console.log('🔔 Nouvelle assignation reçue:', payload);
             toast({
               title: "📦 Nouvelle livraison disponible!",
               description: "Une nouvelle assignation vous attend",
             });
-            fetchAssignments();
+            fetchAssignments().catch(err => console.error(err));
           }
         )
         .subscribe();
 
-      // Actualiser toutes les 30 secondes
-      const interval = setInterval(fetchAssignments, 30000);
-      
+      // Intervalle pour refetch périodique
+      const interval = setInterval(() => {
+        if (!loading) fetchAssignments().catch(err => console.error(err));
+      }, 60000);
+
       return () => {
         supabase.removeChannel(channel);
         clearInterval(interval);
       };
     }
-  }, [profile, isDriverRole, profile?.user_id, fetchAssignments, toast]);
+  }, [profile, isDriverRole, profile?.user_id, fetchAssignments, toast, loading]);
 
-  // Déterminer quelle vue afficher selon l'URL
+  // Déterminer la vue actuelle
   const getCurrentView = () => {
     const path = location.pathname;
     if (path.includes('/finance')) return 'finance';
@@ -105,7 +118,6 @@ const LivreurDashboard = () => {
     );
   }
 
-  // ✅ VÉRIFICATION CORRIGÉE
   if (!profile || !isDriverRole) {
     return (
       <div className="min-h-screen bg-background">
@@ -129,23 +141,7 @@ const LivreurDashboard = () => {
     );
   }
 
-  // Rendu conditionnel selon la vue
-  const renderContent = () => {
-    switch (currentView) {
-      case 'finance':
-        return <DriverFinance />;
-      case 'tips':
-        return <DriverTips />;
-      case 'support':
-        return <DriverSupport />;
-      case 'settings':
-        return <DriverSettings />;
-      default:
-        return <MainDashboardContent />;
-    }
-  };
-
-  // Composant pour le contenu principal du dashboard
+  // Contenu principal dashboard
   const MainDashboardContent = () => {
     const handleAcceptAssignment = async (assignmentId: string) => {
       try {
@@ -154,38 +150,34 @@ const LivreurDashboard = () => {
         fetchAssignments();
       } catch (error) {
         console.error('Erreur lors de l\'acceptation:', error);
+        toast({ title: 'Erreur', description: 'Impossible d\'accepter la livraison', variant: 'destructive' });
       }
     };
 
     return (
-      <div className="container mx-auto py-6 px-4">
+      <div className="container mx-auto py-6 px-4 overflow-auto max-h-screen">
         {/* Statut du livreur */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-foreground flex items-center gap-3">
-                <Truck className="w-7 h-7 text-blue-600" />
-                Assignations Disponibles
-              </h1>
-            </div>
-            <div className="flex items-center gap-3">
-              <Button
-                variant={driverStatus === 'online' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setDriverStatus(driverStatus === 'online' ? 'offline' : 'online')}
-                className={driverStatus === 'online' ? 'bg-green-600 hover:bg-green-700' : ''}
-              >
-                <div className={`w-2 h-2 rounded-full mr-2 ${
-                  driverStatus === 'online' ? 'bg-white' : 'bg-green-500'
-                }`} />
-                {driverStatus === 'online' ? 'En ligne' : 'Hors ligne'}
-              </Button>
-            </div>
-          </div>
+        <div className="mb-6 flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-3">
+            <Truck className="w-7 h-7 text-blue-600" />
+            Assignations Disponibles
+          </h1>
+          <Button
+            aria-label={driverStatus === 'online' ? 'Passer hors ligne' : 'Passer en ligne'}
+            variant={driverStatus === 'online' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setDriverStatus(driverStatus === 'online' ? 'offline' : 'online')}
+            className={driverStatus === 'online' ? 'bg-green-600 hover:bg-green-700' : ''}
+          >
+            <div className={`w-2 h-2 rounded-full mr-2 ${
+              driverStatus === 'online' ? 'bg-white' : 'bg-green-500'
+            }`} />
+            {driverStatus === 'online' ? 'En ligne' : 'Hors ligne'}
+          </Button>
         </div>
 
         {/* Statistiques rapides */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <Card className="bg-gradient-to-r from-blue-50 to-blue-100">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
@@ -259,10 +251,11 @@ const LivreurDashboard = () => {
                   {assignments.length} livraison{assignments.length > 1 ? 's' : ''} disponible{assignments.length > 1 ? 's' : ''}
                 </h2>
                 <Button
+                  aria-label="Actualiser les assignations"
                   variant="outline"
                   size="sm"
-                  onClick={() => fetchAssignments()}
-                  disabled={loading}
+                  onClick={handleRefresh}
+                  disabled={refreshDisabled || loading}
                 >
                   <Bell className="w-4 h-4 mr-2" />
                   Actualiser
@@ -292,7 +285,7 @@ const LivreurDashboard = () => {
                   }
                 </p>
                 {driverStatus === 'offline' && (
-                  <Button onClick={() => setDriverStatus('online')}>
+                  <Button onClick={() => setDriverStatus('online')} aria-label="Passer en ligne">
                     Passer en ligne
                   </Button>
                 )}
@@ -304,38 +297,47 @@ const LivreurDashboard = () => {
     );
   };
 
+  const renderContent = () => {
+    switch (currentView) {
+      case 'finance':
+        return <DriverFinance />;
+      case 'tips':
+        return <DriverTips />;
+      case 'support':
+        return <DriverSupport />;
+      case 'settings':
+        return <DriverSettings />;
+      default:
+        return <MainDashboardContent />;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <DriverHeader />
-      
-      {/* Contenu principal avec flex-grow */}
-      <div className="flex-1">
-        {renderContent()}
-      </div>
+      <DriverOrderNotification />
+      <div className="flex-1">{renderContent()}</div>
 
-      {/* ✅ REMPLACÉ : Footer minimaliste et professionnel pour livreur */}
       <footer className="border-t bg-background mt-auto">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between text-sm">
-            <div className="flex items-center gap-4 text-muted-foreground">
-              <span className="font-semibold text-foreground">
-                <Truck className="inline w-4 h-4 mr-1" />
-                CourseMax Livreur
-              </span>
-              <span>•</span>
-              <span>© {new Date().getFullYear()}</span>
-            </div>
-            <div className="flex items-center gap-4 text-muted-foreground">
-              <Button variant="ghost" size="sm" className="h-auto p-0" onClick={() => navigate('/dashboard/livreur/aide')}>
-                <HelpCircle className="w-4 h-4 mr-1" />
-                Support
-              </Button>
-              <span>•</span>
-              <Button variant="ghost" size="sm" className="h-auto p-0" onClick={() => navigate('/dashboard/livreur/parametres')}>
-                <User className="w-4 h-4 mr-1" />
-                Paramètres
-              </Button>
-            </div>
+        <div className="container mx-auto px-4 py-4 flex flex-col sm:flex-row justify-between items-center text-sm text-muted-foreground">
+          <div className="flex items-center gap-4">
+            <span className="font-semibold text-foreground flex items-center">
+              <Truck className="inline w-4 h-4 mr-1" />
+              CourseMax Livreur
+            </span>
+            <span>•</span>
+            <span>© {new Date().getFullYear()}</span>
+          </div>
+          <div className="flex items-center gap-4 mt-2 sm:mt-0">
+            <Button variant="ghost" size="sm" className="h-auto p-0" onClick={() => navigate('/dashboard/livreur/aide')} aria-label="Support">
+              <HelpCircle className="w-4 h-4 mr-1" />
+              Support
+            </Button>
+            <span>•</span>
+            <Button variant="ghost" size="sm" className="h-auto p-0" onClick={() => navigate('/dashboard/livreur/parametres')} aria-label="Paramètres">
+              <User className="w-4 h-4 mr-1" />
+              Paramètres
+            </Button>
           </div>
         </div>
       </footer>

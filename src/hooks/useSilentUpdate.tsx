@@ -15,7 +15,7 @@ export const useSilentUpdate = () => {
 
   // Vérifier les mises à jour disponibles
   const checkForUpdates = useCallback(async () => {
-    if ('serviceWorker' in navigator) {
+    if ('serviceWorker' in navigator && navigator.serviceWorker) {
       try {
         const registration = await navigator.serviceWorker.ready;
         
@@ -36,7 +36,7 @@ export const useSilentUpdate = () => {
 
   // Forcer une mise à jour silencieuse
   const forceSilentUpdate = useCallback(async () => {
-    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+    if ('serviceWorker' in navigator && navigator.serviceWorker && navigator.serviceWorker.controller) {
       try {
         setUpdateStatus(prev => ({ ...prev, isUpdating: true }));
         
@@ -71,7 +71,7 @@ export const useSilentUpdate = () => {
 
   // Écouter les messages du Service Worker
   useEffect(() => {
-    if ('serviceWorker' in navigator) {
+    if ('serviceWorker' in navigator && navigator.serviceWorker) {
       const handleMessage = (event: MessageEvent) => {
         if (event.data?.type === 'RELOAD_PAGE') {
           console.log('🔄 Rechargement de page demandé par le Service Worker');
@@ -82,14 +82,14 @@ export const useSilentUpdate = () => {
       navigator.serviceWorker.addEventListener('message', handleMessage);
 
       return () => {
-        navigator.serviceWorker.removeEventListener('message', handleMessage);
+        navigator.serviceWorker?.removeEventListener('message', handleMessage);
       };
     }
   }, []);
 
   // Écouter les changements de Service Worker
   useEffect(() => {
-    if ('serviceWorker' in navigator) {
+    if ('serviceWorker' in navigator && navigator.serviceWorker) {
       const handleControllerChange = () => {
         console.log('🔄 Service Worker controller changé - mise à jour détectée');
         setUpdateStatus(prev => ({
@@ -101,7 +101,7 @@ export const useSilentUpdate = () => {
       navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
 
       return () => {
-        navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
+        navigator.serviceWorker?.removeEventListener('controllerchange', handleControllerChange);
       };
     }
   }, []);

@@ -113,14 +113,12 @@ export const SearchWithTracking: React.FC = () => {
   const { trackSearch } = useEventTracking();
 
   const handleSearch = async (searchQuery: string) => {
-    // Simuler une recherche
-    const mockResults = Array.from({ length: Math.floor(Math.random() * 10) }, (_, i) => ({ id: i }));
-    setResults(mockResults);
+    setResults([]);
 
     // Tracker la recherche
     trackSearch({
       query: searchQuery,
-      results_count: mockResults.length,
+      results_count: 0,
       filters: {}, // Ajouter les filtres actuels si applicable
     });
   };
@@ -141,7 +139,9 @@ export const SearchWithTracking: React.FC = () => {
       </div>
       
       <div className="text-sm text-muted-foreground">
-        {results.length} résultats trouvés
+        {results.length
+          ? `${results.length} résultats trouvés`
+          : "Aucun résultat pour l'instant - la recherche produit sera connectée prochainement."}
       </div>
     </div>
   );

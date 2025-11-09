@@ -24,7 +24,7 @@ export const useCart = (storeId?: string) => {
   const { toast } = useToast();
 
   const fetchCart = useCallback(async () => {
-    if (!user || !storeId) return;
+    if (!user?.id || !storeId) return;
 
     try {
       setLoading(true);
@@ -189,10 +189,10 @@ export const useCart = (storeId?: string) => {
   };
 
   useEffect(() => {
-    if (user && storeId) {
+    if (user?.id && storeId) {
       fetchCart();
     }
-  }, [user, storeId, fetchCart]);
+  }, [user?.id, storeId, fetchCart]);
 
   return {
     cartItems,

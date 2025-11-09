@@ -339,7 +339,7 @@ async function doBackgroundSync() {
   }
 
   public async registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
-    if ('serviceWorker' in navigator) {
+    if ('serviceWorker' in navigator && navigator.serviceWorker) {
       try {
         const swUrl = '/sw.js';
         const registration = await navigator.serviceWorker.register(swUrl);
@@ -351,7 +351,7 @@ async function doBackgroundSync() {
           const newWorker = registration.installing;
           if (newWorker) {
             newWorker.addEventListener('statechange', () => {
-              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              if (newWorker.state === 'installed' && navigator.serviceWorker && navigator.serviceWorker.controller) {
                 // Nouveau Service Worker disponible
                 this.showUpdateNotification();
               }
@@ -369,7 +369,7 @@ async function doBackgroundSync() {
   }
 
   private showUpdateNotification() {
-    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+    if ('serviceWorker' in navigator && navigator.serviceWorker && navigator.serviceWorker.controller) {
       // Afficher une notification pour mettre à jour l'app
       const notification = document.createElement('div');
       notification.className = 'fixed top-4 right-4 bg-primary text-primary-foreground p-4 rounded-lg shadow-lg z-50';

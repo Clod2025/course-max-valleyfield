@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
 export interface LoyaltySettings {
@@ -55,7 +55,7 @@ export const useLoyaltyAccount = () => {
       setLoading(true);
       setError(null);
 
-      // Charger les points de fidélité du profil utilisateur
+      // ✅ CORRECTION : Gérer l'erreur si la colonne n'existe pas
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('loyalty_points')
@@ -63,8 +63,14 @@ export const useLoyaltyAccount = () => {
         .single();
 
       if (profileError) {
-        console.warn('Erreur lors du chargement des points de fidélité:', profileError);
-        setPoints(0); // Valeur par défaut si erreur
+        // Si la colonne n'existe pas (code 42703), utiliser 0 comme valeur par défaut
+        if (profileError.code === '42703') {
+          console.warn('Colonne loyalty_points non trouvée, utilisation de 0 par défaut');
+          setPoints(0);
+        } else {
+          console.warn('Erreur lors du chargement des points de fidélité:', profileError);
+          setPoints(0);
+        }
       } else {
         setPoints(profile?.loyalty_points || 0);
       }
@@ -79,8 +85,10 @@ export const useLoyaltyAccount = () => {
   };
 
   useEffect(() => {
-    loadLoyaltyPoints();
-  }, [user]);
+    if (user?.id) {
+      loadLoyaltyPoints();
+    }
+  }, [user?.id]); // ✅ Utiliser user?.id au lieu de user
 
   return {
     points,

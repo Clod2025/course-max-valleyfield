@@ -1,8 +1,9 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { useMediaQuery } from '@/hooks/use-media-query';
 import {
   Home,
   Store,
@@ -20,6 +21,7 @@ import { ROUTES } from '@/constants/routes';
 export const BottomNavigation: React.FC = () => {
   const { user, profile, isRole } = useAuth();
   const location = useLocation();
+  const isMobile = useMediaQuery('(max-width: 1023px)');
 
   // ✅ Items de navigation selon le rôle
   const getBottomNavItems = () => {
@@ -72,7 +74,7 @@ export const BottomNavigation: React.FC = () => {
   const navItems = getBottomNavItems();
 
   // ✅ Masquer sur desktop et si pas d'utilisateur
-  if (!user || window.innerWidth >= 1024) {
+  if (!user || !isMobile) {
     return null;
   }
 

@@ -41,30 +41,52 @@ export const useRecentOrders = (limit: number = 10, options?: { enabled?: boolea
     queryFn: async (): Promise<RecentOrder[]> => {
       if (!user?.id) return [];
 
-      const { data, error } = await supabase
-        .from('orders')
-        .select(`
-          id,
-          order_number,
-          status,
-          total_amount,
-          delivery_address,
-          delivery_city,
-          created_at,
-          updated_at,
-          items,
-          store:stores(id, name, type)
-        `)
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(limit);
+      try {
+        // ✅ CORRECTION : Utiliser une syntaxe plus simple pour la relation stores
+        const { data, error } = await supabase
+          .from('orders')
+          .select(`
+            id,
+            order_number,
+            status,
+            total_amount,
+            delivery_address,
+            delivery_city,
+            created_at,
+            updated_at,
+            items,
+            store_id,
+            stores(id, name, type)
+          `)
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(limit);
 
-      if (error) throw error;
-      return data || [];
+        if (error) {
+          console.error('Erreur lors du chargement des commandes:', error);
+          // ✅ Retourner un tableau vide plutôt que de lancer une erreur pour éviter les boucles
+          return [];
+        }
+
+        // ✅ Transformer les données pour correspondre à l'interface RecentOrder
+        return (data || []).map((order: any) => ({
+          ...order,
+          store: (order.stores && Array.isArray(order.stores) ? order.stores[0] : order.stores) || { 
+            id: order.store_id, 
+            name: 'Magasin inconnu', 
+            type: '' 
+          }
+        }));
+      } catch (err) {
+        console.error('Erreur lors du chargement des commandes:', err);
+        return [];
+      }
     },
     staleTime: 2 * 60 * 1000, // 2 minutes - les commandes récentes doivent être fraîches
     gcTime: 5 * 60 * 1000, // 5 minutes en cache
     enabled: Boolean(user?.id) && (options?.enabled ?? true),
+    retry: 1, // ✅ Limiter les tentatives à 1 pour éviter les boucles
+    retryDelay: 1000, // ✅ Délai de 1 seconde entre les tentatives
   });
 };
 
@@ -73,30 +95,46 @@ export const useAllRecentOrders = (limit: number = 50, options?: { enabled?: boo
   return useQuery({
     queryKey: [...orderKeys.recent(), 'all', { limit }],
     queryFn: async (): Promise<RecentOrder[]> => {
-      const { data, error } = await supabase
-        .from('orders')
-        .select(`
-          id,
-          order_number,
-          status,
-          total_amount,
-          delivery_address,
-          delivery_city,
-          created_at,
-          updated_at,
-          items,
-          store:stores(id, name, type),
-          profiles(first_name, last_name, email)
-        `)
-        .order('created_at', { ascending: false })
-        .limit(limit);
+      try {
+        const { data, error } = await supabase
+          .from('orders')
+          .select(`
+            id,
+            order_number,
+            status,
+            total_amount,
+            delivery_address,
+            delivery_city,
+            created_at,
+            updated_at,
+            items,
+            store_id,
+            stores(id, name, type),
+            profiles(first_name, last_name, email)
+          `)
+          .order('created_at', { ascending: false })
+          .limit(limit);
 
-      if (error) throw error;
-      return data || [];
+        if (error) {
+          console.error('Erreur lors du chargement de toutes les commandes:', error);
+          return [];
+        }
+
+        // ✅ Transformer les données
+        return (data || []).map((order: any) => ({
+          ...order,
+          store: order.stores || { id: order.store_id, name: 'Magasin inconnu', type: '' }
+        }));
+      } catch (err) {
+        console.error('Erreur lors du chargement de toutes les commandes:', err);
+        return [];
+      }
     },
     staleTime: 1 * 60 * 1000, // 1 minute pour les admins
     gcTime: 3 * 60 * 1000, // 3 minutes en cache
     enabled: options?.enabled ?? true,
+    retry: 1, // ✅ Ajouter retry limité
+    retryDelay: 1000,
   });
 };
 
@@ -136,29 +174,45 @@ export const useOrdersByStatus = (
   return useQuery({
     queryKey: [...orderKeys.byStatus(status)],
     queryFn: async (): Promise<RecentOrder[]> => {
-      const { data, error } = await supabase
-        .from('orders')
-        .select(`
-          id,
-          order_number,
-          status,
-          total_amount,
-          delivery_address,
-          delivery_city,
-          created_at,
-          updated_at,
-          items,
-          store:stores(id, name, type),
-          profiles(first_name, last_name, email)
-        `)
-        .eq('status', status)
-        .order('created_at', { ascending: false });
+      try {
+        const { data, error } = await supabase
+          .from('orders')
+          .select(`
+            id,
+            order_number,
+            status,
+            total_amount,
+            delivery_address,
+            delivery_city,
+            created_at,
+            updated_at,
+            items,
+            store_id,
+            stores(id, name, type),
+            profiles(first_name, last_name, email)
+          `)
+          .eq('status', status)
+          .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      return data || [];
+        if (error) {
+          console.error('Erreur lors du chargement des commandes par statut:', error);
+          return [];
+        }
+
+        // ✅ Transformer les données
+        return (data || []).map((order: any) => ({
+          ...order,
+          store: order.stores || { id: order.store_id, name: 'Magasin inconnu', type: '' }
+        }));
+      } catch (err) {
+        console.error('Erreur lors du chargement des commandes par statut:', err);
+        return [];
+      }
     },
     staleTime: 30 * 1000, // 30 secondes pour les statuts actifs
     gcTime: 2 * 60 * 1000, // 2 minutes en cache
     enabled: Boolean(status) && (options?.enabled ?? true),
+    retry: 1, // ✅ Ajouter retry limité
+    retryDelay: 1000,
   });
 };

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -38,7 +38,7 @@ interface HelpMessage {
   resolved_at?: string;
 }
 
-export function HelpMessagesManager() {
+export default function HelpMessagesManager() {
   const { toast } = useToast();
   const [messages, setMessages] = useState<HelpMessage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,11 +46,13 @@ export function HelpMessagesManager() {
   const [adminResponse, setAdminResponse] = useState('');
   const [responding, setResponding] = useState(false);
 
-  useEffect(() => {
-    loadMessages();
-  }, []);
+  const toastRef = useRef(toast);
 
-  const loadMessages = async () => {
+  useEffect(() => {
+    toastRef.current = toast;
+  }, [toast]);
+
+  const loadMessages = useCallback(async () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
@@ -76,7 +78,7 @@ export function HelpMessagesManager() {
       }
     } catch (error: any) {
       console.error('Erreur lors du chargement des messages:', error);
-      toast({
+      toastRef.current({
         title: "Erreur",
         description: "Impossible de charger les messages d'aide",
         variant: "destructive"
@@ -84,7 +86,11 @@ export function HelpMessagesManager() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadMessages();
+  }, [loadMessages]);
 
   const updateMessageStatus = async (messageId: string, status: string, response?: string) => {
     try {

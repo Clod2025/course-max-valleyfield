@@ -22,7 +22,7 @@ import {
 import { cn } from '@/lib/utils';
 import { deliveryPricingService, MultiMerchantDeliveryCalculation } from '@/services/DeliveryPricingService';
 import { distanceCalculatorService } from '@/services/DistanceCalculatorService';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
 
 export interface MultiMerchantCartItem {

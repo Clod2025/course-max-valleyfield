@@ -90,39 +90,8 @@ export function NotificationBar({ merchantId }: NotificationBarProps) {
 
     } catch (error) {
       console.error('Erreur lors du chargement des notifications:', error);
-      // Notifications de démonstration
-      const demoNotifications: Notification[] = [
-        {
-          id: 'demo-1',
-          type: 'warning',
-          title: 'Commande en attente',
-          message: 'Commande #1234 en attente de traitement',
-          timestamp: new Date(Date.now() - 300000),
-          read: false,
-          action: {
-            label: 'Voir',
-            onClick: () => console.log('Voir commande')
-          }
-        },
-        {
-          id: 'demo-2',
-          type: 'success',
-          title: 'Produit ajouté',
-          message: 'Le produit "Pommes Golden" a été ajouté avec succès',
-          timestamp: new Date(Date.now() - 600000),
-          read: false
-        },
-        {
-          id: 'demo-3',
-          type: 'info',
-          title: 'Nouvel employé',
-          message: 'Marie Martin a été ajoutée comme superviseur',
-          timestamp: new Date(Date.now() - 900000),
-          read: true
-        }
-      ];
-      setNotifications(demoNotifications);
-      setUnreadCount(demoNotifications.filter(n => !n.read).length);
+      setNotifications([]);
+      setUnreadCount(0);
     }
   };
 

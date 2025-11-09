@@ -10,7 +10,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { usePayments } from '@/hooks/usePayments';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 
 const StripeConnect = () => {

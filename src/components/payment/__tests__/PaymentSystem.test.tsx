@@ -12,7 +12,7 @@ jest.mock('@/hooks/use-toast', () => ({
   }))
 }));
 
-jest.mock('@/hooks/useAuth', () => ({
+jest.mock('@/contexts/AuthContext', () => ({
   useAuth: jest.fn(() => ({
     user: { id: 'test-user', email: 'test@example.com' }
   }))

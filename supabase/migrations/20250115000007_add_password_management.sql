@@ -4,7 +4,8 @@
 -- Ajouter les colonnes pour la gestion des mots de passe
 ALTER TABLE commis 
 ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN DEFAULT true,
-ADD COLUMN IF NOT EXISTS last_password_change TIMESTAMP WITH TIME ZONE;
+ADD COLUMN IF NOT EXISTS last_password_change TIMESTAMP WITH TIME ZONE,
+ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
 
 -- Index pour optimiser les requêtes
 CREATE INDEX IF NOT EXISTS idx_commis_must_change_password ON commis(must_change_password);
@@ -29,7 +30,7 @@ BEGIN
   -- Vérifier que l'utilisateur est un marchand
   IF NOT EXISTS (
     SELECT 1 FROM public.profiles 
-    WHERE id = auth.uid() AND role IN ('merchant', 'store_manager', 'marchand')
+    WHERE user_id = auth.uid() AND role IN ('merchant', 'store_manager', 'marchand')
   ) THEN
     RAISE EXCEPTION 'Accès refusé : utilisateur non autorisé';
   END IF;
@@ -85,13 +86,14 @@ BEGIN
   END IF;
   
   -- Vérifier que l'utilisateur est un marchand
-  SELECT id INTO v_merchant_id
-  FROM public.profiles 
-  WHERE id = auth.uid() AND role IN ('merchant', 'store_manager', 'marchand');
-  
-  IF v_merchant_id IS NULL THEN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.profiles 
+    WHERE user_id = auth.uid() AND role IN ('merchant', 'store_manager', 'marchand')
+  ) THEN
     RAISE EXCEPTION 'Accès refusé : utilisateur non autorisé';
   END IF;
+
+  v_merchant_id := auth.uid();
   
   -- Rechercher le commis
   SELECT * INTO v_commis
@@ -134,7 +136,8 @@ BEGIN
     must_change_password = false,
     last_password_change = NOW(),
     updated_at = NOW()
-  WHERE id = p_commis_id;
+  WHERE id = p_commis_id
+    AND merchant_id = v_merchant_id;
   
   RETURN TRUE;
 END;
@@ -152,13 +155,14 @@ BEGIN
   END IF;
   
   -- Vérifier que l'utilisateur est un marchand
-  SELECT id INTO v_merchant_id
-  FROM public.profiles 
-  WHERE id = auth.uid() AND role IN ('merchant', 'store_manager', 'marchand');
-  
-  IF v_merchant_id IS NULL THEN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.profiles 
+    WHERE user_id = auth.uid() AND role IN ('merchant', 'store_manager', 'marchand')
+  ) THEN
     RAISE EXCEPTION 'Accès refusé : utilisateur non autorisé';
   END IF;
+
+  v_merchant_id := auth.uid();
   
   -- Vérifier que le commis appartient au marchand
   IF NOT EXISTS (
@@ -173,7 +177,8 @@ BEGIN
   SET 
     must_change_password = true,
     updated_at = NOW()
-  WHERE id = p_commis_id;
+  WHERE id = p_commis_id
+    AND merchant_id = v_merchant_id;
   
   RETURN TRUE;
 END;
